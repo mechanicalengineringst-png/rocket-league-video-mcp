@@ -14,9 +14,8 @@
       "id": "0195c5e5e70647ae840c42607411041f"
     }
   ],
-  "secrets": {
-    "required": ["GEMINI_API_KEY", "GITHUB_CLIENT_ID", "GITHUB_CLIENT_SECRET"]
-  },
+  // First Git deployment can precede secret creation. Source responds with
+  // 503 until three encrypted Worker secrets are configured in Cloudflare.
   "vars": {
     "NODE_ENV": "production",
     "MCP_PUBLIC_URL": "https://rocket-league-video-mcp.mechanicalenginering-s-t.workers.dev/mcp",
