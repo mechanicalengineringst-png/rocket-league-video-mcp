@@ -44,7 +44,7 @@ githubAuth.get('/authorize', async (c) => {
     </html>`;
   consent.headers.set('Content-Type', 'text/html; charset=utf-8');
   consent.headers.set('Cache-Control', 'no-store');
-  return new Response(page, { headers: consent.headers });
+  return new Response(await page, { headers: consent.headers });
 });
 
 githubAuth.post('/authorize', async (c) => {
