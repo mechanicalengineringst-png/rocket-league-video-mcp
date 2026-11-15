@@ -7,9 +7,9 @@
  * gate after OAuthProvider has already checked the token.
  */
 import OAuthProvider from '@cloudflare/workers-oauth-provider';
+import { githubAuth } from './github-oauth';
 import { createApp } from './platform/app';
 import { parseConfig } from './platform/config';
-import { githubAuth } from './github-oauth';
 
 type VideoEnv = Env & {
   OAUTH_KV: KVNamespace;
@@ -27,10 +27,7 @@ const apiHandler = {
       auth?: { scope?: string[] };
       props?: { githubUserId?: string };
     };
-    if (
-      caller.props?.githubUserId !== '357125258' ||
-      !caller.auth?.scope?.includes('mcp:read')
-    ) {
+    if (caller.props?.githubUserId !== '357125258' || !caller.auth?.scope?.includes('mcp:read')) {
       return new Response('Forbidden', { status: 403 });
     }
     const config = parseConfig({ ...env, AUTH_MODE: 'none' });
@@ -53,8 +50,6 @@ export default new OAuthProvider<VideoEnv>({
   clientIdMetadataDocumentEnabled: true,
   resourceMetadata: {
     resource: 'https://rocket-league-video-mcp.mechanicalenginering-s-t.workers.dev/mcp',
-    authorization_servers: [
-      'https://rocket-league-video-mcp.mechanicalenginering-s-t.workers.dev',
-    ],
+    authorization_servers: ['https://rocket-league-video-mcp.mechanicalenginering-s-t.workers.dev'],
   },
 });
