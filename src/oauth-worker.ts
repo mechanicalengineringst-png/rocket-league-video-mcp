@@ -21,6 +21,9 @@ type VideoEnv = Env & {
 
 const apiHandler = {
   async fetch(request: Request, env: VideoEnv, ctx: ExecutionContext) {
+    if (!env.GEMINI_API_KEY || !env.GITHUB_CLIENT_ID || !env.GITHUB_CLIENT_SECRET) {
+      return new Response('Service is not configured yet.', { status: 503 });
+    }
     // OAuthProvider verifies the token; the tool gate additionally enforces
     // the exact owner identity and the mcp:read scope before any Gemini calls.
     const caller = ctx as ExecutionContext & {
