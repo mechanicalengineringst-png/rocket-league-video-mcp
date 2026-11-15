@@ -21,7 +21,18 @@ type VideoEnv = Env & {
 
 const apiHandler = {
   async fetch(request: Request, env: VideoEnv, ctx: ExecutionContext) {
-    // Only OAuthProvider forwards authorized /mcp requests here.
+    // OAuthProvider verifies the token; the tool gate additionally enforces
+    // the exact owner identity and the mcp:read scope before any Gemini calls.
+    const caller = ctx as ExecutionContext & {
+      auth?: { scope?: string[] };
+      props?: { githubUserId?: string };
+    };
+    if (
+      caller.props?.githubUserId !== '357125258' ||
+      !caller.auth?.scope?.includes('mcp:read')
+    ) {
+      return new Response('Forbidden', { status: 403 });
+    }
     const config = parseConfig({ ...env, AUTH_MODE: 'none' });
     const app = createApp(config, {
       runtime: { waitUntil: (promise) => ctx.waitUntil(promise) },
