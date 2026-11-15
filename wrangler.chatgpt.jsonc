@@ -1,0 +1,33 @@
+// ChatGPT-facing production deployment. This file contains no secrets.
+// Before deployment, replace the KV namespace ID with the one you create in
+// Cloudflare: Storage & databases -> KV -> Create namespace.
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "rocket-league-video-mcp",
+  "main": "src/oauth-worker.ts",
+  "compatibility_date": "2026-09-08",
+  "compatibility_flags": ["nodejs_compat", "enable_request_signal", "global_fetch_strictly_public"],
+  "workers_dev": true,
+  "kv_namespaces": [
+    {
+      "binding": "OAUTH_KV",
+      "id": "0195c5e5e70647ae840c42607411041f"
+    }
+  ],
+  // First Git deployment can precede secret creation. Source responds with
+  // 503 until three encrypted Worker secrets are configured in Cloudflare.
+  "vars": {
+    "NODE_ENV": "production",
+    "MCP_PUBLIC_URL": "https://rocket-league-video-mcp.mechanicalenginering-s-t.workers.dev/mcp",
+    "MCP_ALLOWED_HOSTS": "rocket-league-video-mcp.mechanicalenginering-s-t.workers.dev",
+    "MCP_ALLOWED_ORIGIN_HOSTNAMES": "rocket-league-video-mcp.mechanicalenginering-s-t.workers.dev,chatgpt.com",
+    "MCP_LEGACY_MODE": "stateless",
+    "MCP_MAX_REQUEST_BYTES": "1048576",
+    "LOG_LEVEL": "info"
+  },
+  "observability": {
+    "enabled": true,
+    "logs": { "enabled": true, "head_sampling_rate": 1 },
+    "traces": { "enabled": true, "head_sampling_rate": 0.1 }
+  }
+}
