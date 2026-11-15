@@ -17,5 +17,5 @@
     "allowImportingTsExtensions": true
   },
   "include": ["src", "tests", "scripts"],
-  "exclude": ["src/worker.ts"]
+  "exclude": ["src/worker.ts", "src/oauth-worker.ts", "src/github-oauth.ts"]
 }
