@@ -1,50 +1,51 @@
-# ChatGPT video MCP integration (work in progress)
+# ChatGPT video MCP: deployment and verification
 
-This branch is **not deployment-ready** until dependencies and the OAuth flow
-have been tested. Do not deploy the original `wrangler.jsonc` (it is configured
-for loopback development without authentication).
+This code prepares an OAuth-protected public YouTube video-analysis tool for
+ChatGPT. **A build/test pass does not prove the live OAuth login works.**
+Do not connect ChatGPT until the deployed login and MCP handshake have been tested.
 
-## Target
+## Resources
 
-- ChatGPT MCP endpoint: `https://rocket-league-video-mcp.mechanicalenginering-s-t.workers.dev/mcp`
-- Worker name: `rocket-league-video-mcp`
-- GitHub login allowed: `mechanicalengineringst-png` (numeric ID 357125258)
-- GitHub callback: `https://rocket-league-video-mcp.mechanicalenginering-s-t.workers.dev/callback`
-- Video tool: existing `watch_video`, forwarded from an OAuth-protected Worker
+- Repo: `mechanicalengineringst-png/rocket-league-video-mcp`
+- Worker: `rocket-league-video-mcp`
+- Endpoint: `https://rocket-league-video-mcp.mechanicalenginering-s-t.workers.dev/mcp`
+- GitHub authorization callback:
+  `https://rocket-league-video-mcp.mechanicalenginering-s-t.workers.dev/callback`
+- Allowed GitHub identity: `mechanicalengineringst-png`, user ID 357125258
+- Cloudflare KV namespace: `rocket-league-video-oauth` (ID bound in `wrangler.chatgpt.jsonc`)
 
-## Changes in this branch
+## Safe first Git deployment
 
-- `src/github-oauth.ts`: consent, GitHub sign-in, and owner-only check
-- `src/oauth-worker.ts`: Cloudflare OAuth gateway around the existing MCP implementation
-- `wrangler.chatgpt.jsonc`: production configuration template (with a placeholder KV namespace)
-- `package.json`: dependency on Cloudflare's OAuth provider
-
-No Gemini or GitHub secrets belong in GitHub files. No OAuth app credentials
-are committed to this repository.
-
-## Before deploying
-
-1. Create a Cloudflare Workers KV namespace called `rocket-league-video-oauth`.
-   Copy its namespace **ID**, not an API token, into the
-   `REPLACE_WITH_CLOUDFLARE_KV_NAMESPACE_ID` placeholder in
-   `wrangler.chatgpt.jsonc`.
-2. Synchronize `bun.lock` with the `package.json` change (`bun install`).
-3. Run dependency install, TypeScript checks, and a real OAuth integration
-   test. Confirm `401`/OAuth discovery without credentials and `403` for
-   unauthorized users.
-4. Store these values as Cloudflare Worker secrets (never GitHub source code):
-   `GEMINI_API_KEY`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`.
-5. Deploy from Cloudflare with
+1. The GitHub branch needs passing GitHub Actions checks and then can be
+   merged into `main`. The Cloudflare Git integration deploys from that branch.
+2. In Cloudflare Workers & Pages -> Create application -> Connect GitHub, use
+   this repo and set Worker name `rocket-league-video-mcp`.
+3. Build command: `bun install --frozen-lockfile`. Deploy command:
    `npx wrangler deploy --config wrangler.chatgpt.jsonc`.
-   The initial deployment may require setting the secrets at the same time.
-   Do not use `npx wrangler deploy` without the specified configuration.
-6. Use the live `/mcp` URL in ChatGPT's **Add custom MCP server** form, with
-   OAuth selected. Verify a real private sign-in and a short public YouTube
-   test before considering the integration complete.
+   **Do not** use the default `npx wrangler deploy` command, which selects
+   `wrangler.jsonc` (development-only and wrong Worker name).
+4. The initial Worker may be created without secrets; the login and MCP
+   application deliberately return `503` until credentials are configured.
+   Unauthenticated callers never reach Gemini. This is a deliberate
+   fail-closed first-deployment arrangement, not a working installation.
+5. In Cloudflare Workers & Pages -> Worker -> Settings -> Variables and
+   Secrets, add each as a **Secret** (not plaintext variable):
+   `GEMINI_API_KEY`, `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`.
+   Never put values in GitHub source, GitHub Actions logs, or ChatGPT chat.
+6. Publish the changed Worker settings if prompted. Never share a screenshot
+   that exposes the secret values.
 
-The existing Gemini service may exceed Cloudflare Workers Free limits on
-long-running calls. Test short clips first and watch usage. Gemini may also
-have separate usage or billing limits.
+## Required live verification after secrets
 
-This is a single-user setup. Changing the account or Worker hostname
-requires updating both the OAuth account check and resource URL.
+- The Worker must answer OAuth discovery and require authorization at `/mcp`
+  rather than permitting an unauthenticated MCP request.
+- `/authorize` must show consent before GitHub login and return successfully
+  only for GitHub account ID 357125258.
+- Reject the wrong GitHub account without issuing access to Gemini.
+- Confirm ChatGPT's OAuth redirect and token handshake actually work.
+- Test one **short, public** YouTube video via `watch_video`; inspect results
+  and Google/Cloudflare usage before attempting lengthy gameplay.
+
+The main video-processing service is inherited from the upstream project and
+has not been modified. Long tasks may exceed Workers Free CPU/time limits or
+Gemini free quotas. The connection is **not live** until these tests pass.
