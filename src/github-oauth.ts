@@ -65,7 +65,9 @@ githubAuth.post('/authorize', async (c) => {
 
   const challenge = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
   const challenge64 = btoa(String.fromCharCode(...new Uint8Array(challenge)))
-    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '');
   const redirect = new URL('https://github.com/login/oauth/authorize');
   redirect.searchParams.set('client_id', c.env.GITHUB_CLIENT_ID);
   redirect.searchParams.set('redirect_uri', new URL('/callback', c.req.url).href);
@@ -79,8 +81,11 @@ githubAuth.post('/authorize', async (c) => {
 
 githubAuth.get('/callback', async (c) => {
   const oauth = c.env.OAUTH_PROVIDER;
-  const { request: original, data, headers } =
-    await oauth.finishUpstream<{ verifier: string }>(c.req.raw);
+  const {
+    request: original,
+    data,
+    headers,
+  } = await oauth.finishUpstream<{ verifier: string }>(c.req.raw);
   const code = new URL(c.req.url).searchParams.get('code');
   if (!code) return c.text('GitHub did not return an authorization code.', 400);
 
