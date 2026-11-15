@@ -7,10 +7,20 @@ type OAuthBindings = Env & {
   OAUTH_KV: KVNamespace;
   GITHUB_CLIENT_ID: string;
   GITHUB_CLIENT_SECRET: string;
+  GEMINI_API_KEY: string;
 };
 
 const ALLOWED_GITHUB_USER_ID = 357125258; // mechanicalengineringst-png
 const githubAuth = new Hono<{ Bindings: OAuthBindings }>();
+
+// This Worker can be created before secrets exist, but never authorize or
+// spend Gemini quota until all three credentials are configured.
+githubAuth.use('*', async (c, next) => {
+  if (!c.env.GITHUB_CLIENT_ID || !c.env.GITHUB_CLIENT_SECRET || !c.env.GEMINI_API_KEY) {
+    return c.text('Service is not configured yet.', 503);
+  }
+  await next();
+});
 
 // Consent precedes GitHub login. Cloudflare binds the consent handle and OAuth
 // state to the browser; another MCP client cannot reuse prior approval silently.
