@@ -51,7 +51,8 @@
       </div>
       <div class="view-controls panel" aria-label="Replay field display controls">
         <span class="control-title">VIEW OPTIONS</span>
-        <label class="view-toggle"><input type="checkbox" id="showTravel" checked /> Travel arrows</label>
+        <label class="view-toggle"><input type="checkbox" id="showFacing" checked /> Car facing (nose)</label>
+        <label class="view-toggle"><input type="checkbox" id="showTravel" /> Travel arrows</label>
         <label class="view-toggle"><input type="checkbox" id="showHeights" checked /> Height labels</label>
         <label class="view-toggle"><input type="checkbox" id="showTrail" /> My recent path (2s)</label>
         <label class="view-toggle"><input type="checkbox" id="showBallTrail" /> Ball path (1.5s)</label>
@@ -74,7 +75,7 @@
           <text x="380" y="963" fill="#79aeff" font-size="12" text-anchor="middle" letter-spacing="3">BLUE GOAL</text>
           <g id="dynamicLayers"></g>
         </svg>
-        <div class="pitch-note">Arrows = horizontal travel velocity, <strong>not car facing</strong>. Height labels use replay units (u). Paths only show past movement; no speculative optimal routes.</div>
+        <div class="pitch-note">White tips = where cars face; travel arrows = actual horizontal velocity. Height labels are in game units (u); paths only show past movement.</div>
       </div>
       <div class="playback panel">
         <div class="playback-head"><div><strong id="timeValue">00:00</strong><span id="timelineHelp">Replay time (including stoppages)</span></div><span id="boostValue">BOOST —</span></div>
