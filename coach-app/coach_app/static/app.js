@@ -1,6 +1,6 @@
 'use strict';
 const $ = id => document.getElementById(id);
-const state = { replay: null, findings: [], focusId: null, selectedId: null, time: 0, playing: false, timer: null, overrides: new Map(), view: {travel:true, heights:true, trail:false, ballTrail:false}, speed:1, momentFilter:'all', videoUrl:null, videoOffset:0 };
+const state = { replay: null, findings: [], focusId: null, selectedId: null, time: 0, playing: false, timer: null, overrides: new Map(), view: {facing:true, travel:false, heights:true, trail:false, ballTrail:false}, speed:1, momentFilter:'all', videoUrl:null, videoOffset:0 };
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const sx = x => 58 + ((Number(x) + 4096) / 8192) * 644;
 const sy = y => 50 + ((5120 - Number(y)) / 10240) * 870;
@@ -179,6 +179,17 @@ function renderPitch(){
       ].map(a=>a.join(',')).join(' '),fill:color,opacity:'.95'}));
     }
     group.append(el('circle',{cx:x,cy:y,r:isFocus?13:11,fill:color,stroke:isFocus?'#f4ffff':'#b9d7e4','stroke-width':isFocus?2.3:1.3}));
+    // The source's rotation Z is yaw in radians (validated against opposite kickoff spawns).
+    // The white nose indicates facing; the optional colored arrow indicates travel velocity.
+    const yaw=car.rotation?.[2];
+    if(state.view.facing&&Number.isFinite(yaw)){
+      const fx=Math.cos(yaw),fy=-Math.sin(yaw),tip=21,back=10,side=6;
+      const tx=x+fx*tip,ty=y+fy*tip;
+      const baseX=x+fx*back,baseY=y+fy*back;
+      group.append(el('polygon',{points:[[tx,ty],[baseX-fy*side,baseY+fx*side],
+        [baseX+fy*side,baseY-fx*side]].map(a=>a.join(',')).join(' '),
+        fill:'#f3ffff',stroke:'#10202d','stroke-width':1.5}));
+    }
     group.append(el('text',{x,y:y+4,'text-anchor':'middle',fill:'#091924','font-size':10,'font-weight':800},isFocus?'F':p.team==='blue'?'B':'O'));
     const name=p.name.slice(0,16);
     group.append(el('text',{x,y:y-31,fill:'#f1f8fa','font-size':isFocus?12:11,
@@ -344,7 +355,7 @@ function wire(){
     if(state.videoUrl)$('gameVideo').playbackRate=state.speed;
     if(state.playing){stopPlay();togglePlay();}
   };
-  for(const [id,key] of [['showTravel','travel'],['showHeights','heights'],['showTrail','trail'],['showBallTrail','ballTrail']]){
+  for(const [id,key] of [['showFacing','facing'],['showTravel','travel'],['showHeights','heights'],['showTrail','trail'],['showBallTrail','ballTrail']]){
     $(id).onchange=e=>{state.view[key]=e.target.checked;renderPitch();};
   }
   $('momentFilter').onchange=e=>{
