@@ -144,6 +144,21 @@ def _events(event_data: dict, players: list[dict], times: list[float]) -> tuple[
             idx -= 1
         item = {'type': kind, 't': round(t, 3), 'nativeFrame': frame,
                 'sampleIndex': idx, 'playerId': pid if pid in known else None}
+        if kind == 'touch':
+            tags = content.get('tags', [])
+            tags = tags if isinstance(tags, list) else []
+            safe_tags = {}
+            for tag in tags[:14]:
+                if not isinstance(tag, dict):
+                    continue
+                group, value = tag.get('group'), tag.get('value')
+                if isinstance(group, str) and isinstance(value, str):
+                    safe_tags[group[:32]] = value[:64]
+            item['touchKind'] = safe_tags.get('kind')
+            item['touchHeightBand'] = safe_tags.get('height_band')
+            item['touchDodgeState'] = safe_tags.get('dodge_state')
+            change = _finite(content.get('ball_speed_change'))
+            item['ballSpeedChange'] = round(change, 1) if change is not None else None
         if kind == 'goal_context':
             item['scorerId'] = _player_key(content.get('scorer'))
             item['scoringTeam'] = 'blue' if content.get('scoring_team_is_team_0') else 'orange'
@@ -179,6 +194,10 @@ def normalize_subtr_replay(meta: dict, data: Any, event_data: dict,
     clock = _column(gh, 'seconds remaining')
     px = _column(ph, 'position x'); py = _column(ph, 'position y')
     pz = _column(ph, 'position z'); pb = _column(ph, 'boost level (raw replay units)')
+    try:
+        pj = _column(ph, 'any_jump_active')
+    except SubtrReplayError:
+        pj = None  # Support older fixture schemas without a jump signal.
     # Rotation and velocity are preserved, not discarded, for future analysis.
     ball_velocity = [_column(gh, f'Ball - linear velocity {axis}') for axis in 'xyz']
     player_velocity = [_column(ph, f'linear velocity {axis}') for axis in 'xyz']
@@ -207,6 +226,10 @@ def normalize_subtr_replay(meta: dict, data: Any, event_data: dict,
             car = {'x': round(pos[0], 2), 'y': round(pos[1], 2),
                    'z': round(pos[2], 2), 'boost': round(min(100., max(0., raw_boost / 255 * 100)), 1)
                    if raw_boost is not None else None}
+            if pj is not None:
+                jump = _finite(row[base + pj])
+                if jump is not None:
+                    car['jumpActive'] = jump >= 0.5
             velocity = [_finite(row[base + off]) for off in player_velocity]
             rotation = [_finite(row[base + off]) for off in player_rotation]
             if all(v is not None for v in velocity):
