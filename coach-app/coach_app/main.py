@@ -17,7 +17,7 @@ from .replays import ReplayParseError, parse_replay_file
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 MAX_COACH_BYTES = 2 * 1024 * 1024
 STATIC = Path(__file__).parent / 'static'
-app = FastAPI(title='Rocket League Replay Coach', version='0.1.0')
+app = FastAPI(title='Rocket League Replay Coach', version='0.2.0')
 app.mount('/static', StaticFiles(directory=STATIC), name='static')
 
 
@@ -28,7 +28,7 @@ def index():
 
 @app.get('/api/health')
 def health():
-    return {'status': 'ok', 'mode': 'local-first', 'geminiConfigured': bool(os.getenv('GEMINI_API_KEY'))}
+    return {'status': 'ok', 'mode': 'local-first', 'decoder': 'subtr-actor', 'geminiConfigured': bool(os.getenv('GEMINI_API_KEY'))}
 
 
 @app.post('/api/replays')
@@ -55,7 +55,7 @@ async def upload_replay(request: Request):
         except ReplayParseError as e:
             raise HTTPException(422, str(e)) from e
     result['title'] = Path(filename).stem[:128]
-    return {'replay': result, 'candidates': find_review_candidates(result, result['players'][0]['id'])}
+    return {'replay': result, 'candidates': find_review_candidates(result, result.get('primaryPlayerId') or result['players'][0]['id'])}
 
 
 class ReviewRequest(BaseModel):
@@ -88,7 +88,7 @@ async def ai_review(request: Request):
 
     instruction = (
         'You are a Rocket League replay analyst, not a narrator. Analyze the following sparse '
-        '0.5s-ish time-sampled numerical replay states. Without video or inputs, you CANNOT '
+        'time-sampled numerical replay states. Without video or inputs, you CANNOT '
         'know exact intent, camera perception, hits between samples, or hypothetical outcomes. '
         'Provide up to three specific, time-coded game-sense REVIEW HYPOTHESES about the focus '
         'player, each with observed evidence, alternatives and uncertainties. Be conservative. '
