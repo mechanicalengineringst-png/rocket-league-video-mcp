@@ -13,6 +13,18 @@ type OAuthBindings = Env & {
 const ALLOWED_GITHUB_USER_ID = 357125258; // mechanicalengineringst-png
 const githubAuth = new Hono<{ Bindings: OAuthBindings }>();
 
+// Log only the step and exception class, never OAuth codes, browser state,
+// access tokens, request URLs, cookie values, or raw exception messages.
+async function callbackStep<T>(stage: string, operation: () => Promise<T>): Promise<T> {
+  try {
+    return await operation();
+  } catch (error) {
+    const type = error instanceof Error ? error.name : 'UnknownError';
+    console.error('[video-mcp oauth] callback failure', { stage, type });
+    throw error;
+  }
+}
+
 // This Worker can be created before secrets exist, but never authorize or
 // spend Gemini quota until all three credentials are configured.
 githubAuth.use('*', async (c, next) => {
@@ -95,49 +107,76 @@ githubAuth.get('/callback', async (c) => {
     request: original,
     data,
     headers,
-  } = await oauth.finishUpstream<{ verifier: string }>(c.req.raw);
+  } = await callbackStep('restore-upstream-state', () =>
+    oauth.finishUpstream<{ verifier: string }>(c.req.raw),
+  );
   const code = new URL(c.req.url).searchParams.get('code');
   if (!code) return c.text('GitHub did not return an authorization code.', 400);
 
-  const exchange = await fetch('https://github.com/login/oauth/access_token', {
-    method: 'POST',
-    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      client_id: c.env.GITHUB_CLIENT_ID,
-      client_secret: c.env.GITHUB_CLIENT_SECRET,
-      code,
-      code_verifier: data.verifier,
-      redirect_uri: new URL('/callback', c.req.url).href,
+  const exchange = await callbackStep('github-token-exchange', () =>
+    fetch('https://github.com/login/oauth/access_token', {
+      method: 'POST',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client_id: c.env.GITHUB_CLIENT_ID,
+        client_secret: c.env.GITHUB_CLIENT_SECRET,
+        code,
+        code_verifier: data.verifier,
+        redirect_uri: new URL('/callback', c.req.url).href,
+      }),
+      redirect: 'error',
     }),
-    redirect: 'error',
-  });
-  if (!exchange.ok) return c.text('GitHub authorization could not be completed.', 502);
-  const token = (await exchange.json()) as { access_token?: string };
-  if (!token.access_token) return c.text('GitHub did not issue an access token.', 502);
+  );
+  if (!exchange.ok) {
+    console.error('[video-mcp oauth] github token endpoint non-success', {
+      status: exchange.status,
+    });
+    return c.text('GitHub authorization could not be completed.', 502);
+  }
+  const token = (await callbackStep('parse-github-token', () => exchange.json())) as {
+    access_token?: string;
+    error?: string;
+  };
+  if (!token.access_token) {
+    console.error('[video-mcp oauth] github token response missing access_token', {
+      error: token.error === 'bad_verification_code' ? 'bad_verification_code' : 'unspecified',
+    });
+    return c.text('GitHub did not issue an access token.', 502);
+  }
 
-  const whoami = await fetch('https://api.github.com/user', {
-    headers: {
-      Authorization: `Bearer ${token.access_token}`,
-      Accept: 'application/vnd.github+json',
-      'User-Agent': 'rocket-league-video-mcp',
-    },
-    redirect: 'error',
-  });
-  if (!whoami.ok) return c.text('Could not verify the GitHub account.', 502);
-  const identity = (await whoami.json()) as { id?: number; login?: string };
+  const whoami = await callbackStep('github-user-request', () =>
+    fetch('https://api.github.com/user', {
+      headers: {
+        Authorization: `Bearer ${token.access_token}`,
+        Accept: 'application/vnd.github+json',
+        'User-Agent': 'rocket-league-video-mcp',
+      },
+      redirect: 'error',
+    }),
+  );
+  if (!whoami.ok) {
+    console.error('[video-mcp oauth] github user endpoint non-success', { status: whoami.status });
+    return c.text('Could not verify the GitHub account.', 502);
+  }
+  const identity = (await callbackStep('parse-github-user', () => whoami.json())) as {
+    id?: number;
+    login?: string;
+  };
 
   // Fail closed: a GitHub login alone does not grant access to Gemini quota.
   if (identity.id !== ALLOWED_GITHUB_USER_ID || identity.login !== 'mechanicalengineringst-png') {
     return c.text('This GitHub account is not permitted to use the private video analyzer.', 403);
   }
 
-  const { redirectTo } = await oauth.completeAuthorization({
-    request: original,
-    userId: String(identity.id),
-    metadata: { label: identity.login },
-    scope: original.scope,
-    props: { githubUserId: String(identity.id), login: identity.login },
-  });
+  const { redirectTo } = await callbackStep('complete-chatgpt-authorization', () =>
+    oauth.completeAuthorization({
+      request: original,
+      userId: String(identity.id),
+      metadata: { label: identity.login },
+      scope: original.scope,
+      props: { githubUserId: String(identity.id), login: identity.login },
+    }),
+  );
   headers.set('Location', redirectTo);
   return new Response(null, { status: 302, headers });
 });
