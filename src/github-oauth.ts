@@ -115,20 +115,22 @@ githubAuth.get('/callback', async (c) => {
 
   const exchange = await callbackStep('github-token-exchange', () =>
     fetch('https://github.com/login/oauth/access_token', {
-    method: 'POST',
-    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      client_id: c.env.GITHUB_CLIENT_ID,
-      client_secret: c.env.GITHUB_CLIENT_SECRET,
-      code,
-      code_verifier: data.verifier,
-      redirect_uri: new URL('/callback', c.req.url).href,
-    }),
-    redirect: 'error',
+      method: 'POST',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        client_id: c.env.GITHUB_CLIENT_ID,
+        client_secret: c.env.GITHUB_CLIENT_SECRET,
+        code,
+        code_verifier: data.verifier,
+        redirect_uri: new URL('/callback', c.req.url).href,
+      }),
+      redirect: 'error',
     }),
   );
   if (!exchange.ok) {
-    console.error('[video-mcp oauth] github token endpoint non-success', { status: exchange.status });
+    console.error('[video-mcp oauth] github token endpoint non-success', {
+      status: exchange.status,
+    });
     return c.text('GitHub authorization could not be completed.', 502);
   }
   const token = (await callbackStep('parse-github-token', () => exchange.json())) as {
@@ -144,12 +146,12 @@ githubAuth.get('/callback', async (c) => {
 
   const whoami = await callbackStep('github-user-request', () =>
     fetch('https://api.github.com/user', {
-    headers: {
-      Authorization: `Bearer ${token.access_token}`,
-      Accept: 'application/vnd.github+json',
-      'User-Agent': 'rocket-league-video-mcp',
-    },
-    redirect: 'error',
+      headers: {
+        Authorization: `Bearer ${token.access_token}`,
+        Accept: 'application/vnd.github+json',
+        'User-Agent': 'rocket-league-video-mcp',
+      },
+      redirect: 'error',
     }),
   );
   if (!whoami.ok) {
@@ -168,11 +170,11 @@ githubAuth.get('/callback', async (c) => {
 
   const { redirectTo } = await callbackStep('complete-chatgpt-authorization', () =>
     oauth.completeAuthorization({
-    request: original,
-    userId: String(identity.id),
-    metadata: { label: identity.login },
-    scope: original.scope,
-    props: { githubUserId: String(identity.id), login: identity.login },
+      request: original,
+      userId: String(identity.id),
+      metadata: { label: identity.login },
+      scope: original.scope,
+      props: { githubUserId: String(identity.id), login: identity.login },
     }),
   );
   headers.set('Location', redirectTo);
