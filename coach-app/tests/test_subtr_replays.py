@@ -15,7 +15,7 @@ def fixture(swapped=True):
     blue = {'name': 'Blue Player', 'remote_id': {'Xbox': '111'}}
     orange = {'name': 'Orange Player', 'remote_id': {'Epic': '222'}}
     meta = {'column_headers': {'global_headers': gh, 'player_headers': ph},
-            'replay_meta': {'team_zero': [blue], 'team_one': [orange]}}
+            'replay_meta': {'team_zero': [blue], 'team_one': [orange], 'all_headers': [['PlayerName','Orange Player']]}}
     # Orange first in ndarray, blue second, deliberately different from metadata order.
     a = [256.,3840.,17.,0.,0.,0.,0.,0.,0.,85.]
     b = [-256.,-3840.,17.,0.,0.,0.,0.,0.,0.,255.]
@@ -44,6 +44,7 @@ def test_single_file_normalization_preserves_full_rate_and_team_identity():
     assert r['playerMappingVerified'] is True
     assert [p['name'] for p in r['players']] == ['Orange Player','Blue Player']
     assert r['mode'] == '1v1'
+    assert r['primaryPlayerId'] == 'Epic:222'
     assert len(r['frames']) == 3
     assert r['frames'][0]['cars']['Epic:222']['boost'] == pytest.approx(33.3)
     assert r['frames'][0]['cars']['Xbox:111']['boost'] == 100.0
