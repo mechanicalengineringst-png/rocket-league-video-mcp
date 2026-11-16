@@ -2,26 +2,37 @@
 const $ = id => document.getElementById(id);
 const state = { replay: null, findings: [], focusId: null, selectedId: null, time: 0, playing: false, timer: null, overrides: new Map(), view: {facing:true, travel:false, heights:true, trail:false, ballTrail:false}, speed:1, momentFilter:'all', videoUrl:null, videoOffset:0, videoAligned:false };
 const SVG_NS = 'http://www.w3.org/2000/svg';
-const sx = x => 58 + ((Number(x) + 4096) / 8192) * 644;
+// Rocket League uses Unreal's left-handed axes: seen from above with the orange goal (+Y)
+// at the top, +X is on the LEFT. Drawing +X to the right mirrors the whole field.
+const sx = x => 58 + ((4096 - Number(x)) / 8192) * 644;
 const sy = y => 50 + ((5120 - Number(y)) / 10240) * 870;
-const invx = x => (x - 58) / 644 * 8192 - 4096;
+const invx = x => 4096 - (x - 58) / 644 * 8192;
 const invy = y => 5120 - (y - 50) / 870 * 10240;
 const fmt = t => `${Math.floor(Math.max(0,t)/60).toString().padStart(2,'0')}:${Math.floor(Math.max(0,t)%60).toString().padStart(2,'0')}`;
 const playerById = id => state.replay?.players.find(p => p.id === id);
+const startTime = () => state.replay?.frames[0]?.t ?? 0;
+const remembered = { get(){try{return localStorage.getItem('rl-coach:lastPlayerId');}catch(_){return null;}}, set(id){try{localStorage.setItem('rl-coach:lastPlayerId',id);}catch(_){}} };
 const nearestIndex = time => { const fs=state.replay?.frames||[]; if(!fs.length)return -1; let lo=0, hi=fs.length-1; while(lo<hi){let mid=(lo+hi)>>1;if(fs[mid].t<time)lo=mid+1;else hi=mid;}return lo>0&&Math.abs(fs[lo-1].t-time)<Math.abs(fs[lo].t-time)?lo-1:lo; };
 const currentFrame = () => state.replay?.frames[nearestIndex(state.time)] || null;
 const show = (message) => { $('toast').textContent=message; $('toast').classList.add('show'); clearTimeout(show.timer); show.timer=setTimeout(()=>$('toast').classList.remove('show'),3600); };
 function el(tag, attrs={}, text) { const n=document.createElementNS(SVG_NS,tag); for(const [k,v] of Object.entries(attrs))n.setAttribute(k,String(v)); if(text!==undefined)n.textContent=text; return n; }
-function chooseTime(time){if(!state.replay)return;state.time=Math.max(0,Math.min(time,state.replay.duration));$('timeRange').value=state.time;$('timeValue').textContent=fmt(state.time)+'.'+String(Math.floor((state.time%1)*100)).padStart(2,'0');renderPitch();renderSceneInspector();syncVideoToReplay();}
+function chooseTime(time){if(!state.replay)return;state.time=Math.max(startTime(),Math.min(time,state.replay.duration));$('timeRange').value=state.time;$('timeValue').textContent=fmt(state.time)+'.'+String(Math.floor((state.time%1)*100)).padStart(2,'0');const fc=currentFrame()?.cars[state.focusId];$('boostValue').textContent='BOOST '+(fc&&!fc.demolished&&Number.isFinite(fc.boost)?Math.round(fc.boost):'—');renderPitch();renderSceneInspector();syncVideoToReplay();}
 function setReplay(replay, opts={}){
   if(!replay || !Array.isArray(replay.players) || !Array.isArray(replay.frames) || !replay.frames.length)throw new Error('Invalid replay timeline.');
-  stopPlay();removeVideo();state.replay=replay;state.focusId=replay.players.some(p=>p.id===replay.primaryPlayerId)?replay.primaryPlayerId:replay.players[0].id;state.selectedId=null;state.overrides.clear();state.time=0;
-  $('replayTitle').textContent=replay.title; $('modeValue').textContent=replay.mode; $('durationValue').textContent=fmt(replay.duration);
+  stopPlay();removeVideo();state.replay=replay;state.findings=[];
+  // Preference: the replay's recording player, then the player chosen last time, then a
+  // player on the recording team. Anything weaker is a guess and is labelled as one.
+  const has=id=>replay.players.some(p=>p.id===id), last=remembered.get();
+  state.focusConfirmed=has(replay.primaryPlayerId)||has(last);
+  state.focusId=has(replay.primaryPlayerId)?replay.primaryPlayerId:has(last)?last:(replay.players.find(p=>p.team===replay.primaryTeam)?.id||replay.players[0].id);
+  state.selectedId=null;state.overrides.clear();state.time=0;
+  $('replayTitle').textContent=replay.title; $('modeValue').textContent=replay.mode; $('durationValue').textContent=fmt(replay.duration-startTime());
   $('playerSelect').replaceChildren(...replay.players.map(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=`${p.name} — ${p.team.toUpperCase()}`;return o;}));
   $('playerSelect').value=state.focusId;
   for(const id of ['playerSelect','timeRange','playBtn','backBtn','forwardBtn','markBtn','exportBtn','aiBtn'])$(id).disabled=false;
-  $('timeRange').max=replay.duration;$('endTime').textContent=fmt(replay.duration);
+  $('timeRange').min=startTime();$('timeRange').max=replay.duration;$('startTimeLabel').textContent=fmt(startTime());$('endTime').textContent=fmt(replay.duration);
   $('uploadStatus').textContent=opts.demo?'Simulated example loaded. This is NOT an actual match.':(replay.playerMappingVerified===false?'Replay decoded, but player identities could not be verified from kickoff spawns.':('Decoded '+(replay.telemetrySampleCount||replay.frames.length)+' physics samples; '+(replay.eventCounts?.touch||0)+' touches, '+(replay.eventCounts?.goal_context||0)+' goals. Events are review observations, not proven mistakes.'));
+  if(!opts.demo&&!state.focusConfirmed)$('uploadStatus').textContent+=' The recording player could not be identified: confirm "Who are we coaching?".';
   refreshFindings(opts.demo);chooseTime(0);
 }
 function supportPoint(frame, focusId){let car=frame.cars[focusId];const team=playerById(focusId)?.team||'blue';const ownY=team==='blue'?-5120:5120;return {x:Math.max(-3500,Math.min(3500,frame.ball.x+(car.x<frame.ball.x?-500:500))),y:Math.max(-4400,Math.min(4400,frame.ball.y+(ownY>frame.ball.y?1100:-1100)))};}
@@ -34,12 +45,12 @@ const opp1={x:bx+1000,y:Math.min(4300,by+800),z:17,boost:68};const opp2={x:-1900
 frames.push({t,ball:b,cars:{self,mate,opp1,opp2}});
 }return {schema:'rl-coach/0.1',title:'Simulated 2v2 match — interactive demo',mode:'2v2',duration:120,players,frames,source:'synthetic',samplingSeconds:.5};}
 function refreshFindings(demo=false){if(!state.replay)return;
-  const findings=[];const fs=state.replay.frames;const team=playerById(state.focusId)?.team;
-  let seen={};for(const f of fs){const car=f.cars[state.focusId];if(!car)continue;const mate=state.replay.players.filter(p=>p.team===team&&p.id!==state.focusId).map(p=>f.cars[p.id]).find(Boolean);const dist=(p,q)=>Math.hypot(p.x-q.x,p.y-q.y);
+  // Manual markers are not about one player; AI findings belong to the player they were asked about.
+  const findings=state.findings.filter(f=>f.type==='manual'||(f.type==='ai'&&f.focusId===state.focusId));const fs=state.replay.frames;const team=playerById(state.focusId)?.team;
+  let seen={};for(const f of fs){const car=f.cars[state.focusId];if(!car||car.demolished)continue;const mate=state.replay.players.filter(p=>p.team===team&&p.id!==state.focusId).map(p=>f.cars[p.id]).find(c=>c&&!c.demolished);const dist=(p,q)=>Math.hypot(p.x-q.x,p.y-q.y);
     if(mate&&dist(car,f.ball)<900&&dist(mate,f.ball)<900&&dist(car,mate)<1300&&f.t-(seen.overlap??-100)>18){findings.push({id:'overlap'+f.t,t:f.t,title:'Two teammates near the ball',type:'overlap',confidence:'low',evidence:'Both teammates are within 900 units of the ball and 1300 units of each other.',advice:'Check who had priority for the next touch. Proximity alone does not prove a double commit.',target:null});seen.overlap=f.t;}
     let ownY=team==='blue'?-5120:5120;
     if(car.boost!==null&&car.boost!==undefined&&car.boost<=12&&Math.abs(car.y-ownY)<2700&&Math.abs(f.ball.y-ownY)<3500&&f.t-(seen.boost??-100)>30){findings.push({id:'boost'+f.t,t:f.t,title:'Low boost near own goal',type:'boost',confidence:'low',evidence:`Your car has approximately ${Math.round(car.boost)} boost near your goal.`,advice:'Check whether a small-pad route could have preserved boost and goal-side coverage. This may be unavoidable.',target:null});seen.boost=f.t;}
-    if(findings.length>=8)break;
   }
   // Observed native events. Never label an outcome as a verified mistake.
   if(!demo && Array.isArray(state.replay.events)){
@@ -60,7 +71,7 @@ function refreshFindings(demo=false){if(!state.replay)return;
     }
   }
   findings.sort((a,b)=>a.t-b.t);
-  state.findings=findings;state.selectedId=findings[0]?.id||null;
+  const keepSelected=findings.some(f=>f.id===state.selectedId);state.findings=findings;if(!keepSelected)state.selectedId=findings[0]?.id||null;
   $('flagsValue').textContent=findings.length;renderFindings();renderDetail();
 }
 function visibleFindings(){
@@ -161,6 +172,11 @@ function renderPitch(){
     const p=state.replay.players[i],car=f.cars[p.id];if(!car)continue;
     const x=sx(car.x),y=sy(car.y),isFocus=p.id===state.focusId;
     const color=p.team==='orange'?'#f6a56c':'#72b7fa';
+    if(car.demolished){
+      // The replay keeps a destroyed car frozen where it died until it respawns.
+      parent.append(el('text',{x,y:y+6,'text-anchor':'middle',fill:color,'font-size':19,'font-weight':800,opacity:'.6'},'✕'));
+      continue;
+    }
     const group=el('g');
     if(isFocus)group.append(el('circle',{cx:x,cy:y,r:26,fill:'none',stroke:'#90f5e8','stroke-width':3,opacity:'.95'}));
     if(state.view.heights&&Number.isFinite(car.z)&&car.z>110){
@@ -169,7 +185,7 @@ function renderPitch(){
     const vx=car.velocity?.[0],vy=car.velocity?.[1];
     const speed=Number.isFinite(vx)&&Number.isFinite(vy)?Math.hypot(vx,vy):0;
     if(state.view.travel&&speed>=180){
-      const ux=vx/speed,uy=-vy/speed,scale=isFocus?36:29;
+      const ux=-vx/speed,uy=-vy/speed,scale=isFocus?36:29;
       const ex=x+ux*scale,ey=y+uy*scale;
       group.append(el('line',{x1:x,y1:y,x2:ex,y2:ey,stroke:color,'stroke-width':isFocus?4:3,'stroke-linecap':'round',opacity:'.92'}));
       const wing=7,back=8;
@@ -179,11 +195,14 @@ function renderPitch(){
       ].map(a=>a.join(',')).join(' '),fill:color,opacity:'.95'}));
     }
     group.append(el('circle',{cx:x,cy:y,r:isFocus?13:11,fill:color,stroke:isFocus?'#f4ffff':'#b9d7e4','stroke-width':isFocus?2.3:1.3}));
-    // The source's rotation Z is yaw in radians (validated against opposite kickoff spawns).
-    // The white nose indicates facing; the optional colored arrow indicates travel velocity.
+    // Nose direction comes from the car's real forward vector. Euler rotation Z only equals
+    // yaw while the car is flat, so it is just the fallback for payloads without `forward`.
     const yaw=car.rotation?.[2];
-    if(state.view.facing&&Number.isFinite(yaw)){
-      const fx=Math.cos(yaw),fy=-Math.sin(yaw),tip=21,back=10,side=6;
+    const fwd=Array.isArray(car.forward)?car.forward:(Number.isFinite(yaw)?[Math.cos(yaw),Math.sin(yaw),0]:null);
+    const flat=fwd?Math.hypot(fwd[0],fwd[1]):0;
+    // Below 0.25 the nose points almost straight up or down: no honest map direction exists.
+    if(state.view.facing&&flat>=0.25){
+      const fx=-fwd[0]/flat,fy=-fwd[1]/flat,tip=21,back=10,side=6;
       const tx=x+fx*tip,ty=y+fy*tip;
       const baseX=x+fx*back,baseY=y+fy*back;
       group.append(el('polygon',{points:[[tx,ty],[baseX-fy*side,baseY+fx*side],
@@ -214,7 +233,7 @@ function renderSceneInspector(){
   if(!f){const p=document.createElement('p');p.className='muted';p.textContent='No replay data at the current time.';holder.append(p);return;}
   const focus=f.cars[state.focusId],player=playerById(state.focusId);
   const time=document.createElement('div');time.className='scene-time';
-  time.textContent='Replay '+fmt(state.time)+' · '+(Number.isFinite(f.secondsRemaining)?('Clock '+fmt(f.secondsRemaining)):'game clock unavailable');
+  time.textContent='Replay '+fmt(state.time)+' · '+(Number.isFinite(f.secondsRemaining)?(f.overtime?'Overtime +'+fmt(f.secondsRemaining):'Clock '+fmt(f.secondsRemaining)):'game clock unavailable');
   holder.append(time);
   const grid=document.createElement('div');grid.className='scene-grid';
   const addStat=(label,value,note)=>{
@@ -226,16 +245,16 @@ function renderSceneInspector(){
   };
   const round=n=>Number.isFinite(n)?Math.round(n)+'u':'—';
   addStat('Ball center Z',round(f.ball.z),'Top-down view hides height');
-  if(focus){
+  if(focus&&!focus.demolished){
     addStat('Selected car Z',round(focus.z),'Boost '+(Number.isFinite(focus.boost)?Math.round(focus.boost)+'%':'unknown')+(focus.jumpActive===true?' · jump flag active':''));
     addStat('Ball separation',round(Math.hypot(f.ball.x-focus.x,f.ball.y-focus.y,f.ball.z-focus.z)),
       '3D distance, not just map spacing');
-    const opponent=state.replay.players.filter(p=>p.team!==player?.team&&f.cars[p.id])
+    const opponent=state.replay.players.filter(p=>p.team!==player?.team&&f.cars[p.id]&&!f.cars[p.id].demolished)
       .map(p=>({p,car:f.cars[p.id],distance:xyDistance(focus,f.cars[p.id])}))
       .sort((a,b)=>a.distance-b.distance)[0];
     if(opponent)addStat('Nearest opponent',round(opponent.distance),
       opponent.p.name.slice(0,25)+' · car Z '+round(opponent.car.z));
-  } else addStat('Selected player','Not tracked','No car observation at this sample');
+  } else addStat('Selected player',focus?.demolished?'Demolished':'No car','Destroyed, respawning, or between a goal and the kickoff');
   holder.append(grid);
   const heading=document.createElement('div');heading.className='touch-heading';heading.textContent='Recent actions (last 3 seconds)';
   holder.append(heading);
@@ -254,6 +273,9 @@ function renderSceneInspector(){
     label.textContent=actor+' · '+action;
     const ago=document.createElement('small');ago.textContent=Math.max(0,state.time-touch.t).toFixed(2)+'s ago';
     btn.append(label,ago);btn.onclick=()=>{stopPlay();chooseTime(touch.t);};
+    // This list is rebuilt on every playback tick, so a normal click (press and release on the
+    // same element) rarely completes while playing. Act on the press itself.
+    btn.onpointerdown=btn.onclick;
     list.append(btn);
   }
   holder.append(list);
@@ -292,6 +314,19 @@ function syncVideoToReplay(force=false){
   if(force||Math.abs(video.currentTime-target)>0.32){
     try{video.currentTime=target;}catch(_){}
   }
+  // The clip may start after the point where playback began: start it once the playhead
+  // enters its range (previously it stayed paused and only jumped between seeks).
+  if(state.playing&&video.paused&&!video.ended){video.playbackRate=state.speed;video.play().catch(()=>{});}
+}
+// When the user presses play on the video's own controls, the video is the clock: follow it
+// every animation frame instead of the ~4 Hz `timeupdate` event.
+let followHandle=null;
+function followVideo(){
+  const video=$('gameVideo');
+  if(state.playing||video.paused||!state.videoAligned||!state.replay){followHandle=null;return;}
+  const t=video.currentTime-state.videoOffset;
+  if(t>=startTime()&&t<=state.replay.duration)chooseTime(t);
+  followHandle=requestAnimationFrame(followVideo);
 }
 function removeVideo(){
   const video=$('gameVideo');video.pause();video.removeAttribute('src');video.load();video.hidden=true;
@@ -331,6 +366,7 @@ function wireVideo(){
     $('videoStatus').textContent='Aligned at replay '+fmt(state.time)+' / video '+fmt(video.currentTime)+'. Offset '+state.videoOffset.toFixed(2)+'s; check another event to verify.';
     show('Video alignment set. Compare another touch to verify synchronization.');
   };
+  $('gameVideo').addEventListener('play',()=>{if(!state.playing&&!followHandle)followHandle=requestAnimationFrame(followVideo);});
   $('gameVideo').addEventListener('timeupdate',()=>{
     if(!state.replay||!state.videoUrl||!state.videoAligned||state.playing)return;
     const t=$('gameVideo').currentTime-state.videoOffset;
@@ -339,20 +375,21 @@ function wireVideo(){
 }
 
 function exportReview(){const body=JSON.stringify({replay:{schema:state.replay.schema,title:state.replay.title,mode:state.replay.mode,source:state.replay.source,duration:state.replay.duration},focus:playerById(state.focusId),findings:state.findings.map(f=>({...f,target:state.overrides.get(f.id)||f.target}))},null,2);const url=URL.createObjectURL(new Blob([body],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download='rocket-league-review.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
-async function loadFile(file){if(!file)return;if(!file.name.toLowerCase().endsWith('.replay'))return show('Select a Rocket League .replay file.');if(file.size>20*1024*1024)return show('File exceeds 20 MB.');$('uploadStatus').textContent='Processing native replay locally…';try{const r=await fetch('/api/replays',{method:'POST',headers:{'Content-Type':'application/octet-stream','X-Replay-Name':file.name},body:file});const body=await r.json();if(!r.ok)throw new Error(body.detail||'Replay parser could not read file.');setReplay(body.replay);show('Replay loaded. Choose your player to start.');}catch(e){$('uploadStatus').textContent=e.message;show(e.message);}}
+async function loadFile(file){if(!file)return;if(!file.name.toLowerCase().endsWith('.replay'))return show('Select a Rocket League .replay file.');if(file.size>20*1024*1024)return show('File exceeds 20 MB.');$('uploadStatus').textContent='Processing native replay locally…';try{const r=await fetch('/api/replays',{method:'POST',headers:{'Content-Type':'application/octet-stream','X-Replay-Name':encodeURIComponent(file.name)},body:file});const body=await r.json().catch(()=>({}));if(!r.ok)throw new Error(body.detail||'Replay parser could not read file.');setReplay(body.replay);show('Replay loaded. Choose your player to start.');}catch(e){$('uploadStatus').textContent=e.message;show(e.message);}}
 async function aiReview(){if(!state.replay)return;if(!window.confirm('Send time-sampled car and ball positions (including player IDs/names) to Gemini? This uses your API quota; the raw .replay file is not sent.'))return;
-$('aiBtn').disabled=true;$('aiBtn').textContent='Analyzing positions…';try{const r=await fetch('/api/ai-review',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({replay:{schema:state.replay.schema,title:state.replay.title,mode:state.replay.mode,duration:state.replay.duration,players:state.replay.players,frames:state.replay.frames.filter((_,i)=>i%Math.max(1,Math.ceil(state.replay.frames.length/240))===0).slice(0,240)},player_id:state.focusId})});const body=await r.json();if(!r.ok)throw new Error(body.detail||'AI analysis failed.');for(const f of body.findings||[])state.findings.push(f);state.selectedId=body.findings?.[0]?.id||state.selectedId;$('flagsValue').textContent=state.findings.length;renderFindings();renderDetail();if(body.findings?.length)chooseTime(body.findings[0].t);show('Gemini findings received. Verify each observation before trusting it.');}catch(e){show(e.message);}finally{$('aiBtn').textContent='✦ Ask Gemini for coaching';$('aiBtn').disabled=false;}}
-function addManualMarker(){if(!state.replay)return;const f=currentFrame();const id='manual-'+Date.now();const finding={id,t:f.t,type:'manual',title:'Review this decision',confidence:'unverified',evidence:'Manual marker at the current replay timestamp.',advice:'Inspect the opponent, ball height, timing and recent touches. A marker records a question, not a mistaken decision.',target:null};state.findings.unshift(finding);state.selectedId=id;$('flagsValue').textContent=state.findings.length;renderFindings();renderDetail();renderPitch();}
+$('aiBtn').disabled=true;$('aiBtn').textContent='Analyzing positions…';try{const r=await fetch('/api/ai-review',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({replay:{schema:state.replay.schema,title:state.replay.title,mode:state.replay.mode,duration:state.replay.duration,players:state.replay.players,frames:state.replay.frames.filter((_,i)=>i%Math.max(1,Math.ceil(state.replay.frames.length/240))===0).slice(0,240)},player_id:state.focusId})});const body=await r.json();if(!r.ok)throw new Error(body.detail||'AI analysis failed.');for(const f of body.findings||[])state.findings.push({...f,focusId:state.focusId});state.findings.sort((a,b)=>a.t-b.t);state.selectedId=body.findings?.[0]?.id||state.selectedId;$('flagsValue').textContent=state.findings.length;renderFindings();renderDetail();if(body.findings?.length)chooseTime(body.findings[0].t);show('Gemini findings received. Verify each observation before trusting it.');}catch(e){show(e.message);}finally{$('aiBtn').textContent='✦ Ask Gemini for coaching';$('aiBtn').disabled=false;}}
+function addManualMarker(){if(!state.replay)return;const f=currentFrame();const id='manual-'+Date.now();const finding={id,t:f.t,type:'manual',title:'Review this decision',confidence:'unverified',evidence:'Manual marker at the current replay timestamp.',advice:'Inspect the opponent, ball height, timing and recent touches. A marker records a question, not a mistaken decision.',target:null};state.findings.push(finding);state.findings.sort((a,b)=>a.t-b.t);state.selectedId=id;$('flagsValue').textContent=state.findings.length;renderFindings();renderDetail();renderPitch();}
 function wire(){
   const zone=$('uploadZone'),input=$('fileInput');
   zone.onclick=()=>input.click();
   zone.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();input.click();}};
-  input.onchange=()=>loadFile(input.files?.[0]);
+  // Clear the control so choosing the same file again still fires `change`.
+  input.onchange=()=>{const file=input.files?.[0];input.value='';loadFile(file);};
   zone.ondragover=e=>{e.preventDefault();zone.classList.add('dragging');};
   zone.ondragleave=()=>zone.classList.remove('dragging');
   zone.ondrop=e=>{e.preventDefault();zone.classList.remove('dragging');loadFile(e.dataTransfer.files[0]);};
   $('demoBtn').onclick=()=>{setReplay(demoReplay(),{demo:true});show('Synthetic example loaded; real replays provide measured physics.');};
-  $('playerSelect').onchange=e=>{state.focusId=e.target.value;state.overrides.clear();refreshFindings();renderPitch();renderSceneInspector();};
+  $('playerSelect').onchange=e=>{state.focusId=e.target.value;state.focusConfirmed=true;if(state.replay?.source!=='synthetic')remembered.set(state.focusId);state.overrides.clear();refreshFindings();chooseTime(state.time);};
   $('timeRange').oninput=e=>{stopPlay();chooseTime(Number(e.target.value));};
   $('playBtn').onclick=togglePlay;
   $('backBtn').onclick=()=>{stopPlay();chooseTime(state.time-2);};
