@@ -242,15 +242,122 @@ function renderSceneInspector(){
   }
   holder.append(list);
 }
-function stopPlay(){if(state.timer)clearInterval(state.timer);state.timer=null;state.playing=false;$('playBtn').textContent='▶';}
-function togglePlay(){if(!state.replay)return;if(state.playing){stopPlay();return;}state.playing=true;$('playBtn').textContent='❚❚';state.timer=setInterval(()=>{const next=state.time+0.05;if(next>=state.replay.duration){chooseTime(state.replay.duration);stopPlay();return;}chooseTime(next);},50);}
+function stopPlay(){
+  if(state.timer)clearInterval(state.timer);
+  state.timer=null;state.playing=false;$('playBtn').textContent='▶';
+  const video=$('gameVideo');if(state.videoUrl&&!video.paused)video.pause();
+}
+function togglePlay(){
+  if(!state.replay)return;
+  if(state.playing){stopPlay();return;}
+  state.playing=true;$('playBtn').textContent='❚❚';
+  const startAt=performance.now(),from=state.time;
+  const video=$('gameVideo');
+  if(state.videoUrl && video.readyState>=1){
+    video.playbackRate=state.speed;
+    syncVideoToReplay(true);
+    const target=state.time+state.videoOffset;
+    if(target>=0&&target<video.duration)video.play().catch(()=>{});
+  }
+  state.timer=setInterval(()=>{
+    const next=from+(performance.now()-startAt)/1000*state.speed;
+    if(next>=state.replay.duration){chooseTime(state.replay.duration);stopPlay();return;}
+    chooseTime(next);
+  },50);
+}
+function syncVideoToReplay(force=false){
+  const video=$('gameVideo');
+  if(!state.videoUrl||video.readyState<1||!state.replay)return;
+  const target=state.time+state.videoOffset;
+  if(target<0||!Number.isFinite(video.duration)||target>video.duration){
+    if(state.playing&&!video.paused)video.pause();
+    return;
+  }
+  if(force||Math.abs(video.currentTime-target)>0.32){
+    try{video.currentTime=target;}catch(_){}
+  }
+}
+function removeVideo(){
+  const video=$('gameVideo');video.pause();video.removeAttribute('src');video.load();video.hidden=true;
+  if(state.videoUrl){URL.revokeObjectURL(state.videoUrl);state.videoUrl=null;}
+  $('videoFile').value='';state.videoOffset=0;$('videoOffset').value='0';
+  $('clearVideo').disabled=true;$('alignVideo').disabled=true;
+  $('videoStatus').textContent='Video synchronization requires a matching clip and a manually chosen offset.';
+}
+function loadVideo(file){
+  if(!file)return;
+  if(!file.type.startsWith('video/')){show('Choose a video file such as MP4 or WebM.');return;}
+  removeVideo();
+  state.videoUrl=URL.createObjectURL(file);
+  const video=$('gameVideo');video.src=state.videoUrl;video.hidden=false;
+  $('clearVideo').disabled=false;$('alignVideo').disabled=false;
+  $('videoStatus').textContent='Loading local recording. Align a known replay moment with the same video frame.';
+  video.onloadedmetadata=()=>{
+    $('videoStatus').textContent='Recording loaded ('+fmt(video.duration)+'). Video time = replay time + offset. Use Align at a matching moment.';
+    syncVideoToReplay(true);
+  };
+}
+function wireVideo(){
+  $('videoFile').onchange=e=>loadVideo(e.target.files?.[0]);
+  $('clearVideo').onclick=removeVideo;
+  $('videoOffset').onchange=e=>{
+    const number=Number(e.target.value);
+    state.videoOffset=Number.isFinite(number)?number:0;
+    syncVideoToReplay(true);
+  };
+  $('alignVideo').onclick=()=>{
+    if(!state.videoUrl||!state.replay){show('Load a replay and a matching recording first.');return;}
+    const video=$('gameVideo');
+    state.videoOffset=Math.round((video.currentTime-state.time)*100)/100;
+    $('videoOffset').value=state.videoOffset.toFixed(2);
+    $('videoStatus').textContent='Aligned at replay '+fmt(state.time)+' / video '+fmt(video.currentTime)+'. Offset '+state.videoOffset.toFixed(2)+'s; check another event to verify.';
+    show('Video alignment set. Compare another touch to verify synchronization.');
+  };
+  $('gameVideo').addEventListener('timeupdate',()=>{
+    if(!state.replay||!state.videoUrl||state.playing)return;
+    const t=$('gameVideo').currentTime-state.videoOffset;
+    if(t>=0&&t<=state.replay.duration&&Math.abs(state.time-t)>0.16)chooseTime(t);
+  });
+}
+
 function exportReview(){const body=JSON.stringify({replay:{schema:state.replay.schema,title:state.replay.title,mode:state.replay.mode,source:state.replay.source,duration:state.replay.duration},focus:playerById(state.focusId),findings:state.findings.map(f=>({...f,target:state.overrides.get(f.id)||f.target}))},null,2);const url=URL.createObjectURL(new Blob([body],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download='rocket-league-review.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 async function loadFile(file){if(!file)return;if(!file.name.toLowerCase().endsWith('.replay'))return show('Select a Rocket League .replay file.');if(file.size>20*1024*1024)return show('File exceeds 20 MB.');$('uploadStatus').textContent='Processing native replay locally…';try{const r=await fetch('/api/replays',{method:'POST',headers:{'Content-Type':'application/octet-stream','X-Replay-Name':file.name},body:file});const body=await r.json();if(!r.ok)throw new Error(body.detail||'Replay parser could not read file.');setReplay(body.replay);show('Replay loaded. Choose your player to start.');}catch(e){$('uploadStatus').textContent=e.message;show(e.message);}}
 async function aiReview(){if(!state.replay)return;if(!window.confirm('Send time-sampled car and ball positions (including player IDs/names) to Gemini? This uses your API quota; the raw .replay file is not sent.'))return;
 $('aiBtn').disabled=true;$('aiBtn').textContent='Analyzing positions…';try{const r=await fetch('/api/ai-review',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({replay:{schema:state.replay.schema,title:state.replay.title,mode:state.replay.mode,duration:state.replay.duration,players:state.replay.players,frames:state.replay.frames.filter((_,i)=>i%Math.max(1,Math.ceil(state.replay.frames.length/240))===0).slice(0,240)},player_id:state.focusId})});const body=await r.json();if(!r.ok)throw new Error(body.detail||'AI analysis failed.');for(const f of body.findings||[])state.findings.push(f);state.selectedId=body.findings?.[0]?.id||state.selectedId;$('flagsValue').textContent=state.findings.length;renderFindings();renderDetail();if(body.findings?.length)chooseTime(body.findings[0].t);show('Gemini findings received. Verify each observation before trusting it.');}catch(e){show(e.message);}finally{$('aiBtn').textContent='✦ Ask Gemini for coaching';$('aiBtn').disabled=false;}}
-function addManualMarker(){if(!state.replay)return;const f=currentFrame();const id='manual-'+Date.now();const finding={id,t:f.t,type:'manual',title:'Review this decision',confidence:'unverified',evidence:'Manual marker at the current replay timestamp.',advice:'Inspect the ball threat, teammate recovery, and next touch. Drag the suggested target by clicking the field.',target:supportPoint(f,state.focusId)};state.findings.unshift(finding);state.selectedId=id;$('flagsValue').textContent=state.findings.length;renderFindings();renderDetail();renderPitch();}
-function wire(){const zone=$('uploadZone');const input=$('fileInput');zone.onclick=()=>input.click();zone.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();input.click();}};input.onchange=()=>loadFile(input.files?.[0]);zone.ondragover=e=>{e.preventDefault();zone.classList.add('dragging');};zone.ondragleave=()=>zone.classList.remove('dragging');zone.ondrop=e=>{e.preventDefault();zone.classList.remove('dragging');loadFile(e.dataTransfer.files[0]);};
-$('demoBtn').onclick=()=>{setReplay(demoReplay(),{demo:true});show('Illustrative demo loaded; upload a real replay for real positions.');};$('playerSelect').onchange=e=>{state.focusId=e.target.value;state.overrides.clear();refreshFindings();renderPitch();};$('timeRange').oninput=e=>{stopPlay();chooseTime(Number(e.target.value));};$('playBtn').onclick=togglePlay;$('markBtn').onclick=addManualMarker;$('exportBtn').onclick=exportReview;$('aiBtn').onclick=aiReview;
-$('field').onclick=e=>{if(!state.replay||!state.selectedId)return;let svg=$('field');let p=svg.createSVGPoint();p.x=e.clientX;p.y=e.clientY;let ctm=svg.getScreenCTM();if(!ctm)return;let pt=p.matrixTransform(ctm.inverse());if(pt.x<58||pt.x>702||pt.y<50||pt.y>920)return;state.overrides.set(state.selectedId,{x:Math.round(invx(pt.x)),y:Math.round(invy(pt.y))});renderPitch();show('Illustrative target updated (not a simulated outcome).');};
+function addManualMarker(){if(!state.replay)return;const f=currentFrame();const id='manual-'+Date.now();const finding={id,t:f.t,type:'manual',title:'Review this decision',confidence:'unverified',evidence:'Manual marker at the current replay timestamp.',advice:'Inspect the opponent, ball height, timing and recent touches. A marker records a question, not a mistaken decision.',target:null};state.findings.unshift(finding);state.selectedId=id;$('flagsValue').textContent=state.findings.length;renderFindings();renderDetail();renderPitch();}
+function wire(){
+  const zone=$('uploadZone'),input=$('fileInput');
+  zone.onclick=()=>input.click();
+  zone.onkeydown=e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();input.click();}};
+  input.onchange=()=>loadFile(input.files?.[0]);
+  zone.ondragover=e=>{e.preventDefault();zone.classList.add('dragging');};
+  zone.ondragleave=()=>zone.classList.remove('dragging');
+  zone.ondrop=e=>{e.preventDefault();zone.classList.remove('dragging');loadFile(e.dataTransfer.files[0]);};
+  $('demoBtn').onclick=()=>{setReplay(demoReplay(),{demo:true});show('Synthetic example loaded; real replays provide measured physics.');};
+  $('playerSelect').onchange=e=>{state.focusId=e.target.value;state.overrides.clear();refreshFindings();renderPitch();renderSceneInspector();};
+  $('timeRange').oninput=e=>{stopPlay();chooseTime(Number(e.target.value));};
+  $('playBtn').onclick=togglePlay;
+  $('backBtn').onclick=()=>{stopPlay();chooseTime(state.time-2);};
+  $('forwardBtn').onclick=()=>{stopPlay();chooseTime(state.time+2);};
+  $('playSpeed').onchange=e=>{
+    const speed=Number(e.target.value);state.speed=Number.isFinite(speed)&&speed>0?speed:1;
+    if(state.videoUrl)$('gameVideo').playbackRate=state.speed;
+    if(state.playing){stopPlay();togglePlay();}
+  };
+  for(const [id,key] of [['showTravel','travel'],['showHeights','heights'],['showTrail','trail'],['showBallTrail','ballTrail']]){
+    $(id).onchange=e=>{state.view[key]=e.target.checked;renderPitch();};
+  }
+  $('momentFilter').onchange=e=>{
+    state.momentFilter=e.target.value;
+    const shown=visibleFindings();
+    if(!shown.some(f=>f.id===state.selectedId))state.selectedId=shown[0]?.id||null;
+    renderFindings();renderDetail();
+    if(state.selectedId&&shown.length)chooseTime(shown[0].t);
+  };
+  $('markBtn').onclick=addManualMarker;
+  $('exportBtn').onclick=exportReview;
+  $('aiBtn').onclick=aiReview;
+  wireVideo();
 }
+
 wire();
