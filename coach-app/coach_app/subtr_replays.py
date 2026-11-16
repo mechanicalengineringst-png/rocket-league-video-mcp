@@ -234,9 +234,14 @@ def normalize_subtr_replay(meta: dict, data: Any, event_data: dict,
         notes = ['Player identities checked against kickoff spawn events.']
     notes += ['Event nativeFrame and sampled physics indices are different timelines; aligned by replay time.',
               'Event labels are parser observations, not verified tactical mistakes.']
+    header_pairs = meta.get('replay_meta', {}).get('all_headers', [])
+    header_values = dict(pair for pair in header_pairs if isinstance(pair, (list, tuple)) and len(pair) == 2 and isinstance(pair[0], str))
+    recording_name = header_values.get('PlayerName')
+    primary_matches = [p['id'] for p in players if p['name'] == recording_name]
+    primary_id = primary_matches[0] if len(primary_matches) == 1 else None
     return {'schema': 'rl-coach/0.2', 'title': title[:128],
             'mode': f'{sum(p["team"] == "blue" for p in players)}v{sum(p["team"] == "orange" for p in players)}',
-            'duration': frames[-1]['t'], 'players': players, 'frames': frames,
+            'duration': frames[-1]['t'], 'players': players, 'primaryPlayerId': primary_id, 'frames': frames,
             'events': aligned_events, 'eventCounts': counts,
             'playerMappingVerified': verified, 'telemetrySampleCount': len(frames),
             'source': 'subtr-actor-native-replay', 'samplingSeconds': 1 / FPS, 'notes': notes}
