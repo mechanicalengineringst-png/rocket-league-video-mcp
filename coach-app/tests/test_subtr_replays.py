@@ -11,14 +11,14 @@ def fixture(swapped=True):
     ph = ['position x', 'position y', 'position z',
           'linear velocity x', 'linear velocity y', 'linear velocity z',
           'rotation x', 'rotation y', 'rotation z',
-          'boost level (raw replay units)']
+          'boost level (raw replay units)', 'any_jump_active']
     blue = {'name': 'Blue Player', 'remote_id': {'Xbox': '111'}}
     orange = {'name': 'Orange Player', 'remote_id': {'Epic': '222'}}
     meta = {'column_headers': {'global_headers': gh, 'player_headers': ph},
             'replay_meta': {'team_zero': [blue], 'team_one': [orange], 'all_headers': [['PlayerName','Orange Player']]}}
     # Orange first in ndarray, blue second, deliberately different from metadata order.
-    a = [256.,3840.,17.,0.,0.,0.,0.,0.,0.,85.]
-    b = [-256.,-3840.,17.,0.,0.,0.,0.,0.,0.,255.]
+    a = [256.,3840.,17.,0.,0.,0.,0.,0.,-1.571,85.,1.]
+    b = [-256.,-3840.,17.,0.,0.,0.,0.,0.,1.571,255.,0.]
     blocks = (a+b) if swapped else (b+a)
     matrix = np.array([
         [0,0,93,0,0,0,4.,300.]+blocks,
@@ -31,7 +31,7 @@ def fixture(swapped=True):
         {'meta': {'stream':'boost_respawn', 'timing':{'time':4}},
          'payload':{'payload':{'kind':'kickoff','player_id':{'Xbox':'111'},'player_position':[-256,-3840,17],'time':4}}},
         {'meta': {'stream':'touch','timing':{'frame':100,'time':4.11},'primary_player':{'Epic':'222'}},
-         'payload':{'payload':{'frame':100,'time':4.11,'player':{'Epic':'222'}}}},
+         'payload':{'payload':{'frame':100,'time':4.11,'player':{'Epic':'222'},'ball_speed_change':402.25,'tags':[{'group':'kind','value':'control'},{'group':'height_band','value':'ground'}]}}},
         {'meta': {'stream':'goal_context','timing':{'frame':505,'time':4.2}},
          'payload':{'payload':{'frame':505,'time':4.2,'scorer':{'Epic':'222'},'scoring_team_is_team_0':False}}},
     ]}
@@ -49,9 +49,15 @@ def test_single_file_normalization_preserves_full_rate_and_team_identity():
     assert r['frames'][0]['cars']['Epic:222']['boost'] == pytest.approx(33.3)
     assert r['frames'][0]['cars']['Xbox:111']['boost'] == 100.0
     assert r['frames'][1]['ball']['velocity'] == [500., 200., 0.]
+    assert r['frames'][0]['cars']['Epic:222']['jumpActive'] is True
+    assert r['frames'][0]['cars']['Xbox:111']['jumpActive'] is False
+    assert r['frames'][0]['cars']['Epic:222']['rotation'][2] == pytest.approx(-1.571,abs=0.001)
     assert r['events'][0]['t'] == 4.11
     assert r['events'][0]['nativeFrame'] == 100
     assert r['events'][0]['sampleIndex'] == 1  # NOT frame number 100
+    assert r['events'][0]['touchKind'] == 'control'
+    assert r['events'][0]['touchHeightBand'] == 'ground'
+    assert r['events'][0]['ballSpeedChange'] == pytest.approx(402.2,abs=0.1)
     assert r['events'][1]['scorerId'] == 'Epic:222'
     assert r['events'][1]['sampleIndex'] == 2
 
