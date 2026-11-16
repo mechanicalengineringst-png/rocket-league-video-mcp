@@ -1,0 +1,29 @@
+name: Replay Coach MVP
+on:
+  pull_request:
+    paths:
+      - "coach-app/**"
+      - ".github/workflows/replay-coach-ci.yml"
+  push:
+    branches: [main]
+    paths:
+      - "coach-app/**"
+      - ".github/workflows/replay-coach-ci.yml"
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      # Normalizer / API tests use synthetic DataFrames; no native replay needed.
+      - run: pip install fastapi uvicorn httpx pandas pytest
+      - run: python -m pytest coach-app/tests -q
+        env:
+          PYTHONPATH: coach-app
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - run: node --check coach-app/coach_app/static/app.js

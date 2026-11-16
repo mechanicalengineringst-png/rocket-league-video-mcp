@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Replay Lab — Rocket League Coach</title>
+  <meta name="description" content="Private local-first Rocket League replay analysis and annotated routes." />
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <header class="site-header">
+    <div class="brand"><div class="brand-emblem">R<span>L</span></div><div><strong>REPLAY LAB</strong><small>ROCKET LEAGUE COACH</small></div></div>
+    <nav class="header-nav"><span class="dot"></span> LOCAL DEVELOPMENT <span class="version">v0.1</span></nav>
+  </header>
+  <main class="workspace">
+    <aside class="panel left-panel">
+      <div class="eyebrow">01 / IMPORT</div>
+      <h1>Review smarter.<br /><em>Rank up.</em></h1>
+      <p class="muted">Upload a native replay, inspect the match state, and question your decisions.</p>
+      <div class="upload-area" id="uploadZone" role="button" tabindex="0" aria-label="Upload Rocket League replay">
+        <div class="upload-symbol">⇧</div>
+        <strong>Drop your replay here</strong><span>or click to browse files</span>
+        <small>ROCKET LEAGUE .REPLAY · MAX 20MB</small>
+        <input id="fileInput" type="file" accept=".replay" hidden />
+      </div>
+      <button class="button button-outline" id="demoBtn" type="button">Try interactive demo <span>↗</span></button>
+      <p class="status" id="uploadStatus" role="status">No replay loaded. Demo data stays in your browser.</p>
+      <div class="section-line"></div>
+      <div class="eyebrow">02 / PLAYER</div>
+      <label class="select-label" for="playerSelect">Who are we coaching?</label>
+      <select id="playerSelect" disabled><option>Load a replay first</option></select>
+      <div class="match-stats">
+        <div><span>MODE</span><strong id="modeValue">—</strong></div>
+        <div><span>LENGTH</span><strong id="durationValue">—</strong></div>
+        <div><span>REVIEW FLAGS</span><strong id="flagsValue">—</strong></div>
+      </div>
+      <div class="section-line"></div>
+      <div class="eyebrow">03 / ANALYZE</div>
+      <button class="button button-primary" id="aiBtn" disabled type="button">✦ Ask Gemini for coaching</button>
+      <p class="small-copy">Optional. Shares sampled game-state data with Google's Gemini API when you click. Uses your project's quota.</p>
+      <button class="button button-ghost" id="exportBtn" disabled type="button">↓ Export review JSON</button>
+    </aside>
+    <section class="main-stage">
+      <div class="stage-top">
+        <div><div class="eyebrow">TACTICAL BOARD / TOP-DOWN VIEW</div><h2 id="replayTitle">Your next decision starts here.</h2></div>
+        <div class="legend"><span><i class="blue"></i> Blue</span><span><i class="orange"></i> Orange</span><span><i class="trail"></i> Real route</span><span><i class="option"></i> Suggested option</span></div>
+      </div>
+      <div class="pitch-shell">
+        <div class="pitch-badge">REPLAY FIELD · POSITIONAL VIEW</div>
+        <svg id="field" viewBox="0 0 760 970" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Rocket League field diagram with player, ball and route overlays">
+          <defs><linearGradient id="pitchGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#132d38"/><stop offset="50%" stop-color="#102732"/><stop offset="100%" stop-color="#0c2837"/></linearGradient><filter id="glow"><feGaussianBlur stdDeviation="5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
+          <rect x="36" y="31" width="688" height="908" rx="96" fill="url(#pitchGradient)" stroke="#47707a" stroke-width="2"/>
+          <rect x="58" y="50" width="644" height="870" rx="68" fill="none" stroke="#6da2a9" stroke-opacity=".62" stroke-width="1.6"/>
+          <path d="M58 485H702" stroke="#6da2a9" stroke-opacity=".52" stroke-width="2"/>
+          <circle cx="380" cy="485" r="92" fill="none" stroke="#6da2a9" stroke-opacity=".42" stroke-width="2"/>
+          <circle cx="380" cy="485" r="5" fill="#6da2a9"/>
+          <rect x="260" y="50" width="240" height="110" rx="7" fill="none" stroke="#c77846" stroke-opacity=".54" stroke-width="2"/>
+          <rect x="300" y="24" width="160" height="27" rx="6" fill="#b66039" fill-opacity=".28" stroke="#d59060"/>
+          <rect x="260" y="810" width="240" height="110" rx="7" fill="none" stroke="#4587d2" stroke-opacity=".54" stroke-width="2"/>
+          <rect x="300" y="920" width="160" height="26" rx="6" fill="#247ec7" fill-opacity=".28" stroke="#7fbafb"/>
+          <path d="M230 245Q380 315 530 245M230 725Q380 655 530 725" fill="none" stroke="#6da2a9" stroke-opacity=".24" stroke-width="1.5" stroke-dasharray="6 10"/>
+          <text x="380" y="19" fill="#d88850" font-size="12" text-anchor="middle" letter-spacing="3">ORANGE GOAL</text>
+          <text x="380" y="963" fill="#79aeff" font-size="12" text-anchor="middle" letter-spacing="3">BLUE GOAL</text>
+          <g id="dynamicLayers"></g>
+        </svg>
+        <div class="pitch-note">Click a spot on the field to adjust the <strong>illustrative</strong> target for the selected review moment.</div>
+      </div>
+      <div class="playback panel">
+        <div class="playback-head"><div><strong id="timeValue">00:00</strong><span id="timelineHelp">Replay timestamp</span></div><span id="boostValue">BOOST —</span></div>
+        <div class="timeline-row"><button id="playBtn" disabled class="play" aria-label="Play or pause">▶</button><input id="timeRange" type="range" min="0" max="100" value="0" disabled aria-label="Replay timestamp"/><button id="markBtn" disabled class="button-mini">+ Mark</button></div>
+        <div class="timeline-legend"><span>00:00</span><span id="endTime">—</span></div>
+      </div>
+    </section>
+    <aside class="panel right-panel">
+      <div class="eyebrow">COACHING DESK</div>
+      <h2>Moments to review<span class="hint-count" id="issueCount">0</span></h2>
+      <p class="muted">Potential decisions worth investigating—not automatically proven mistakes.</p>
+      <div id="findingsList" class="findings-list"><div class="empty"><div class="empty-graphic">◎</div>Load a replay to see review candidates.</div></div>
+      <div class="section-line"></div>
+      <div class="eyebrow">SELECTED MOMENT</div>
+      <div id="selectedDetail"><p class="muted">Select a moment to inspect its evidence and proposed alternative.</p></div>
+      <div class="disclaimer"><strong>Evidence before confidence.</strong> A dashed path represents a possible support position. We have not simulated the alternative play, and AI suggestions require human review.</div>
+    </aside>
+  </main>
+  <div class="toast" id="toast" role="alert" aria-live="polite"></div>
+  <script src="/static/app.js" defer></script>
+</body>
+</html>
