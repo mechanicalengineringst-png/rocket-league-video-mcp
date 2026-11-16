@@ -1,6 +1,6 @@
 'use strict';
 const $ = id => document.getElementById(id);
-const state = { replay: null, findings: [], focusId: null, selectedId: null, time: 0, playing: false, timer: null, overrides: new Map(), view: {facing:true, travel:false, heights:true, trail:false, ballTrail:false}, speed:1, momentFilter:'all', videoUrl:null, videoOffset:0 };
+const state = { replay: null, findings: [], focusId: null, selectedId: null, time: 0, playing: false, timer: null, overrides: new Map(), view: {facing:true, travel:false, heights:true, trail:false, ballTrail:false}, speed:1, momentFilter:'all', videoUrl:null, videoOffset:0, videoAligned:false };
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const sx = x => 58 + ((Number(x) + 4096) / 8192) * 644;
 const sy = y => 50 + ((5120 - Number(y)) / 10240) * 870;
@@ -264,7 +264,7 @@ function togglePlay(){
   state.playing=true;$('playBtn').textContent='❚❚';
   const startAt=performance.now(),from=state.time;
   const video=$('gameVideo');
-  if(state.videoUrl && video.readyState>=1){
+  if(state.videoUrl && state.videoAligned && video.readyState>=1){
     video.playbackRate=state.speed;
     syncVideoToReplay(true);
     const target=state.time+state.videoOffset;
@@ -278,7 +278,7 @@ function togglePlay(){
 }
 function syncVideoToReplay(force=false){
   const video=$('gameVideo');
-  if(!state.videoUrl||video.readyState<1||!state.replay)return;
+  if(!state.videoUrl||!state.videoAligned||video.readyState<1||!state.replay)return;
   const target=state.time+state.videoOffset;
   if(target<0||!Number.isFinite(video.duration)||target>video.duration){
     if(state.playing&&!video.paused)video.pause();
@@ -291,7 +291,7 @@ function syncVideoToReplay(force=false){
 function removeVideo(){
   const video=$('gameVideo');video.pause();video.removeAttribute('src');video.load();video.hidden=true;
   if(state.videoUrl){URL.revokeObjectURL(state.videoUrl);state.videoUrl=null;}
-  $('videoFile').value='';state.videoOffset=0;$('videoOffset').value='0';
+  $('videoFile').value='';state.videoOffset=0;state.videoAligned=false;$('videoOffset').value='0';
   $('clearVideo').disabled=true;$('alignVideo').disabled=true;
   $('videoStatus').textContent='Video synchronization requires a matching clip and a manually chosen offset.';
 }
@@ -305,7 +305,7 @@ function loadVideo(file){
   $('videoStatus').textContent='Loading local recording. Align a known replay moment with the same video frame.';
   video.onloadedmetadata=()=>{
     $('videoStatus').textContent='Recording loaded ('+fmt(video.duration)+'). Video time = replay time + offset. Use Align at a matching moment.';
-    syncVideoToReplay(true);
+    // Do not move the replay playhead before explicit user alignment.
   };
 }
 function wireVideo(){
@@ -314,18 +314,20 @@ function wireVideo(){
   $('videoOffset').onchange=e=>{
     const number=Number(e.target.value);
     state.videoOffset=Number.isFinite(number)?number:0;
+    state.videoAligned=true;
     syncVideoToReplay(true);
   };
   $('alignVideo').onclick=()=>{
     if(!state.videoUrl||!state.replay){show('Load a replay and a matching recording first.');return;}
     const video=$('gameVideo');
     state.videoOffset=Math.round((video.currentTime-state.time)*100)/100;
+    state.videoAligned=true;
     $('videoOffset').value=state.videoOffset.toFixed(2);
     $('videoStatus').textContent='Aligned at replay '+fmt(state.time)+' / video '+fmt(video.currentTime)+'. Offset '+state.videoOffset.toFixed(2)+'s; check another event to verify.';
     show('Video alignment set. Compare another touch to verify synchronization.');
   };
   $('gameVideo').addEventListener('timeupdate',()=>{
-    if(!state.replay||!state.videoUrl||state.playing)return;
+    if(!state.replay||!state.videoUrl||!state.videoAligned||state.playing)return;
     const t=$('gameVideo').currentTime-state.videoOffset;
     if(t>=0&&t<=state.replay.duration&&Math.abs(state.time-t)>0.16)chooseTime(t);
   });
@@ -352,7 +354,7 @@ function wire(){
   $('forwardBtn').onclick=()=>{stopPlay();chooseTime(state.time+2);};
   $('playSpeed').onchange=e=>{
     const speed=Number(e.target.value);state.speed=Number.isFinite(speed)&&speed>0?speed:1;
-    if(state.videoUrl)$('gameVideo').playbackRate=state.speed;
+    if(state.videoUrl&&state.videoAligned)$('gameVideo').playbackRate=state.speed;
     if(state.playing){stopPlay();togglePlay();}
   };
   for(const [id,key] of [['showFacing','facing'],['showTravel','travel'],['showHeights','heights'],['showTrail','trail'],['showBallTrail','ballTrail']]){
@@ -363,7 +365,7 @@ function wire(){
     const shown=visibleFindings();
     if(!shown.some(f=>f.id===state.selectedId))state.selectedId=shown[0]?.id||null;
     renderFindings();renderDetail();
-    if(state.selectedId&&shown.length)chooseTime(shown[0].t);
+    if(state.selectedId&&shown.length)chooseTime(shown.find(f=>f.id===state.selectedId)?.t??shown[0].t);
   };
   $('markBtn').onclick=addManualMarker;
   $('exportBtn').onclick=exportReview;
