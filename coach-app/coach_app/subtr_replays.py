@@ -6,6 +6,7 @@ indices. Join events to physics only by replay time, never by frame number.
 from __future__ import annotations
 
 import bisect
+import json
 import math
 import re
 from collections import Counter
@@ -16,7 +17,13 @@ FPS = 30.0
 GLOBAL_FEATURES = ['BallRigidBody', 'CurrentTime', 'SecondsRemaining']
 PLAYER_FEATURES = ['PlayerRigidBody', 'PlayerBoost', 'PlayerAnyJump']
 TRACKED_EVENTS = {'touch', 'goal_context', 'kickoff', 'fifty_fifty',
-                  'boost_pickups', 'whiff', 'bump', 'speed_flip', 'shadow_defense'}
+                  'boost_pickups', 'whiff', 'bump', 'speed_flip', 'shadow_defense',
+                  'demolition'}
+# subtr-actor writes an all-zero rigid body when a car does not exist (before a
+# late spawn, between a goal and the next kickoff, at the respawn instant). A live
+# car can never be at the exact field origin with z == 0, so treat it as "absent".
+SPAWN_SEARCH_ROWS = 300      # 10 s at 30 Hz: how far to look for a late first spawn
+DEMOLITION_SECONDS = 3.1     # standard respawn delay plus one sample of slack
 
 
 class SubtrReplayError(ValueError):
@@ -46,8 +53,34 @@ def _finite(value: Any) -> float | None:
 def _player_key(remote_id: Any) -> str | None:
     if isinstance(remote_id, dict) and len(remote_id) == 1:
         platform, identifier = next(iter(remote_id.items()))
+        if isinstance(identifier, dict):
+            # PlayStation / Switch / PsyNet ids are structs. Never use repr(dict)
+            # as an id: it is ~150 characters and gets copied into every frame.
+            token = identifier.get('online_id')
+            if token in (None, '', 0, '0'):
+                token = identifier.get('name')
+            if token in (None, ''):
+                token = json.dumps(identifier, sort_keys=True, default=str)
+            identifier = token
         return f'{platform}:{identifier}'
     return None
+
+
+def _absent(x: float | None, y: float | None, z: float | None) -> bool:
+    return x is None or y is None or z is None or (x == 0.0 and y == 0.0 and z == 0.0)
+
+
+def _forward(rx: float, ry: float, rz: float) -> list[float]:
+    """Unit nose vector from subtr-actor's Euler angles.
+
+    The ndarray rotation columns are glam ``to_euler(EulerRot::XYZ)``. Rotation Z
+    equals yaw only while the car is flat; in the air or on a wall it does not.
+    This is the car's local +X axis rotated by Rx(rx) * Ry(ry) * Rz(rz).
+    """
+    ca, sa = math.cos(rx), math.sin(rx)
+    cb, sb = math.cos(ry), math.sin(ry)
+    cc, sc = math.cos(rz), math.sin(rz)
+    return [round(cb * cc, 3), round(sc * ca + cc * sb * sa, 3), round(sc * sa - cc * sb * ca, 3)]
 
 
 def _payload(event: dict) -> dict:
@@ -97,7 +130,13 @@ def _players(meta: dict, events: list[dict], data: Any, globals_count: int,
     verified = len(spawns) >= len(candidates)
     for i in range(len(candidates)):
         base = globals_count + i * per_player
-        x = _finite(data[0, base + x_offset]); y = _finite(data[0, base + y_offset])
+        x = y = None
+        # Row 0 can precede a player's first spawn (the block is all zeros then).
+        for row in data[:SPAWN_SEARCH_ROWS]:
+            rx_, ry_ = _finite(row[base + x_offset]), _finite(row[base + y_offset])
+            if rx_ is not None and ry_ is not None and (rx_ != 0.0 or ry_ != 0.0):
+                x, y = rx_, ry_
+                break
         distances = []
         if x is not None and y is not None:
             for p in candidates:
@@ -170,6 +209,17 @@ def _events(event_data: dict, players: list[dict], times: list[float]) -> tuple[
             item['outcome'] = str(content.get('outcome', 'unknown'))[:50]
         elif kind == 'whiff':
             item['classification'] = str(content.get('kind', 'unclassified'))[:50]
+        elif kind == 'demolition':
+            attacker, victim = _player_key(content.get('attacker')), _player_key(content.get('victim'))
+            item['attackerId'] = attacker if attacker in known else None
+            item['victimId'] = victim if victim in known else None
+            item['playerId'] = item['attackerId']
+        elif kind == 'bump':
+            victim = _player_key(content.get('victim'))
+            item['victimId'] = victim if victim in known else None
+        confidence = _finite(content.get('confidence'))
+        if confidence is not None:
+            item['confidence'] = round(confidence, 2)
         normalized.append(item)
     normalized.sort(key=lambda e: e['t'])
     return normalized, dict(counts)
@@ -212,6 +262,8 @@ def normalize_subtr_replay(meta: dict, data: Any, event_data: dict,
 
     times = []
     frames = []
+    reached_zero = overtime = False
+    previous_remaining = None
     for row in arr:
         t = _finite(row[bt]); x = _finite(row[bx]); y = _finite(row[by]); z = _finite(row[bz])
         if None in (t, x, y, z) or (times and t <= times[-1]):
@@ -220,8 +272,8 @@ def normalize_subtr_replay(meta: dict, data: Any, event_data: dict,
         for i, player in enumerate(players):
             base = ng + i * npcols
             pos = [_finite(row[base + off]) for off in (px, py, pz)]
-            if any(v is None for v in pos):
-                continue
+            if _absent(*pos):
+                continue  # no car exists at this sample; do not draw one at midfield
             raw_boost = _finite(row[base + pb])
             car = {'x': round(pos[0], 2), 'y': round(pos[1], 2),
                    'z': round(pos[2], 2), 'boost': round(min(100., max(0., raw_boost / 255 * 100)), 1)
@@ -234,22 +286,49 @@ def normalize_subtr_replay(meta: dict, data: Any, event_data: dict,
             rotation = [_finite(row[base + off]) for off in player_rotation]
             if all(v is not None for v in velocity):
                 car['velocity'] = [round(v, 1) for v in velocity]
+                if not any(velocity):
+                    car['_still'] = True  # exact zero: candidate for the demolished window
             if all(v is not None for v in rotation):
                 car['rotation'] = [round(v, 4) for v in rotation]
+                car['forward'] = _forward(*rotation)
             cars[player['id']] = car
-        if len(cars) < 2:
-            continue
         velocity = [_finite(row[off]) for off in ball_velocity]
         ball = {'x': round(x, 2), 'y': round(y, 2), 'z': round(z, 2)}
         if all(v is not None for v in velocity):
             ball['velocity'] = [round(v, 1) for v in velocity]
         remaining = _finite(row[clock])
-        frames.append({'t': round(t, 4), 'ball': ball, 'cars': cars,
-                       'secondsRemaining': remaining})
+        # The clock counts down to 0, then counts UP during overtime. A jump back
+        # to a full clock is a new match in the same file, not overtime.
+        if remaining is not None:
+            if previous_remaining is not None and remaining > previous_remaining:
+                overtime = reached_zero and remaining - previous_remaining <= 2
+                reached_zero = reached_zero and overtime
+            if remaining == 0:
+                reached_zero = True
+            previous_remaining = remaining
+        frame = {'t': round(t, 4), 'ball': ball, 'cars': cars, 'secondsRemaining': remaining}
+        if overtime:
+            frame['overtime'] = True
+        frames.append(frame)
         times.append(t)
-    if not frames:
+    if not any(len(f['cars']) >= 2 for f in frames):
         raise SubtrReplayError('No physics samples with both cars and the ball were found.')
     aligned_events, counts = _events(event_data, players, times)
+    # A demolished car is reported frozen at the spot where it died until it
+    # respawns. Flag those samples so the UI and heuristics do not treat it as live.
+    for event in aligned_events:
+        victim = event.get('victimId') if event['type'] == 'demolition' else None
+        if not victim:
+            continue
+        index = event['sampleIndex']
+        while index < len(frames) and frames[index]['t'] <= event['t'] + DEMOLITION_SECONDS:
+            car = frames[index]['cars'].get(victim)
+            if car and car.get('_still'):
+                car['demolished'] = True
+            index += 1
+    for frame in frames:
+        for car in frame['cars'].values():
+            car.pop('_still', None)
     if not verified:
         # Unknown identity mapping is a serious accuracy limit, not a coaching fact.
         notes = ['Player identities inferred from metadata order; verify against footage.']
@@ -262,9 +341,21 @@ def normalize_subtr_replay(meta: dict, data: Any, event_data: dict,
     recording_name = header_values.get('PlayerName')
     primary_matches = [p['id'] for p in players if p['name'] == recording_name]
     primary_id = primary_matches[0] if len(primary_matches) == 1 else None
+    # Most current replays have no PlayerName header. PrimaryPlayerTeam == 1 still
+    # says the recording player was on orange (the header is omitted when it is 0,
+    # so absence proves nothing). In 1v1 that identifies the player outright.
+    primary_team = None
+    if primary_id is not None:
+        primary_team = next(p['team'] for p in players if p['id'] == primary_id)
+    elif header_values.get('PrimaryPlayerTeam') == 1:
+        primary_team = 'orange'
+        orange = [p['id'] for p in players if p['team'] == 'orange']
+        if len(orange) == 1:
+            primary_id = orange[0]
     return {'schema': 'rl-coach/0.2', 'title': title[:128],
             'mode': f'{sum(p["team"] == "blue" for p in players)}v{sum(p["team"] == "orange" for p in players)}',
-            'duration': frames[-1]['t'], 'players': players, 'primaryPlayerId': primary_id, 'frames': frames,
+            'startTime': frames[0]['t'], 'duration': frames[-1]['t'], 'players': players,
+            'primaryPlayerId': primary_id, 'primaryTeam': primary_team, 'frames': frames,
             'events': aligned_events, 'eventCounts': counts,
             'playerMappingVerified': verified, 'telemetrySampleCount': len(frames),
             'source': 'subtr-actor-native-replay', 'samplingSeconds': 1 / FPS, 'notes': notes}

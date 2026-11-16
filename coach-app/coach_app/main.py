@@ -4,12 +4,16 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+import uuid
 from pathlib import Path
+from urllib.parse import unquote, urlsplit
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import FileResponse
+from fastapi.concurrency import run_in_threadpool
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .coaching import compact_game_states, find_review_candidates
 from .replays import ReplayParseError, parse_replay_file
@@ -17,8 +21,24 @@ from .replays import ReplayParseError, parse_replay_file
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 MAX_COACH_BYTES = 2 * 1024 * 1024
 STATIC = Path(__file__).parent / 'static'
-app = FastAPI(title='Rocket League Replay Coach', version='0.2.0')
+# The server has no authentication, so it must only answer the local browser tab.
+# Host allow-list stops DNS rebinding; the Origin check below stops other websites
+# from POSTing to the API (which could otherwise spend the Gemini quota).
+# 'testserver' is Starlette's TestClient host name.
+ALLOWED_HOSTS = [h.strip() for h in os.getenv(
+    'COACH_ALLOWED_HOSTS', '127.0.0.1,localhost,[::1],testserver').split(',') if h.strip()]
+app = FastAPI(title='Rocket League Replay Coach', version='0.3.0')
+app.add_middleware(TrustedHostMiddleware, allowed_hosts=ALLOWED_HOSTS)
 app.mount('/static', StaticFiles(directory=STATIC), name='static')
+
+
+@app.middleware('http')
+async def same_origin_writes_only(request: Request, call_next):
+    if request.method not in ('GET', 'HEAD', 'OPTIONS'):
+        origin = request.headers.get('origin')
+        if origin is not None and urlsplit(origin).netloc != request.headers.get('host'):
+            return JSONResponse({'detail': 'Cross-origin requests are not allowed.'}, status_code=403)
+    return await call_next(request)
 
 
 @app.get('/')
@@ -34,7 +54,8 @@ def health():
 @app.post('/api/replays')
 async def upload_replay(request: Request):
     """Validate bounded raw .replay upload; delete it after parsing in a private temp dir."""
-    filename = Path(request.headers.get('x-replay-name', 'match.replay')).name
+    # The browser percent-encodes the name: HTTP headers cannot carry non-Latin-1 text.
+    filename = Path(unquote(request.headers.get('x-replay-name', 'match.replay'))).name
     if not filename.lower().endswith('.replay'):
         raise HTTPException(415, 'Choose a Rocket League .replay file.')
     if request.headers.get('content-type', '').split(';')[0] != 'application/octet-stream':
@@ -51,7 +72,8 @@ async def upload_replay(request: Request):
         if size < 32:
             raise HTTPException(400, 'Replay file is empty or too small.')
         try:
-            result = parse_replay_file(path)
+            # Decoding is CPU-bound (seconds); keep it off the event loop.
+            result = await run_in_threadpool(parse_replay_file, path)
         except ReplayParseError as e:
             raise HTTPException(422, str(e)) from e
     result['title'] = Path(filename).stem[:128]
@@ -77,6 +99,10 @@ async def ai_review(request: Request):
     key = os.getenv('GEMINI_API_KEY')
     if not key:
         raise HTTPException(503, 'Set GEMINI_API_KEY on the server to enable optional AI review.')
+    # Requiring JSON forces a CORS preflight, so another site cannot fire this
+    # endpoint as a "simple" text/plain form post.
+    if request.headers.get('content-type', '').split(';')[0].strip().lower() != 'application/json':
+        raise HTTPException(415, 'Send the review request as application/json.')
     raw = await request.body()
     if len(raw) > MAX_COACH_BYTES:
         raise HTTPException(413, 'Replay JSON too large for AI review.')
@@ -109,17 +135,21 @@ async def ai_review(request: Request):
             response.raise_for_status()
             body = response.json()
         text = body['candidates'][0]['content']['parts'][0]['text']
-        findings = json.loads(text).get('findings', [])
+        parsed = json.loads(text)
+        findings = parsed.get('findings', []) if isinstance(parsed, dict) else None
         if not isinstance(findings, list):
             raise ValueError('Model returned invalid findings.')
+        batch = uuid.uuid4().hex[:8]  # ids must stay unique across repeated requests
         # Keep only bounded safe fields; never trust model-defined coordinates or markup.
         clean = []
         for item in findings[:3]:
+            if not isinstance(item, dict):
+                continue
             t = float(item['t'])
             if t < 0 or t > float(payload.replay['duration']):
                 continue
             clean.append({
-                'id': f'ai-{len(clean)}', 't': round(t, 2), 'type': 'ai',
+                'id': f'ai-{batch}-{len(clean)}', 't': round(t, 2), 'type': 'ai',
                 'title': str(item.get('title', 'Review this decision'))[:120],
                 'confidence': 'requires-verification',
                 'evidence': str(item.get('evidence', ''))[:600],

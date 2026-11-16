@@ -23,7 +23,10 @@ def suggested_support_point(ball: dict, team: str, current_x: float) -> dict[str
     return {'x': round(x), 'y': round(y)}
 
 
-def find_review_candidates(replay: dict[str, Any], focus_id: str) -> list[dict[str, Any]]:
+def find_review_candidates(replay: dict[str, Any], focus_id: str,
+                           max_findings: int | None = None) -> list[dict[str, Any]]:
+    """Scan the WHOLE match. The per-type cooldowns already bound the output; an
+    early cut-off would silently ignore everything after the first few minutes."""
     players = {p['id']: p for p in replay['players']}
     if focus_id not in players:
         raise ValueError('Choose a player in the replay.')
@@ -34,14 +37,15 @@ def find_review_candidates(replay: dict[str, Any], focus_id: str) -> list[dict[s
 
     for f in replay['frames']:
         current = f['cars'].get(focus_id)
-        if not current:
-            continue
+        if not current or current.get('demolished'):
+            continue  # no live car to evaluate at this sample
         ball = f['ball']
         t = f['t']
         target = suggested_support_point(ball, team, current['x'])
         # Only surface candidate overlap when both teammates are tight to the ball
         # and each other. At high level this can also be entirely appropriate.
         close_mates = [m for pid in teammates if (m := f['cars'].get(pid))
+                       and not m.get('demolished')
                        and _dist(m, ball) < 900 and _dist(m, current) < 1300]
         if _dist(current, ball) < 900 and close_mates and t - last_type.get('overlap', -1e8) >= 18:
             findings.append({
@@ -65,7 +69,7 @@ def find_review_candidates(replay: dict[str, Any], focus_id: str) -> list[dict[s
                 'target': target,
             })
             last_type['boost'] = t
-        if len(findings) >= 8:
+        if max_findings is not None and len(findings) >= max_findings:
             break
     return findings
 
@@ -77,16 +81,22 @@ def compact_game_states(replay: dict[str, Any], focus_id: str, max_frames: int =
         raise ValueError('Unknown player.')
     fs = replay['frames']
     stride = max(1, math.ceil(len(fs) / max_frames))
+    # Short aliases instead of platform ids: fewer tokens, no account ids sent to the
+    # model, and - crucially - the roster tells the model who is on which team.
+    alias = {p['id']: f'P{i + 1}' for i, p in enumerate(replay['players'])}
+    roster = ', '.join(f'{alias[p["id"]]}={p["team"]}' for p in replay['players'])
     lines = [
-        f'Focus={focus_id} ({players[focus_id]["team"]})',
+        f'Focus={focus_id} ({players[focus_id]["team"]}), shown below as {alias[focus_id]}',
+        f'Players: {roster}',
         'Coordinates: blue goal y=-5120, orange goal y=+5120; field x=+-4096.',
-        'Columns: time | ball x,y,z | cars playerId:x,y,z,boostPercent. Sampled positions, not frames of video.',
+        'Columns: time | ball x,y,z | cars player:x,y,z,boostPercent. Sampled positions, not frames of video.',
     ]
     for f in fs[::stride][:max_frames]:
         b = f['ball']
         def v(n: float | None) -> str:
             return '?' if n is None else str(round(n))
-        cs = '; '.join(f'{pid}:{v(car["x"])},{v(car["y"])},{v(car.get("z"))},{v(car.get("boost"))}'
+        cs = '; '.join(f'{alias.get(pid, pid)}:{v(car["x"])},{v(car["y"])},{v(car.get("z"))},{v(car.get("boost"))}'
+                       + (' DEMOLISHED' if car.get('demolished') else '')
                        for pid, car in f['cars'].items())
         lines.append(f'{f["t"]:.1f} | {v(b["x"])},{v(b["y"])},{v(b.get("z"))} | {cs}')
     return '\n'.join(lines)

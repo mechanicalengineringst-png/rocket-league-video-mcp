@@ -34,7 +34,8 @@ def test_support_point_goal_side():
 def test_compact_evidence_is_bounded_and_player_validated():
     r = replay()
     text = compact_game_states(r, 'a', max_frames=3)
-    assert len(text.splitlines()) <= 6
+    assert len(text.splitlines()) <= 7  # 4 header lines (incl. team roster) + 3 samples
+    assert 'Players: P1=blue, P2=blue, P3=orange, P4=orange' in text
     assert 'Focus=a' in text
     try:
         compact_game_states(r, 'not-there')
