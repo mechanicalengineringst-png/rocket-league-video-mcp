@@ -124,7 +124,7 @@ githubAuth.get('/callback', async (c) => {
         code_verifier: data.verifier,
         redirect_uri: new URL('/callback', c.req.url).href,
       }),
-      redirect: 'error',
+      redirect: 'manual',
     }),
   );
   if (!exchange.ok) {
@@ -151,7 +151,7 @@ githubAuth.get('/callback', async (c) => {
         Accept: 'application/vnd.github+json',
         'User-Agent': 'rocket-league-video-mcp',
       },
-      redirect: 'error',
+      redirect: 'manual',
     }),
   );
   if (!whoami.ok) {
