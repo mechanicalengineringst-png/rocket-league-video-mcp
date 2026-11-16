@@ -21,7 +21,7 @@ function setReplay(replay, opts={}){
   $('playerSelect').value=state.focusId;
   for(const id of ['playerSelect','timeRange','playBtn','markBtn','exportBtn','aiBtn'])$(id).disabled=false;
   $('timeRange').max=replay.duration;$('endTime').textContent=fmt(replay.duration);
-  $('uploadStatus').textContent=opts.demo?'Simulated example loaded. This is NOT an actual match.':(replay.playerMappingVerified===false?'Replay decoded, but player identities could not be verified from kickoff spawns.':'Native replay decoded with synchronized physics and events.');
+  $('uploadStatus').textContent=opts.demo?'Simulated example loaded. This is NOT an actual match.':(replay.playerMappingVerified===false?'Replay decoded, but player identities could not be verified from kickoff spawns.':('Decoded '+(replay.telemetrySampleCount||replay.frames.length)+' physics samples; '+(replay.eventCounts?.touch||0)+' touches, '+(replay.eventCounts?.goal_context||0)+' goals. Events are review observations, not proven mistakes.'));
   refreshFindings(opts.demo);chooseTime(0);
 }
 function supportPoint(frame, focusId){let car=frame.cars[focusId];const team=playerById(focusId)?.team||'blue';const ownY=team==='blue'?-5120:5120;return {x:Math.max(-3500,Math.min(3500,frame.ball.x+(car.x<frame.ball.x?-500:500))),y:Math.max(-4400,Math.min(4400,frame.ball.y+(ownY>frame.ball.y?1100:-1100)))};}
