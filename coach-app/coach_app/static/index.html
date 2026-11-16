@@ -10,7 +10,7 @@
 <body>
   <header class="site-header">
     <div class="brand"><div class="brand-emblem">R<span>L</span></div><div><strong>REPLAY LAB</strong><small>ROCKET LEAGUE COACH</small></div></div>
-    <nav class="header-nav"><span class="dot"></span> LOCAL DEVELOPMENT <span class="version">v0.1</span></nav>
+    <nav class="header-nav"><span class="dot"></span> LOCAL DEVELOPMENT <span class="version">v0.3</span></nav>
   </header>
   <main class="workspace">
     <aside class="panel left-panel">
@@ -35,15 +35,26 @@
         <div><span>REVIEW FLAGS</span><strong id="flagsValue">—</strong></div>
       </div>
       <div class="section-line"></div>
-      <div class="eyebrow">03 / ANALYZE</div>
-      <button class="button button-primary" id="aiBtn" disabled type="button">✦ Ask Gemini for coaching</button>
-      <p class="small-copy">Optional. Shares sampled game-state data with Google's Gemini API when you click. Uses your project's quota.</p>
+      <div class="eyebrow">03 / REVIEW</div>
+      <p class="small-copy">Start with the match events and evidence. External AI review is optional and not needed for local playback.</p>
+      <details class="ai-experimental">
+        <summary>Optional experimental AI</summary>
+        <button class="button button-primary" id="aiBtn" disabled type="button">Ask Gemini for coaching</button>
+        <p class="small-copy">Requires your own configured API key, sends sampled coordinates to Google only when clicked, and may produce incorrect hypotheses.</p>
+      </details>
       <button class="button button-ghost" id="exportBtn" disabled type="button">↓ Export review JSON</button>
     </aside>
     <section class="main-stage">
       <div class="stage-top">
         <div><div class="eyebrow">TACTICAL BOARD / TOP-DOWN VIEW</div><h2 id="replayTitle">Your next decision starts here.</h2></div>
-        <div class="legend"><span><i class="blue"></i> Blue</span><span><i class="orange"></i> Orange</span><span><i class="trail"></i> Real route</span><span><i class="option"></i> Suggested option</span></div>
+        <div class="legend"><span><i class="blue"></i> Blue</span><span><i class="orange"></i> Orange</span><span><i class="focus-ring"></i> Selected player</span></div>
+      </div>
+      <div class="view-controls panel" aria-label="Replay field display controls">
+        <span class="control-title">VIEW OPTIONS</span>
+        <label class="view-toggle"><input type="checkbox" id="showTravel" checked /> Travel arrows</label>
+        <label class="view-toggle"><input type="checkbox" id="showHeights" checked /> Height labels</label>
+        <label class="view-toggle"><input type="checkbox" id="showTrail" /> My recent path (2s)</label>
+        <label class="view-toggle"><input type="checkbox" id="showBallTrail" /> Ball path (1.5s)</label>
       </div>
       <div class="pitch-shell">
         <div class="pitch-badge">REPLAY FIELD · POSITIONAL VIEW</div>
@@ -63,23 +74,57 @@
           <text x="380" y="963" fill="#79aeff" font-size="12" text-anchor="middle" letter-spacing="3">BLUE GOAL</text>
           <g id="dynamicLayers"></g>
         </svg>
-        <div class="pitch-note">Click a spot on the field to adjust the <strong>illustrative</strong> target for the selected review moment.</div>
+        <div class="pitch-note">Arrows = horizontal travel velocity, <strong>not car facing</strong>. Height labels use replay units (u). Paths only show past movement; no speculative optimal routes.</div>
       </div>
       <div class="playback panel">
-        <div class="playback-head"><div><strong id="timeValue">00:00</strong><span id="timelineHelp">Replay timestamp</span></div><span id="boostValue">BOOST —</span></div>
-        <div class="timeline-row"><button id="playBtn" disabled class="play" aria-label="Play or pause">▶</button><input id="timeRange" type="range" min="0" max="100" value="0" disabled aria-label="Replay timestamp"/><button id="markBtn" disabled class="button-mini">+ Mark</button></div>
+        <div class="playback-head"><div><strong id="timeValue">00:00</strong><span id="timelineHelp">Replay time (including stoppages)</span></div><span id="boostValue">BOOST —</span></div>
+        <div class="timeline-row">
+          <button id="backBtn" disabled class="button-mini" type="button" aria-label="Back 2 seconds">−2s</button>
+          <button id="playBtn" disabled class="play" type="button" aria-label="Play or pause">▶</button>
+          <button id="forwardBtn" disabled class="button-mini" type="button" aria-label="Forward 2 seconds">+2s</button>
+          <input id="timeRange" type="range" min="0" max="100" step="0.033333" value="0" disabled aria-label="Replay timestamp" />
+          <label class="speed-label" for="playSpeed">Speed</label>
+          <select id="playSpeed" aria-label="Replay playback speed"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select>
+          <button id="markBtn" disabled class="button-mini" type="button">+ Mark</button>
+        </div>
         <div class="timeline-legend"><span>00:00</span><span id="endTime">—</span></div>
       </div>
+      <details class="video-panel panel" id="videoPanel">
+        <summary>Optional gameplay video <span>Attach an MP4 / WebM recording for visual context</span></summary>
+        <div class="video-body">
+          <p class="small-copy">A .replay contains game data, not video. Add a recording from your own PC to compare real footage with the tactical board. The video stays in your browser.</p>
+          <input id="videoFile" type="file" accept="video/mp4,video/webm,video/ogg" aria-label="Choose local gameplay video" />
+          <video id="gameVideo" controls playsinline preload="metadata" aria-label="Optional gameplay recording" hidden></video>
+          <div class="video-sync-controls">
+            <label for="videoOffset">Video time minus replay time (seconds)</label>
+            <input id="videoOffset" type="number" step="0.1" value="0" aria-label="Video synchronization offset" />
+            <button id="alignVideo" type="button" class="button-mini" disabled>Align video frame to playhead</button>
+            <button id="clearVideo" type="button" class="button-mini" disabled>Remove video</button>
+          </div>
+          <p class="small-copy" id="videoStatus">Video synchronization requires a matching clip and a manually chosen offset.</p>
+        </div>
+      </details>
     </section>
     <aside class="panel right-panel">
       <div class="eyebrow">COACHING DESK</div>
       <h2>Moments to review<span class="hint-count" id="issueCount">0</span></h2>
       <p class="muted">Potential decisions worth investigating—not automatically proven mistakes.</p>
+      <label class="filter-label" for="momentFilter">Show</label>
+      <select id="momentFilter" aria-label="Filter review moments">
+        <option value="all">All moments</option>
+        <option value="goals">Goals</option>
+        <option value="challenges">50/50 challenges</option>
+        <option value="flags">Positional observations</option>
+        <option value="manual">My markers / AI</option>
+      </select>
       <div id="findingsList" class="findings-list"><div class="empty"><div class="empty-graphic">◎</div>Load a replay to see review candidates.</div></div>
       <div class="section-line"></div>
       <div class="eyebrow">SELECTED MOMENT</div>
-      <div id="selectedDetail"><p class="muted">Select a moment to inspect its evidence and proposed alternative.</p></div>
-      <div class="disclaimer"><strong>Evidence before confidence.</strong> A dashed path represents a possible support position. We have not simulated the alternative play, and AI suggestions require human review.</div>
+      <div id="selectedDetail"><p class="muted">Select a moment to inspect its evidence and uncertainty.</p></div>
+      <div class="section-line"></div>
+      <div class="eyebrow">AT THE PLAYHEAD</div>
+      <div id="sceneInspector" aria-live="off" class="scene-inspector"><p class="muted">Load a replay to see ball height, selected-car height, nearest opponent, and recent touches.</p></div>
+      <div class="disclaimer"><strong>Evidence before confidence.</strong> Top-down motion alone cannot prove a flick, missed demo, player's intent, or a correct challenge. Use car/ball height and a separate POV recording when available.</div>
     </aside>
   </main>
   <div class="toast" id="toast" role="alert" aria-live="polite"></div>
