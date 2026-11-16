@@ -1,7 +1,8 @@
-"""Convert a parsed Rocket League replay into a compact, timeline-aligned field model.
+"""Replay normalization and native upload entrypoint.
 
-RLGym Tools uses carball to decode native .replay files into indexed Parquet data.
-No Gemini calls are involved in parsing or scrubbing the replay.
+Native uploads now decode through subtr-actor. The legacy RLGym normalizer remains
+only for backwards compatibility with earlier synthetic unit tests.
+No Gemini calls are involved in native replay parsing.
 """
 from __future__ import annotations
 
@@ -122,18 +123,10 @@ def normalize_parsed_replay(replay: Any, title: str = 'Rocket League replay') ->
 
 
 def parse_replay_file(path: Path) -> dict[str, Any]:
-    """Parse an uploaded .replay using RLGym Tools (and its bundled carball decoder)."""
+    """Decode a native replay and event stream without manual preprocessing."""
+    from .subtr_replays import SubtrReplayError, parse_subtr_replay
+
     try:
-        from rlgym_tools.rocket_league.replays.parsed_replay import ParsedReplay
-    except ImportError as error:
-        raise ReplayParseError(
-            'Replay parser is not installed. Install coach-app/requirements.txt.'
-        ) from error
-    try:
-        return normalize_parsed_replay(ParsedReplay.load(str(path)), path.stem)
-    except ReplayParseError:
-        raise
-    except Exception as error:
-        raise ReplayParseError(
-            'This replay could not be decoded. Try a replay from the current game version.'
-        ) from error
+        return parse_subtr_replay(path)
+    except SubtrReplayError as error:
+        raise ReplayParseError(str(error)) from error
