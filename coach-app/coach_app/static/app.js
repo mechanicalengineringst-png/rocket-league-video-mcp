@@ -237,16 +237,21 @@ function renderSceneInspector(){
       opponent.p.name.slice(0,25)+' · car Z '+round(opponent.car.z));
   } else addStat('Selected player','Not tracked','No car observation at this sample');
   holder.append(grid);
-  const heading=document.createElement('div');heading.className='touch-heading';heading.textContent='Recent touches (last 3 seconds)';
+  const heading=document.createElement('div');heading.className='touch-heading';heading.textContent='Recent actions (last 3 seconds)';
   holder.append(heading);
-  const touches=(state.replay.events||[]).filter(e=>e.type==='touch'&&e.t<=state.time+0.03&&e.t>=state.time-3).slice(-4).reverse();
+  const touches=(state.replay.events||[]).filter(e=>['touch','bump','whiff'].includes(e.type)&&e.t<=state.time+0.03&&e.t>=state.time-3).slice(-5).reverse();
   if(!touches.length){
-    const hint=document.createElement('p');hint.className='touch-empty';hint.textContent='No detected ball contact in this interval.';holder.append(hint);return;
+    const hint=document.createElement('p');hint.className='touch-empty';hint.textContent='No detected touch, collision, or missed-touch candidate in this interval.';holder.append(hint);return;
   }
   const list=document.createElement('div');list.className='touch-list';
   for(const touch of touches){
     const who=playerById(touch.playerId),btn=document.createElement('button');btn.className='touch-link';btn.type='button';
-    const label=document.createElement('span');label.textContent=(who?.name||'Unidentified player')+(touch.touchKind?' · parser: '+String(touch.touchKind).replace(/_/g,' '):'');
+    const label=document.createElement('span');
+    const actor=who?.name||'Unidentified player';
+    let action='Ball touch'+(touch.touchKind?' · '+String(touch.touchKind).replace(/_/g,' '):'');
+    if(touch.type==='bump')action='Collision/bump detected';
+    if(touch.type==='whiff')action='Possible missed touch'+(touch.classification?' · '+String(touch.classification).replace(/_/g,' '):'');
+    label.textContent=actor+' · '+action;
     const ago=document.createElement('small');ago.textContent=Math.max(0,state.time-touch.t).toFixed(2)+'s ago';
     btn.append(label,ago);btn.onclick=()=>{stopPlay();chooseTime(touch.t);};
     list.append(btn);
