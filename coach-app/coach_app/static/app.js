@@ -227,7 +227,7 @@ function renderSceneInspector(){
   const round=n=>Number.isFinite(n)?Math.round(n)+'u':'—';
   addStat('Ball center Z',round(f.ball.z),'Top-down view hides height');
   if(focus){
-    addStat('Selected car Z',round(focus.z),'Boost '+(Number.isFinite(focus.boost)?Math.round(focus.boost)+'%':'unknown'));
+    addStat('Selected car Z',round(focus.z),'Boost '+(Number.isFinite(focus.boost)?Math.round(focus.boost)+'%':'unknown')+(focus.jumpActive===true?' · jump flag active':''));
     addStat('Ball separation',round(Math.hypot(f.ball.x-focus.x,f.ball.y-focus.y,f.ball.z-focus.z)),
       '3D distance, not just map spacing');
     const opponent=state.replay.players.filter(p=>p.team!==player?.team&&f.cars[p.id])
@@ -246,7 +246,7 @@ function renderSceneInspector(){
   const list=document.createElement('div');list.className='touch-list';
   for(const touch of touches){
     const who=playerById(touch.playerId),btn=document.createElement('button');btn.className='touch-link';btn.type='button';
-    const label=document.createElement('span');label.textContent=who?.name||'Unidentified player';
+    const label=document.createElement('span');label.textContent=(who?.name||'Unidentified player')+(touch.touchKind?' · parser: '+String(touch.touchKind).replace(/_/g,' '):'');
     const ago=document.createElement('small');ago.textContent=Math.max(0,state.time-touch.t).toFixed(2)+'s ago';
     btn.append(label,ago);btn.onclick=()=>{stopPlay();chooseTime(touch.t);};
     list.append(btn);
@@ -300,7 +300,7 @@ function loadVideo(file){
   if(!file.type.startsWith('video/')){show('Choose a video file such as MP4 or WebM.');return;}
   removeVideo();
   state.videoUrl=URL.createObjectURL(file);
-  const video=$('gameVideo');video.src=state.videoUrl;video.hidden=false;
+  const video=$('gameVideo');video.src=state.videoUrl;video.hidden=false;video.playbackRate=state.speed;
   $('clearVideo').disabled=false;$('alignVideo').disabled=false;
   $('videoStatus').textContent='Loading local recording. Align a known replay moment with the same video frame.';
   video.onloadedmetadata=()=>{
