@@ -15,9 +15,10 @@ function el(tag, attrs={}, text) { const n=document.createElementNS(SVG_NS,tag);
 function chooseTime(time){if(!state.replay)return;state.time=Math.max(0,Math.min(time,state.replay.duration));$('timeRange').value=state.time;$('timeValue').textContent=fmt(state.time);renderPitch();}
 function setReplay(replay, opts={}){
   if(!replay || !Array.isArray(replay.players) || !Array.isArray(replay.frames) || !replay.frames.length)throw new Error('Invalid replay timeline.');
-  stopPlay();state.replay=replay;state.focusId=replay.players[0].id;state.selectedId=null;state.overrides.clear();state.time=0;
+  stopPlay();state.replay=replay;state.focusId=replay.players.some(p=>p.id===replay.primaryPlayerId)?replay.primaryPlayerId:replay.players[0].id;state.selectedId=null;state.overrides.clear();state.time=0;
   $('replayTitle').textContent=replay.title; $('modeValue').textContent=replay.mode; $('durationValue').textContent=fmt(replay.duration);
   $('playerSelect').replaceChildren(...replay.players.map(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=`${p.name} — ${p.team.toUpperCase()}`;return o;}));
+  $('playerSelect').value=state.focusId;
   for(const id of ['playerSelect','timeRange','playBtn','markBtn','exportBtn','aiBtn'])$(id).disabled=false;
   $('timeRange').max=replay.duration;$('endTime').textContent=fmt(replay.duration);
   $('uploadStatus').textContent=opts.demo?'Simulated example loaded. This is NOT an actual match.':(replay.playerMappingVerified===false?'Replay decoded, but player identities could not be verified from kickoff spawns.':'Native replay decoded with synchronized physics and events.');
