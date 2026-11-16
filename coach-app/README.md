@@ -1,48 +1,43 @@
-# Rocket League Replay Coach — local MVP
+# Replay Lab — local Rocket League Replay Coach (experimental)
 
-A first **working app foundation**, isolated from the existing production Cloudflare video MCP integration. Upload a native Rocket League `.replay`, scrub real car/ball positions on a top-down pitch, inspect conservative review candidates, and compare the real trajectory with an **illustrative** goal-side support route. You can optionally ask Gemini to critique compact positional data. No video upload and no Google API quota are needed for ordinary replay viewing.
+**New workflow:** Drag an original Rocket League .replay file into the local browser app. It automatically decodes telemetry and game events with subtr-actor-py 1.5.1. No per-replay PowerShell, .npz, or .json exports are required.
 
-> **Status:** experimental. Tested with synthetic parsed replay fixtures, **not** yet verified end-to-end with a current real `.replay` in this environment. Findings are review prompts, not validated expert-level coaching, and dashed routes are illustrative, not simulated alternatives.
+**Validation status, November 16, 2026:** The normalization module has passed synthetic unit tests and an offline test with the previously exported real-match data. The decoder itself worked on the user's Windows PC against the September 2026 1v1. The updated **FastAPI original-file upload has not yet been independently tested end-to-end**. This is data ingestion, not expert-level AI coaching.
 
-## Run locally (Windows)
+## Start on Windows
 
-1. Install Python 3.11+ if necessary, then open PowerShell in the `coach-app` folder.
-2. Run:
+1. Download the development branch feature/replay-coach-local-mvp-20261115 and extract it.
+2. Ensure Python 3.12 is installed; Python 3.12.10 is the tested Windows version.
+3. Double-click **coach-app/start-windows.cmd**. On first launch, it creates its own virtual environment and installs dependencies.
+4. Open **http://127.0.0.1:8000** in your browser.
+5. Upload a native .replay. Everything else in the extraction pipeline runs within the app.
 
-   ```powershell
-   py -m venv .venv
-   .\.venv\Scripts\Activate.ps1
-   pip install -r requirements.txt
-   python -m uvicorn coach_app.main:app --reload
-   ```
-3. Open `http://127.0.0.1:8000`. Press **Load demo** to try the interactive field, or drop in a native `.replay` file.
+The launcher only binds the server to 127.0.0.1; close its console window to stop the app. A Gemini API key is not needed for ordinary uploads or viewing data. The first launch downloads Python packages from PyPI.
 
-The parser uses RLGym Tools' `ParsedReplay.load`, which wraps the bundled `carball` decoder and produces player/ball position tables. The first native upload can require a few seconds while the replay is decoded.
+## What this changes
 
-**Optional Gemini:** Set the `GEMINI_API_KEY` environment variable **on the local server** before starting the app. Then use **Ask Gemini** inside the app, which sends time-sampled positional data (no raw replay file or account credential) to the Gemini API. Every click consumes API quota. The existing Cloudflare key is intentionally not copied into this app and the existing MCP Worker is unchanged.
+- Original-file decoder is **subtr-actor**, replacing the RLGym/carball parsing entrypoint that crashed on the modern replay.
+- Native replay telemetry is sampled at 30 Hz, retaining positions, rotations, linear velocities, raw match clock and boost converted from 0–255 replay units to percentages.
+- The built-in stats event processor extracts touches, goal contexts, kickoffs, 50/50s, boost pickups and selected mechanical events.
+- Events are aligned to the nearest sampled physics timestamp **by time**, not by their original native frame index. The native frame number is retained separately for auditing.
+- Player-to-array track assignments are matched against kickoff spawn events when available; otherwise the response explicitly indicates the identity mapping is unverified.
+- The browser shows neutral goal and 50/50 review markers, updates playback at normal speed, and sends only bounded sampled positions on an optional explicit Gemini request.
+- No manual .npz or event JSON generation for the end user.
 
-## Security/privacy boundaries
+## Limitations and security
 
-- Native replay uploads are bounded at 20 MB and processed in a temporary folder that is removed after parsing.
-- **Local-first**: parsed data is delivered back to your browser; no database or cloud replay retention in this MVP.
-- The first-party `/api` endpoints have **no authentication**. This app must only bind to `127.0.0.1` for private development. **Do not publicly deploy the FastAPI server** without authentication, rate limits, CSRF/origin checks, upload hardening, and a bounded background job queue.
-- Names/IDs in user replays may be present in positional JSON. Only click **Ask Gemini** if comfortable sending that data to Google's API.
-- RLGym `carball` parsing is currently executed as a subprocess with its own runtime dependencies; treat uploaded files as untrusted, and sandbox parsers before making this public.
+This is **not** a validated high-GC/SSL replay coach. Detected events are observations, not mistakes. It does not yet reliably model camera perception, available tactical alternatives, hand-checked expert decisions, or long-term patterns across matches. Incomplete matches should not be mistaken for full habit evidence.
 
-## Architecture
+The server is only intended for private development. It has **no authentication**, and must not be publicly exposed without adding a sandboxed parser, authentication, rate limits, queueing and resource constraints. Native replay uploads are limited to 20 MB and parsed from private temporary files that are deleted after processing. Optional AI review sends condensed numerical positions to Gemini only after explicit user action, using the user's own API quota.
 
-- `coach_app/replays.py` — native `.replay` → compact, time-sampled JSON. No AI cost.
-- `coach_app/coaching.py` — low-confidence pattern flags and an illustrative offset/goal-side reference point. No AI cost.
-- `coach_app/main.py` — local HTTP API and optional single-call Gemini position analysis.
-- `coach_app/static/` — responsive interactive field SVG, replay timeline, actual trail, suggested route, observations.
-- `tests/` — parser-normalization and conservative-coaching tests.
+The existing Cloudflare video MCP Worker is unchanged.
 
-## Next milestones
+**ChatGPT integration:** This app is a local web application. Uploading a replay directly into an ordinary ChatGPT chat does not automatically invoke this app's Windows decoder. A connected service/tool or other deployable parser environment is still needed for true ChatGPT-native one-file processing.
 
-1. Validate parser output against several real current-generation 2v2 replays. Fix any carball-version or metadata mismatches.
-2. Add reliable map orientation, boost pad coordinates/pathfinding, teammate recovery context, and score/game-clock alignment.
-3. Create a controlled evaluation set of expert-annotated decisions; score false positives, confidence calibration, and whether proposed routes are realistic.
-4. Add signed-in accounts, R2 replay storage (opt-in), a background parse worker/container, per-user quotas and persistent findings. Keep raw replays private.
-5. Add 3D/replay playback and optional video sync for fine mechanical review. Only add Claude or more models if evaluation shows independent review improves accuracy.
+## Developer checks
 
-Reuse `rl-web`/`boxcars` for a browser-side WASM parser if avoiding a server becomes a priority; the current first cut is Python because RLGym Tools already provides extracted position columns. See [RLGym Tools](https://rlgym.org/RLGym%20Tools/introduction/) and [boxcars](https://github.com/nickbabcock/boxcars).
+The new adapter is in coach_app/subtr_replays.py, tests in tests/test_subtr_replays.py, and the stable upload route is coach_app/main.py. The older normalize_parsed_replay helper remains only for legacy fixture tests.
+
+Run unit tests with pytest from coach-app. Then verify the updated app on Windows using the actual 2026 1v1 replay. Expected reference values from the independent decoder run: 5,324 samples with the 30 Hz settings, a 5–1 match, 6 goal events, and two named player tracks. **Do not claim the end-to-end test passed until the new upload route produces those results directly.**
+
+Next milestones: verify several representative 2v2 replays; validate exact time/player mapping; build deterministic tactical phase features from full-match states; and benchmark coaching claims against manually reviewed plays, using POV footage for ambiguous decisions.
