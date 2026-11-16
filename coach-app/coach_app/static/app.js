@@ -1,6 +1,6 @@
 'use strict';
 const $ = id => document.getElementById(id);
-const state = { replay: null, findings: [], focusId: null, selectedId: null, time: 0, playing: false, timer: null, overrides: new Map() };
+const state = { replay: null, findings: [], focusId: null, selectedId: null, time: 0, playing: false, timer: null, overrides: new Map(), view: {travel:true, heights:true, trail:false, ballTrail:false}, speed:1, momentFilter:'all', videoUrl:null, videoOffset:0 };
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const sx = x => 58 + ((Number(x) + 4096) / 8192) * 644;
 const sy = y => 50 + ((5120 - Number(y)) / 10240) * 870;
@@ -12,14 +12,14 @@ const nearestIndex = time => { const fs=state.replay?.frames||[]; if(!fs.length)
 const currentFrame = () => state.replay?.frames[nearestIndex(state.time)] || null;
 const show = (message) => { $('toast').textContent=message; $('toast').classList.add('show'); clearTimeout(show.timer); show.timer=setTimeout(()=>$('toast').classList.remove('show'),3600); };
 function el(tag, attrs={}, text) { const n=document.createElementNS(SVG_NS,tag); for(const [k,v] of Object.entries(attrs))n.setAttribute(k,String(v)); if(text!==undefined)n.textContent=text; return n; }
-function chooseTime(time){if(!state.replay)return;state.time=Math.max(0,Math.min(time,state.replay.duration));$('timeRange').value=state.time;$('timeValue').textContent=fmt(state.time);renderPitch();}
+function chooseTime(time){if(!state.replay)return;state.time=Math.max(0,Math.min(time,state.replay.duration));$('timeRange').value=state.time;$('timeValue').textContent=fmt(state.time)+'.'+String(Math.floor((state.time%1)*100)).padStart(2,'0');renderPitch();renderSceneInspector();syncVideoToReplay();}
 function setReplay(replay, opts={}){
   if(!replay || !Array.isArray(replay.players) || !Array.isArray(replay.frames) || !replay.frames.length)throw new Error('Invalid replay timeline.');
-  stopPlay();state.replay=replay;state.focusId=replay.players.some(p=>p.id===replay.primaryPlayerId)?replay.primaryPlayerId:replay.players[0].id;state.selectedId=null;state.overrides.clear();state.time=0;
+  stopPlay();removeVideo();state.replay=replay;state.focusId=replay.players.some(p=>p.id===replay.primaryPlayerId)?replay.primaryPlayerId:replay.players[0].id;state.selectedId=null;state.overrides.clear();state.time=0;
   $('replayTitle').textContent=replay.title; $('modeValue').textContent=replay.mode; $('durationValue').textContent=fmt(replay.duration);
   $('playerSelect').replaceChildren(...replay.players.map(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=`${p.name} — ${p.team.toUpperCase()}`;return o;}));
   $('playerSelect').value=state.focusId;
-  for(const id of ['playerSelect','timeRange','playBtn','markBtn','exportBtn','aiBtn'])$(id).disabled=false;
+  for(const id of ['playerSelect','timeRange','playBtn','backBtn','forwardBtn','markBtn','exportBtn','aiBtn'])$(id).disabled=false;
   $('timeRange').max=replay.duration;$('endTime').textContent=fmt(replay.duration);
   $('uploadStatus').textContent=opts.demo?'Simulated example loaded. This is NOT an actual match.':(replay.playerMappingVerified===false?'Replay decoded, but player identities could not be verified from kickoff spawns.':('Decoded '+(replay.telemetrySampleCount||replay.frames.length)+' physics samples; '+(replay.eventCounts?.touch||0)+' touches, '+(replay.eventCounts?.goal_context||0)+' goals. Events are review observations, not proven mistakes.'));
   refreshFindings(opts.demo);chooseTime(0);
@@ -36,30 +36,65 @@ frames.push({t,ball:b,cars:{self,mate,opp1,opp2}});
 function refreshFindings(demo=false){if(!state.replay)return;
   const findings=[];const fs=state.replay.frames;const team=playerById(state.focusId)?.team;
   let seen={};for(const f of fs){const car=f.cars[state.focusId];if(!car)continue;const mate=state.replay.players.filter(p=>p.team===team&&p.id!==state.focusId).map(p=>f.cars[p.id]).find(Boolean);const dist=(p,q)=>Math.hypot(p.x-q.x,p.y-q.y);
-    if(mate&&dist(car,f.ball)<900&&dist(mate,f.ball)<900&&dist(car,mate)<1300&&f.t-(seen.overlap??-100)>18){findings.push({id:'overlap'+f.t,t:f.t,title:'Possible two-car commitment',type:'overlap',confidence:'low',evidence:'Both teammates appear close to the ball and each other in this replay sample.',advice:'Review the next-touch roles. If the teammate already owned the challenge, consider staying offset and goal-side.',target:supportPoint(f,state.focusId)});seen.overlap=f.t;}
+    if(mate&&dist(car,f.ball)<900&&dist(mate,f.ball)<900&&dist(car,mate)<1300&&f.t-(seen.overlap??-100)>18){findings.push({id:'overlap'+f.t,t:f.t,title:'Two teammates near the ball',type:'overlap',confidence:'low',evidence:'Both teammates are within 900 units of the ball and 1300 units of each other.',advice:'Check who had priority for the next touch. Proximity alone does not prove a double commit.',target:null});seen.overlap=f.t;}
     let ownY=team==='blue'?-5120:5120;
-    if(car.boost!==null&&car.boost!==undefined&&car.boost<=12&&Math.abs(car.y-ownY)<2700&&Math.abs(f.ball.y-ownY)<3500&&f.t-(seen.boost??-100)>30){findings.push({id:'boost'+f.t,t:f.t,title:'Low boost during a defensive phase',type:'boost',confidence:'low',evidence:`Your car has approximately ${Math.round(car.boost)} boost near your goal.`,advice:'Check whether a small-pad route could have preserved boost and goal-side coverage. This may be unavoidable.',target:supportPoint(f,state.focusId)});seen.boost=f.t;}
+    if(car.boost!==null&&car.boost!==undefined&&car.boost<=12&&Math.abs(car.y-ownY)<2700&&Math.abs(f.ball.y-ownY)<3500&&f.t-(seen.boost??-100)>30){findings.push({id:'boost'+f.t,t:f.t,title:'Low boost near own goal',type:'boost',confidence:'low',evidence:`Your car has approximately ${Math.round(car.boost)} boost near your goal.`,advice:'Check whether a small-pad route could have preserved boost and goal-side coverage. This may be unavoidable.',target:null});seen.boost=f.t;}
     if(findings.length>=8)break;
   }
-  // Events are timestamped observations, not automatically player mistakes.
+  // Observed native events. Never label an outcome as a verified mistake.
   if(!demo && Array.isArray(state.replay.events)){
-    for(const e of state.replay.events){
+    for(let i=0;i<state.replay.events.length;i++){
+      const e=state.replay.events[i];
       if(e.type!=='goal_context' && e.type!=='fifty_fifty')continue;
       const isGoal=e.type==='goal_context';
-      findings.push({id:'event-'+e.type+'-'+e.nativeFrame,t:e.t,type:'event',confidence:'observed',
-        title:isGoal?'Goal sequence to review':'50/50 situation to review',
-        evidence:isGoal?'Replay records a goal by '+(playerById(e.scorerId)?.name||'a player')+'.':('Parser identifies a contested touch'+(e.winningTeam?', won by '+e.winningTeam:'')+'.'),
-        advice:isGoal?'Review the preceding challenge, positioning, recovery and defensive options.':'Review approach angles, available boost, and each player\'s position before contact.',
-        uncertainty:'The event was detected from replay data; it does not establish a mistake.',target:null});
+      const scorer=playerById(e.scorerId);
+      const result=e.winningTeam||'undetermined';
+      findings.push({
+        id:'event-'+i+'-'+e.type,t:e.t,type:'event',
+        eventType:e.type,confidence:'observed',
+        title:isGoal?('Goal: '+(scorer?.name||e.scoringTeam||'unknown scorer')):('50/50: '+result+' outcome'),
+        evidence:isGoal?('A goal was recorded for '+(e.scoringTeam||'an unknown team')+'.'):('The parser classified a 50/50, with a '+result+' result.'),
+        advice:isGoal?'Examine the preceding two seconds: each car height, ball movement, last touch and defensive recovery.':'Compare both approaches, jump heights and the subsequent ball path. A lost 50/50 can still be the correct decision.',
+        uncertainty:'An observed event is not a verified coaching mistake.',target:null
+      });
     }
   }
   findings.sort((a,b)=>a.t-b.t);
   state.findings=findings;state.selectedId=findings[0]?.id||null;
   $('flagsValue').textContent=findings.length;renderFindings();renderDetail();
 }
-function renderFindings(){const list=$('findingsList');list.replaceChildren();$('issueCount').textContent=state.findings.length;
-if(!state.findings.length){const d=document.createElement('div');d.className='empty';d.textContent='No automatic flags at this sampling rate. That does not mean the match had no mistakes. Scrub the timeline or add a manual marker.';list.append(d);return;}
-for(const f of state.findings){const btn=document.createElement('button');btn.className='finding'+(f.id===state.selectedId?' active':'');btn.type='button';const time=document.createElement('div');time.className='time';time.textContent=fmt(f.t);const tag=document.createElement('span');tag.className='tag';tag.textContent=f.type==='ai'?'AI REVIEW':f.type==='manual'?'YOUR MARKER':f.type==='event'?'MATCH EVENT':'REVIEW FLAG';time.append(tag);const title=document.createElement('strong');title.textContent=f.title;const summary=document.createElement('small');summary.textContent=f.evidence;btn.append(time,title,summary);btn.onclick=()=>{state.selectedId=f.id;chooseTime(f.t);renderFindings();renderDetail();};list.append(btn);}}
+function visibleFindings(){
+  const filter=state.momentFilter;
+  return state.findings.filter(f=>{
+    if(filter==='goals')return f.eventType==='goal_context';
+    if(filter==='challenges')return f.eventType==='fifty_fifty';
+    if(filter==='flags')return f.type==='boost'||f.type==='overlap';
+    if(filter==='manual')return f.type==='manual'||f.type==='ai';
+    return true;
+  });
+}
+function renderFindings(){
+  const list=$('findingsList'), items=visibleFindings();
+  list.replaceChildren();
+  $('issueCount').textContent=items.length===state.findings.length?String(items.length):(items.length+' / '+state.findings.length);
+  if(!items.length){
+    const d=document.createElement('div');d.className='empty';
+    d.textContent='No moments in this category. This is not a judgment of gameplay quality.';
+    list.append(d);return;
+  }
+  for(const f of items){
+    const btn=document.createElement('button');btn.className='finding'+(f.id===state.selectedId?' active':'');btn.type='button';
+    const time=document.createElement('div');time.className='time';time.textContent=fmt(f.t);
+    const tag=document.createElement('span');tag.className='tag';
+    tag.textContent=f.type==='ai'?'AI REVIEW':f.type==='manual'?'YOUR MARKER':f.type==='event'?'MATCH EVENT':'OBSERVATION';
+    time.append(tag);
+    const title=document.createElement('strong');title.textContent=f.title;
+    const summary=document.createElement('small');summary.textContent=f.evidence;
+    btn.append(time,title,summary);
+    btn.onclick=()=>{stopPlay();state.selectedId=f.id;chooseTime(f.t);renderFindings();renderDetail();};
+    list.append(btn);
+  }
+}
 function renderDetail(){const target=$('selectedDetail');target.replaceChildren();let f=state.findings.find(x=>x.id===state.selectedId);if(!f){const p=document.createElement('p');p.className='muted';p.textContent='Select a moment to inspect its evidence and alternative.';target.append(p);return;}
 const h=document.createElement('h3');h.className='detail-title';h.textContent=f.title;const tag=document.createElement('div');tag.className='detail-sub';tag.textContent=`${fmt(f.t)} · ${f.confidence.toUpperCase()} CONFIDENCE`;target.append(h,tag);
 for(const [k,val] of [['Observed evidence',f.evidence],['Coaching hypothesis',f.advice],['Uncertainty',f.uncertainty||'This is a sparse replay-data observation. Verify the threat and teammate recovery before treating it as a mistake.']]){const section=document.createElement('div');section.className='detail-section';const heading=document.createElement('strong');heading.textContent=k;const paragraph=document.createElement('p');paragraph.textContent=val;section.append(heading,paragraph);target.append(section);}}
