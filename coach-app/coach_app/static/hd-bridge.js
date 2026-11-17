@@ -16,6 +16,8 @@
   let hdWindow = null;
   let sessionId = null;
   let loaded = false;
+  let loadInFlight = false;
+  let hdInstanceId = null;
   let seq = 0;
   let lastState = null;
   let lastPost = null;
@@ -38,10 +40,11 @@
     return lastState?.focusName || selected.split(' — ')[0].trim();
   }
   function sendLoad() {
-    if (!linked() || !replayFile) return;
+    if (!linked() || !replayFile || loadInFlight || loaded) return;
     sessionId = newSession();
     seq = 0;
     loaded = false;
+    loadInFlight = true;
     lastPost = null;
     hdWindow.postMessage({
       type:'replay-lab:hd-load', sessionId,
@@ -80,6 +83,11 @@
     // Opening HD is always a user click. A later upload to an already-open
     // HD window may update it, but never launches or focuses a new window.
     replayFile = file;
+    // The old replay's focus/time must never be applied to this new file
+    // before its own upload and player mapping have completed.
+    lastState = null;
+    loaded = false;
+    loadInFlight = false;
     if (linked()) sendLoad();
   }
   // Capture phase: legacy app clears input.value before its own load completes.
@@ -101,14 +109,26 @@
     if (e.origin !== location.origin || !linked() || e.source !== hdWindow ||
         !e.data || typeof e.data !== 'object') return;
     if (e.data.type === 'replay-lab:hd-ready') {
+      // A freshly reloaded HD window has a new page instance ID. Previous
+      // in-flight session messages cannot be trusted for the new instance.
+      if (typeof e.data.instanceId === 'string' &&
+          e.data.instanceId.length >= 12 &&
+          e.data.instanceId !== hdInstanceId) {
+        hdInstanceId = e.data.instanceId;
+        loadInFlight = false;
+        loaded = false;
+        sessionId = null;
+      }
       sendLoad();
     } else if (e.data.type === 'replay-lab:hd-loaded' &&
                e.data.sessionId === sessionId) {
       loaded = true;
+      loadInFlight = false;
       forward(true);
     } else if (e.data.type === 'replay-lab:hd-load-error' &&
                e.data.sessionId === sessionId) {
       loaded = false;
+      loadInFlight = false;
       // The standalone HD window presents the detailed load error.
     }
   });
