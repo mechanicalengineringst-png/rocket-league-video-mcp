@@ -94,3 +94,53 @@ test('ten-second large pads and four-second small pads distinguish respawn',()=>
   close(b.remaining,0.5);
   assert.equal(M.padCountdown(11,1,true).available,true);
 });
+
+test('quatFromBasis and quatSlerp provide smooth continuous attitude',()=>{
+  const b0=M.basisFromRotation([0,0,Math.PI/2]);
+  const b1=M.basisFromRotation([-Math.PI/2,0,Math.PI/2]);
+  const q0=M.quatFromBasis(b0.right,b0.up,b0.forward);
+  const q1=M.quatFromBasis(b1.right,b1.up,b1.forward);
+  const qMid=M.quatSlerp(q0,q1,0.5);
+  const bMid=M.basisFromQuat(qMid);
+  // Halfway through a forward flip from kickoff, nose dips 45 deg down
+  close(bMid.forward[1], -Math.SQRT1_2, 0.05);
+  close(bMid.forward[2], -Math.SQRT1_2, 0.05);
+});
+
+test('sampleReplayState interpolates positions using Hermite spline with velocity',()=>{
+  const frames=[
+    {t:1.0,ball:{x:0,y:0,z:100,velocity:[0,0,1000]},cars:{p1:{x:0,y:0,z:17,velocity:[0,1000,0],rotation:[0,0,Math.PI/2]}}},
+    {t:2.0,ball:{x:0,y:0,z:1100,velocity:[0,0,1000]},cars:{p1:{x:0,y:1000,z:17,velocity:[0,1000,0],rotation:[0,0,Math.PI/2]}}}
+  ];
+  const sample=M.sampleReplayState(frames, 1.5);
+  assert.ok(sample);
+  close(sample.t, 1.5);
+  close(sample.ball.z, 600, 1.0);
+  close(sample.cars.p1.y, 500, 1.0);
+  assert.ok(Array.isArray(sample.cars.p1.quaternion));
+});
+
+test('padStateAt matches contract resets and cooldowns',()=>{
+  const timeline={
+    pads:[{id:0,x:0,y:0,big:true,respawnSeconds:10}],
+    resets:[4.0, 20.0],
+    pickups:[{t:5.0,padId:0,playerId:'test'}]
+  };
+  // Before pickup: available
+  assert.equal(M.padStateAt(timeline, 0, 4.5).available, true);
+  // Right after pickup: cooling down
+  const p1=M.padStateAt(timeline, 0, 8.0);
+  assert.equal(p1.available, false);
+  close(p1.remaining, 7.0);
+  // After cooldown: available
+  assert.equal(M.padStateAt(timeline, 0, 15.1).available, true);
+  // After kickoff reset: immediately reset to available even if within cooldown
+  const timeline2={
+    pads:[{id:0,x:0,y:0,big:true,respawnSeconds:10}],
+    resets:[4.0, 10.0],
+    pickups:[{t:8.0,padId:0}]
+  };
+  assert.equal(M.padStateAt(timeline2, 0, 9.0).available, false);
+  assert.equal(M.padStateAt(timeline2, 0, 10.1).available, true);
+});
+

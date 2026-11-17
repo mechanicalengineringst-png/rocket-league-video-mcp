@@ -326,39 +326,59 @@
     }
 
     buildBoostPads() {
+      this.padEntries = [];
       const bigGeo = new THREE.CylinderGeometry(1.4, 1.4, 0.25, 24);
-      const bigMat = new THREE.MeshStandardMaterial({
-        color: 0xffb300,
-        emissive: 0xff8f00,
-        emissiveIntensity: 0.6,
-        roughness: 0.3,
-        metalness: 0.7
-      });
-
       const smallGeo = new THREE.CylinderGeometry(0.55, 0.55, 0.12, 12);
-      const smallMat = new THREE.MeshStandardMaterial({
-        color: 0x4dd0e1,
-        emissive: 0x00acc1,
-        emissiveIntensity: 0.45,
-        roughness: 0.4
-      });
+      const ringGeo = new THREE.RingGeometry(1.6, 1.9, 32);
 
-      BOOST_PADS.forEach(pad => {
+      BOOST_PADS.forEach((pad, idx) => {
         const x = toThreeX(pad.x);
         const z = toThreeZ(pad.y);
-        const mesh = new THREE.Mesh(pad.big ? bigGeo : smallGeo, pad.big ? bigMat : smallMat);
+        const mat = new THREE.MeshStandardMaterial({
+          color: pad.big ? 0xffb300 : 0x4dd0e1,
+          emissive: pad.big ? 0xff8f00 : 0x00acc1,
+          emissiveIntensity: pad.big ? 0.65 : 0.45,
+          roughness: 0.35,
+          metalness: 0.7,
+          transparent: true,
+          opacity: 1.0
+        });
+        const mesh = new THREE.Mesh(pad.big ? bigGeo : smallGeo, mat);
         mesh.position.set(x, pad.big ? 0.15 : 0.08, z);
         mesh.receiveShadow = true;
         this.scene.add(mesh);
 
-        // Glowing outer halo for big pads
+        let ring = null;
         if (pad.big) {
-          const ringGeo = new THREE.RingGeometry(1.6, 1.9, 32);
           const ringMat = new THREE.MeshBasicMaterial({ color: 0xffca28, side: THREE.DoubleSide, transparent: true, opacity: 0.55 });
-          const ring = new THREE.Mesh(ringGeo, ringMat);
+          ring = new THREE.Mesh(ringGeo, ringMat);
           ring.rotation.x = -Math.PI / 2;
           ring.position.set(x, 0.03, z);
           this.scene.add(ring);
+        }
+        this.padEntries.push({ id: idx, pad, mesh, ring, mat });
+      });
+    }
+
+    updateBoostPads(timeline, time) {
+      if (!this.padEntries || !timeline || !Array.isArray(timeline.pads) || !replayMath) return;
+      this.padEntries.forEach(entry => {
+        const st = replayMath.padStateAt(timeline, entry.id, time);
+        if (st.available) {
+          entry.mat.emissiveIntensity = entry.pad.big ? 0.75 : 0.5;
+          entry.mat.opacity = 1.0;
+          entry.mesh.scale.set(1.0, 1.0, 1.0);
+          if (entry.ring) {
+            entry.ring.visible = true;
+            entry.ring.material.opacity = 0.55;
+          }
+        } else {
+          entry.mat.emissiveIntensity = 0.05;
+          entry.mat.opacity = 0.32;
+          entry.mesh.scale.set(0.65, 0.35, 0.65);
+          if (entry.ring) {
+            entry.ring.visible = false;
+          }
         }
       });
     }
@@ -613,16 +633,28 @@
         !Number.isFinite(t) || Math.abs(t - this.lastCameraTime) > 0.32;
       const snap = switching || this.forceCameraSnap || jump ||
         this.lastFocusId !== this.focusPlayerId;
+      const now = performance.now();
+      const dt = Number.isFinite(this.lastRenderTime) ? Math.min(0.08, (now - this.lastRenderTime) / 1000) : 0.016;
+      this.lastRenderTime = now;
+
       if (snap || !this.cameraTarget) {
         this.camera.position.copy(nextPos);
         this.cameraTarget = nextTarget;
+        if (plan.camUp) this.camera.up.set(...plan.camUp);
+        else this.camera.up.set(0, 1, 0);
       } else {
-        this.camera.position.lerp(nextPos, 0.26);
-        this.cameraTarget.lerp(nextTarget, 0.38);
+        const posAlpha = 1.0 - Math.exp(-14.0 * dt);
+        const targetAlpha = 1.0 - Math.exp(-18.0 * dt);
+        this.camera.position.lerp(nextPos, posAlpha);
+        this.cameraTarget.lerp(nextTarget, targetAlpha);
+        if (plan.camUp) {
+          this.camera.up.lerp(new THREE.Vector3(...plan.camUp), 1.0 - Math.exp(-8.0 * dt));
+        } else {
+          this.camera.up.set(0, 1, 0);
+        }
       }
       this.camera.fov = plan.fov;
       this.camera.updateProjectionMatrix();
-      this.camera.up.set(0, 1, 0); // Never roll the *camera* with a rolling car.
       this.camera.lookAt(this.cameraTarget);
       this.previousHeading = plan.heading;
       this.lastCameraTime = t;
@@ -691,16 +723,24 @@
         const cz = toThreeZ(carData.y);
         carEntry.group.position.set(cx, cy, cz);
 
-        // Apply recorded roll, pitch and yaw, not just the car's nose.
-        // The replay axes change handedness when mapped into Three.js.
-        const attitude = replayMath.basisFromRotation(carData.rotation, carData.forward);
-        if (attitude) {
-          const rot = new THREE.Matrix4().makeBasis(
-            new THREE.Vector3(...attitude.right),
-            new THREE.Vector3(...attitude.up),
-            new THREE.Vector3(...attitude.forward)
+        // Apply interpolated quaternion if available, else derive from basis
+        if (carData.quaternion && Array.isArray(carData.quaternion)) {
+          carEntry.group.quaternion.set(
+            carData.quaternion[0],
+            carData.quaternion[1],
+            carData.quaternion[2],
+            carData.quaternion[3]
           );
-          carEntry.group.quaternion.setFromRotationMatrix(rot);
+        } else {
+          const attitude = replayMath.basisFromRotation(carData.rotation, carData.forward);
+          if (attitude) {
+            const rot = new THREE.Matrix4().makeBasis(
+              new THREE.Vector3(...attitude.right),
+              new THREE.Vector3(...attitude.up),
+              new THREE.Vector3(...attitude.forward)
+            );
+            carEntry.group.quaternion.setFromRotationMatrix(rot);
+          }
         }
 
         // Focus halo
