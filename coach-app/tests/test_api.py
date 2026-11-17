@@ -52,3 +52,42 @@ def test_original_replay_upload_invokes_parser_without_manual_exports(monkeypatc
     assert response.status_code == 200, response.text
     assert received == [payload]
     assert response.json()['replay']['title'] == 'my-match'
+
+
+def test_native_replay_upload_populates_bounded_contextual_reviews(monkeypatch):
+    """All player views are cached during upload; no remote model is called."""
+    from coach_app import main
+
+    blue_touch = {
+        'source': 'subtr-actor-native-replay', 'playerMappingVerified': True,
+        'title': 'match', 'duration': 1.35, 'mode': '2v2',
+        'players': [
+            {'id': 'a', 'team': 'blue', 'name': 'Blue 1'},
+            {'id': 'b', 'team': 'blue', 'name': 'Blue 2'},
+            {'id': 'c', 'team': 'orange', 'name': 'Orange 1'},
+            {'id': 'd', 'team': 'orange', 'name': 'Orange 2'},
+        ],
+        'events': [{'type': 'touch', 't': 1.0, 'playerId': 'a'}],
+        'frames': [
+            {'t': t, 'ball': {'x': 0, 'y': 2100, 'z': 100}, 'cars': {
+                'a': {'x': 0, 'y': 1800, 'z': 17, 'boost': 60,
+                      'forward': [0, 1, 0], 'velocity': [0, 0, 0]},
+                'b': {'x': -1800, 'y': 900, 'z': 17, 'boost': 60},
+                'c': {'x': 0, 'y': 4600, 'z': 17, 'boost': 4,
+                      'velocity': [120, 0, 0]},
+                'd': {'x': 2300, 'y': 3600, 'z': 17, 'boost': 60},
+            }} for t in [1.0, 1.35]
+        ],
+    }
+    monkeypatch.setattr(main, 'parse_replay_file', lambda path: blue_touch.copy())
+    response = client.post('/api/replays',
+        headers={'Content-Type': 'application/octet-stream', 'X-Replay-Name': 'test.replay'},
+        content=b'mock-replay-data'*4)
+    assert response.status_code == 200, response.text
+    reviews = response.json()['replay']['contextualReviews']
+    assert set(reviews) == {'a', 'b', 'c', 'd'}
+    assert len(reviews['a']) == 1
+    assert reviews['a'][0]['kind'] == 'shot_window'
+    assert reviews['a'][0]['type'] == 'contextual'
+    assert all(len(notes) <= 4 for notes in reviews.values())
+    assert response.json()['replay']['title'] == 'test'
