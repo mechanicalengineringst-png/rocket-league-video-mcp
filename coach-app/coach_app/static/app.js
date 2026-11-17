@@ -1,6 +1,6 @@
 'use strict';
 const $ = id => document.getElementById(id);
-const state = { replay: null, findings: [], focusId: null, selectedId: null, time: 0, playing: false, timer: null, overrides: new Map(), reviewFeedback: new Map(), view: {facing:true, travel:false, heights:false, trail:false, ballTrail:false, boostPads:true}, speed:1, momentFilter:'shortlist', videoUrl:null, videoOffset:0, videoAligned:false };
+const state = { replay: null, findings: [], focusId: null, selectedId: null, time: 0, playing: false, timer: null, overrides: new Map(), reviewFeedback: new Map(), boostPadModel: null, padGraphics: null, view: {facing:true, travel:false, heights:false, trail:false, ballTrail:false, boostPads:true}, speed:1, momentFilter:'shortlist', videoUrl:null, videoOffset:0, videoAligned:false };
 let viewer3d = null;
 let currentViewMode = '2d';
 function getViewer3d(){
@@ -39,7 +39,7 @@ function chooseTime(time){
   if(viewer3d) {
     viewer3d.update(frame, state.focusId, state.replay.players);
     if(state.replay.boostPadTimeline) {
-      viewer3d.updateBoostPads(state.replay.boostPadTimeline, state.time);
+      viewer3d.updateBoostPads(state.replay.boostPadTimeline, state.time, state.boostPadModel, state.view.boostPads);
     }
   }
   syncVideoToReplay();
@@ -49,6 +49,8 @@ function setReplay(replay, opts={}){
   stopPlay();removeVideo();state.replay=replay;state.findings=[];
   const boostPadModel = typeof ReplayLabBoostPadState !== 'undefined'
     ? ReplayLabBoostPadState.compile(replay.boostPadTimeline) : null;
+  state.boostPadModel=boostPadModel;
+  state.padGraphics=null; // Rebuild SVG once when a different replay loads
   const padStatus=$('boostPadDataStatus');
   if(padStatus && typeof ReplayLabBoostPadState !== 'undefined')
     padStatus.textContent=ReplayLabBoostPadState.describe(boostPadModel);
@@ -211,25 +213,62 @@ function recentPath(kind,focusId,seconds){
 }
 function renderBoostPads(){
   const parent=$('boostPadsLayer');
-  if(!parent)return;
-  parent.replaceChildren();
-  if(!state.view.boostPads||typeof BOOST_PADS_2D==='undefined')return;
-  for(let i=0; i<BOOST_PADS_2D.length; i++){
-    const pad=BOOST_PADS_2D[i];
-    const x=sx(pad.x),y=sy(pad.y);
-    const timeline=state.replay?.boostPadTimeline;
-    const st=timeline ? (globalThis.ReplayLabViewMath?.padStateAt(timeline, i, state.time) || {available:true}) : {available:true};
-    const opacity=st.available ? '1.0' : '0.22';
-    if(pad.big){
-      const ring=el('circle',{cx:x,cy:y,r:13,fill:'none',stroke:'#ffca28','stroke-width':1.8,opacity:st.available?'.8':'.2'});
-      const dot=el('circle',{cx:x,cy:y,r:8,class:'boost-big',opacity});
-      parent.append(ring,dot);
-    }else{
-      const dot=el('circle',{cx:x,cy:y,r:4.5,class:'boost-small',opacity});
-      parent.append(dot);
+  if(!parent||typeof BOOST_PADS_2D==='undefined')return;
+  // Do NOT rebuild 34×2 SVG nodes on each requestAnimationFrame tick.
+  // Build once per replay, then update only when a cooldown second/state flips.
+  if(!state.padGraphics || state.padGraphics.parent!==parent){
+    parent.replaceChildren();
+    const nodes=[];
+    for(let i=0;i<BOOST_PADS_2D.length;i++){
+      const pad=BOOST_PADS_2D[i], x=sx(pad.x),y=sy(pad.y);
+      const group=el('g',{'data-pad-id':i,'data-state':'unknown'});
+      let ring=null,label=null;
+      if(pad.big){
+        ring=el('circle',{cx:x,cy:y,r:13,fill:'none',stroke:'#ffca28','stroke-width':1.8});
+        group.append(ring);
+      }
+      const dot=el('circle',{cx:x,cy:y,r:pad.big?8:4.5,
+        class:pad.big?'boost-big':'boost-small'});
+      group.append(dot);
+      if(pad.big){
+        label=el('text',{x,y:y+3.3,'font-size':10,'font-weight':'bold',
+          'text-anchor':'middle',fill:'#ffffff',stroke:'#10212a','stroke-width':'.45'});
+        group.append(label);
+      }
+      const title=el('title',{},'Boost pad state is not known yet');
+      group.append(title);
+      parent.append(group);
+      nodes.push({group,ring,dot,label,title,big:pad.big,lastKey:null});
     }
+    state.padGraphics={parent,nodes};
+  }
+  parent.style.display=state.view.boostPads?'':'none';
+  if(!state.view.boostPads)return;
+  const evaluator=globalThis.ReplayLabBoostPadState;
+  for(let i=0;i<state.padGraphics.nodes.length;i++){
+    const node=state.padGraphics.nodes[i];
+    const st=evaluator?.at(state.boostPadModel,i,state.time)||
+      {known:false,available:null,remaining:null};
+    const available=st.known&&st.available===true;
+    const cooling=st.known&&st.available===false;
+    const seconds=cooling?Math.ceil(st.remaining??0):null;
+    const key=(available?'available':cooling?'cooling':'unknown')+
+      ':'+(node.big?seconds:'');
+    if(key===node.lastKey)continue;
+    node.lastKey=key;
+    node.group.dataset.state=available?'available':cooling?'cooling':'unknown';
+    node.group.setAttribute('opacity',available?'1':cooling?'.23':'.56');
+    if(node.ring) {
+      node.ring.setAttribute('stroke',available?'#ffca28':cooling?'#7b8493':'#c8bc92');
+      node.ring.setAttribute('stroke-dasharray',st.known?'none':'3 3');
+    }
+    if(node.label)node.label.textContent=cooling?String(seconds):st.known?'':'?';
+    node.title.textContent=available?'Boost pad active':
+      cooling?'Respawns in '+seconds+'s':
+      'Pad availability unknown (unmatched native pickup or no pad data)';
   }
 }
+
 function setViewMode(mode){
   currentViewMode=mode;
   for(const [id,name] of [['viewTab2d','2d'],['viewTab3d','3d'],['viewTabSplit','split']]){
@@ -584,7 +623,13 @@ function wire(){
   for(const [id,key] of [['showFacing','facing'],['showTrail','trail'],['showBallTrail','ballTrail']]){
     $(id).onchange=e=>{state.view[key]=e.target.checked;renderPitch();};
   }
-  $('showBoostPads').onchange=e=>{state.view.boostPads=e.target.checked;renderBoostPads();};
+  $('showBoostPads').onchange=e=>{
+    state.view.boostPads=e.target.checked;
+    renderBoostPads();
+    if(viewer3d&&state.replay?.boostPadTimeline)
+      viewer3d.updateBoostPads(state.replay.boostPadTimeline,state.time,
+        state.boostPadModel,state.view.boostPads);
+  };
   $('recentActionsPanel').ontoggle=renderRecentActions;
   $('viewTab2d').onclick=()=>setViewMode('2d');
   $('viewTab3d').onclick=()=>setViewMode('3d');
