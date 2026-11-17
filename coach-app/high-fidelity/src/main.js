@@ -297,10 +297,21 @@ async function loadFile(file, preferredName = null) {
 for (const button of document.querySelectorAll('.cam')) {
   button.addEventListener('click', () => switchCamera(button.dataset.camera));
 }
-$('playerSelect').addEventListener('change', () => switchCamera('follow'));
+$('playerSelect').addEventListener('change', () => {
+  switchCamera('follow');
+  updateCameraEvidence();
+  refreshCameraEvents();
+});
 $('ballCamSelect').addEventListener('change', e => applyBallCam(e.target.value));
 $('speedSelect').addEventListener('change', e => player?.setPlaybackRate(Number(e.target.value)));
 $('interpolation').addEventListener('change', e => player?.setMotionInterpolation(e.target.value));
+$('replayLookToggle').addEventListener('change', invalidateCamera);
+$('qualitySelect').addEventListener('change', e => {
+  if(player) applySceneQuality(player,e.target.value);
+});
+$('fxStyle').addEventListener('change', () => {
+  if(player) effectRefiner?.update(player);
+});
 $('hitboxToggle').addEventListener('change', e => player?.setHitboxWireframesEnabled(e.target.checked));
 $('trailToggle').addEventListener('change', e => { 
   // The bridged native pickup particle plugin observes this state.
@@ -312,22 +323,26 @@ $('playBtn').addEventListener('click', () => {
   updateHud(true);
 });
 $('backBtn').addEventListener('click', () => {
+  invalidateCamera();
   player?.seek(clampTime((player?.getState().currentTime || 0) - 5,player?.duration));
   updateHud(true);
 });
 $('forwardBtn').addEventListener('click', () => {
+  invalidateCamera();
   player?.seek(clampTime((player?.getState().currentTime || 0) + 5,player?.duration));
   updateHud(true);
 });
-$('stepBackBtn').addEventListener('click', () => { player?.stepBackwardFrame(); updateHud(true); });
-$('stepForwardBtn').addEventListener('click', () => { player?.stepForwardFrame(); updateHud(true); });
+$('stepBackBtn').addEventListener('click', () => { invalidateCamera(); player?.stepBackwardFrame(); updateHud(true); });
+$('stepForwardBtn').addEventListener('click', () => { invalidateCamera(); player?.stepForwardFrame(); updateHud(true); });
 $('seek').addEventListener('pointerdown', () => {
   scrubbing = true;
+  invalidateCamera();
   resumeAfterScrub = !!player?.getState().playing;
   player?.pause();
 });
 $('seek').addEventListener('input', e => {
   const t = Number(e.target.value);
+  invalidateCamera();
   player?.seek(t);
   $('currentTime').textContent = formatTime(t);
 });
@@ -368,7 +383,9 @@ document.addEventListener('keydown', e => {
     e.preventDefault();
     if (player.getState().playing) player.pause(); else player.play();
   } else if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
+    if (cameraPlugin?.getMode() === 'free') return; // arrows move fly camera
     e.preventDefault();
+    invalidateCamera();
     player.seek(clampTime(player.getState().currentTime +
       (e.code === 'ArrowLeft' ? -5 : 5),player.duration));
   } else if (e.code === 'KeyB') {
@@ -376,6 +393,10 @@ document.addEventListener('keydown', e => {
     switchCamera('follow');
     const value = $('ballCamSelect').value === 'ball' ? 'car' : 'ball';
     applyBallCam(value);
+  } else if (e.code === 'KeyR') {
+    e.preventDefault();
+    switchCamera('follow');
+    applyBallCam('recorded');
   } else if (e.code === 'KeyF') {
     e.preventDefault();
     $('fullscreenBtn').click();
