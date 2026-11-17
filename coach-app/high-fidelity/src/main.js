@@ -5,6 +5,14 @@ import {
   fromReplayPlayerPlugin, setPlayerAssetBase,
 } from '@rlrml/player';
 import { formatTime, clampTime, timelineMarkers } from './time.js';
+import {
+  findCameraTrack, recordedCameraAt, cameraEvidence,
+  cameraSwitchMoments, displayCameraMode,
+} from './camera-timeline.js';
+import { createCameraPolishPlugin } from './camera-polish.js';
+import {
+  applySceneQuality, createEffectRefiner, createVisualEffectsPlugin,
+} from './visual-quality.js';
 import './style.css';
 
 const $ = id => document.getElementById(id);
@@ -18,12 +26,12 @@ setPlayerAssetBase(assetBase);
 
 let player = null;
 let cameraPlugin = null;
-let unsubscribe = null;
+let cameraPolish = null;
+let effectRefiner = null;
 let loadSequence = 0;
 let loading = false;
 let scrubbing = false;
 let resumeAfterScrub = false;
-let preferredPlayer = null;
 let lastHudUpdate = -Infinity;
 
 function setStatus(message, isError = false) {
@@ -42,7 +50,8 @@ function enableControls(enabled) {
   for (const id of [
     'stepBackBtn','backBtn','playBtn','forwardBtn','stepForwardBtn',
     'seek','speedSelect','playerSelect','ballCamSelect',
-    'interpolation','hitboxToggle','trailToggle'
+    'interpolation','hitboxToggle','trailToggle','replayLookToggle',
+    'qualitySelect','fxStyle'
   ]) $(id).disabled = !enabled;
   for (const button of document.querySelectorAll('.cam')) button.disabled = !enabled;
 }
@@ -50,39 +59,84 @@ function enableControls(enabled) {
 function currentPlayer() {
   return player?.adapter?.playerList?.find(p => p.id === $('playerSelect').value) ?? null;
 }
+function currentCameraTrack() {
+  const p=currentPlayer();
+  return p ? findCameraTrack(player?.replay,p.id,p.name) : null;
+}
+function invalidateCamera() { cameraPolish?.invalidate(); }
 function switchCamera(mode) {
   if (!cameraPlugin || !player) return;
-  const available = new Set(['follow', 'orbit', 'ballOrbit', 'free']);
-  if (!available.has(mode)) return;
-  const picked = currentPlayer();
-  if (mode === 'follow') {
-    if (picked) cameraPlugin.follow(picked.name);
-  } else if (mode === 'orbit') {
-    cameraPlugin.release();
-  } else {
-    cameraPlugin.setMode(mode);
+  if (!['follow','orbit','ballOrbit','free'].includes(mode)) return;
+  const picked=currentPlayer();
+  if(mode==='follow'){
+    // Use the *public* parity API, not plugin.follow alone. Keeping the
+    // attached player in the engine state lets applyReplayBallCam reproduce
+    // per-player native Ball Cam toggles during seeking and playback.
+    if(picked) player.setAttachedPlayer(picked.id);
+  }else{
+    player.setCameraViewMode('free');
+    if(mode==='orbit') cameraPlugin.release();
+    else cameraPlugin.setMode(mode);
   }
-  for (const button of document.querySelectorAll('.cam')) {
-    const active = button.dataset.camera === mode;
-    button.classList.toggle('active', active);
-    button.setAttribute('aria-pressed', String(active));
+  invalidateCamera();
+  for(const button of document.querySelectorAll('.cam')){
+    const active=button.dataset.camera===mode;
+    button.classList.toggle('active',active);
+    button.setAttribute('aria-pressed',String(active));
   }
-  $('ballCamSelect').disabled = mode !== 'follow';
-  $('cameraLabel').textContent = ({
-    follow: 'PLAYER CAM',
-    orbit: 'ORBIT CAM',
-    ballOrbit: 'BALL ORBIT',
-    free: 'FLY CAM',
-  })[mode];
-  $('playerHud').textContent = mode === 'follow' && picked ? picked.name : 'FREE CAMERA';
+  $('ballCamSelect').disabled=mode!=='follow';
+  $('playerHud').textContent=mode==='follow'&&picked?picked.name:
+    mode==='free'?'FREE FLY CAMERA':mode==='ballOrbit'?'BALL ORBIT':'ORBIT CAMERA';
+  updateHud(true);
 }
-
 function applyBallCam(value) {
-  if (!cameraPlugin) return;
-  cameraPlugin.setBallCam(value === 'recorded' ? null : value === 'ball');
-  $('ballCamSelect').value = value;
+  if(!player)return;
+  // null means use replay-authored camera changes, not "ball cam always on".
+  player.setBallCamEnabled(value==='recorded'?null:value==='ball');
+  $('ballCamSelect').value=value;
+  invalidateCamera();
+  updateHud(true);
 }
-
+function updateCameraEvidence(){
+  const evidence=cameraEvidence(currentCameraTrack());
+  const el=$('cameraEvidence');
+  if(!evidence.events){
+    el.classList.add('unknown');
+    el.textContent='This player has no replicated Ball Cam switch events. Recorded state is unknown; use Force Car Cam or Force Ball Cam for comparison.';
+  }else{
+    el.classList.remove('unknown');
+    el.textContent='Native camera events: '+evidence.events+
+      ' • Ball Cam OFF: '+evidence.ballOff+
+      ' • Ball Cam ON: '+evidence.ballOn+
+      ' • Rear view: '+evidence.rear+
+      ' • Manual-look samples: '+(evidence.hasSwivel?'present':'not replicated')+
+      '. The game does not store a literal camera-world transform.';
+  }
+}
+function refreshCameraEvents() {
+  const list=$('cameraEventList');
+  list.replaceChildren();
+  const moments=cameraSwitchMoments(player?.replay,currentCameraTrack(),60);
+  if(!moments.length){
+    const span=document.createElement('span');
+    span.className='muted';
+    span.textContent='No recorded camera switches for this player.';
+    list.append(span);
+    return;
+  }
+  for(const moment of moments){
+    const btn=document.createElement('button');
+    btn.type='button';
+    btn.classList.toggle('off',moment.label==='Ball Cam off');
+    btn.textContent=moment.label+' · '+formatTime(moment.time);
+    btn.addEventListener('click',()=>{
+      player?.pause();invalidateCamera();
+      player?.seek(clampTime(moment.time,player.duration));
+      updateHud(true);
+    });
+    list.append(btn);
+  }
+}
 function fillPlayers(players, preferredName = null) {
   const select = $('playerSelect');
   select.replaceChildren();
