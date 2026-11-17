@@ -22,6 +22,10 @@ def test_end_to_end_native_replay_decision_cases():
     if not replay_path.exists():
         pytest.skip(f"Real replay fixture not found at {replay_path}. Set RL_REPLAY_DIR to run end-to-end tests.")
 
+    # Keep the optional real-decoder test explicit: hosted CI has no native
+    # dependency and no user replay fixture, while Windows RL_REPLAY_DIR runs
+    # the genuine upload -> decision endpoint integration path.
+    pytest.importorskip("subtr_actor", reason="native replay decoder unavailable")
     replay_bytes = replay_path.read_bytes()
     assert len(replay_bytes) > 100_000
 
