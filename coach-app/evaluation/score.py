@@ -67,6 +67,16 @@ def _valid_cases(records: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
                   f"{case_id}: missing/duplicate evidence key")
             keys.add(key)
             _need(isinstance(item.get("claim"), str), f"{case_id}: evidence claim must be a string")
+            source = item.get("source")
+            _need(isinstance(source, str) and source.strip(),
+                  f"{case_id}/{key}: evidence provenance source is required")
+            _need(source.lower() not in {
+                "post_decision", "post_decision_outcome",
+                "retrospective", "future_derived", "outcome",
+            }, f"{case_id}/{key}: retrospective source cannot be used before t0")
+            quality = item.get("source_quality")
+            _need(quality in {"high", "medium", "low", "unknown"},
+                  f"{case_id}/{key}: source_quality is required")
             event_time = item.get("event_time_s")
             finalized = item.get("finalized_through_s")
             _need(_finite_number(event_time) and 0 <= event_time <= t0,
