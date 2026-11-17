@@ -14,7 +14,10 @@ const settings = {
 export function qualitySettings(name, dpr=1, maxAniso=16) {
   const profile=settings[name] || settings.balanced;
   return {
-    ratio:Math.max(1,Math.min(profile.ratio,Number(dpr)||1)),
+    // Sharp is an explicit quality override, including on common 1x-DPR
+    // monitors where the old min(profile,dpr) could never supersample.
+    // Other modes respect native screen density to avoid needless GPU work.
+    ratio:name==='sharp' ? 2 : Math.max(1,Math.min(profile.ratio,Number(dpr)||1)),
     anisotropy:Math.max(1,Math.min(profile.anisotropy,Number(maxAniso)||1)),
   };
 }
@@ -70,6 +73,8 @@ function getEffectCollections(player) {
 export function createEffectRefiner(getPreference=()=> 'soft') {
   const originals=new WeakMap();
   const applied=new WeakMap();
+  const originalVisibility=new WeakMap();
+  const originalRibbonWidth=new WeakMap();
   let changes=0;
   function materialStyle(mat,kind,style) {
     if (!mat?.isShaderMaterial) return;
@@ -116,19 +121,26 @@ export function createEffectRefiner(getPreference=()=> 'soft') {
     const effect=getEffectCollections(player);
     for (const trail of effect.boost) {
       if (trail?.points) {
-        trail.points.visible=visible;
+        if(!originalVisibility.has(trail.points))
+          originalVisibility.set(trail.points,trail.points.visible);
+        trail.points.visible=visible && originalVisibility.get(trail.points);
         materialStyle(trail.points.material,'boost',style);
       }
     }
     for (const trail of effect.supersonic) {
-      if (typeof trail.trailWidth==='number' && preference==='soft') {
-        trail.trailWidth=9; // new segments: less blocky cross-section
-      } else if (typeof trail.trailWidth==='number') {
-        trail.trailWidth=15;
-      }
+      if (typeof trail.trailWidth==='number' && !originalRibbonWidth.has(trail))
+        originalRibbonWidth.set(trail,trail.trailWidth);
+      if (originalRibbonWidth.has(trail))
+        trail.trailWidth=preference==='soft'
+          ? Math.min(9,originalRibbonWidth.get(trail))
+          : originalRibbonWidth.get(trail);
       for (const segment of trail?.segments ?? []) {
         for (const ribbon of [segment.leftTrail,segment.rightTrail]) {
-          if(ribbon?.mesh) ribbon.mesh.visible=visible;
+          if(ribbon?.mesh) {
+            if(!originalVisibility.has(ribbon.mesh))
+              originalVisibility.set(ribbon.mesh,ribbon.mesh.visible);
+            ribbon.mesh.visible=visible && originalVisibility.get(ribbon.mesh);
+          }
           if(ribbon?.material) materialStyle(ribbon.material,'supersonic',style);
         }
       }
