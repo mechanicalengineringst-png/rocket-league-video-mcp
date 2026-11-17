@@ -109,7 +109,9 @@ def evaluate_forecasts(
                 "observed_base_rate": round(base_rate, 5) if base_rate is not None else None,
                 "brier": _average(briers),
                 "log_loss": _average(losses),
-                "constant_base_rate_brier": (
+                # This uses the held-out evaluation prevalence itself: an
+                # optimistic diagnostic reference, NOT a deployable trained baseline.
+                "evaluation_prevalence_reference_brier": (
                     _average([(base_rate - int(row[truthkey])) ** 2
                               for row in eligible.values()])
                     if base_rate is not None else None
