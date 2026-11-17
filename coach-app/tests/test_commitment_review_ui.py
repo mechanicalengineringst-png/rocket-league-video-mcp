@@ -19,6 +19,8 @@ def test_local_video_review_interface_remains_standalone_and_masked():
     assert 'input class="file" id="videoFiles"' in html
     assert 'URL.createObjectURL' in html
     assert 'core.validateAnswer(record,packet)' in html
+    assert 'hasUnsavedEdits()' in html
+    assert 'Save current edits before exporting' in html
     assert '.textContent=' in html
     assert 'fetch(' not in html
     assert 'http://' not in html and 'https://' not in html
