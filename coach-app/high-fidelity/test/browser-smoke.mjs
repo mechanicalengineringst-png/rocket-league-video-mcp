@@ -107,15 +107,15 @@ try{
     window.__rlReplayLabQA?.arenaMeshes()?.filter(x=>
       x.name.startsWith('Field_STD_Floor_Hex')).map(x=>x.visible) ?? []
   ));
-  const clean=await decorState();
-  assert.ok(clean.length>=2,'GLTF has multiple stacked field-hex decals');
-  assert.ok(clean.every(v=>v===false),'Clean mode hides all stacked hex decorations');
-  await page.locator('#fieldDecorSelect').selectOption('original');
-  assert.ok((await decorState()).every(v=>v===true),
-    'Original artwork must restore all field hex layers');
+  const original=await decorState();
+  assert.ok(original.length>=2,'GLTF has multiple stacked field-hex decals');
+  assert.ok(original.every(v=>v===true),'Original scene must load unchanged by default');
   await page.locator('#fieldDecorSelect').selectOption('clean');
   assert.ok((await decorState()).every(v=>v===false),
-    'Returning to Clean must hide all hex decorations again');
+    'Experimental simplified view hides all stacked decorative hex layers');
+  await page.locator('#fieldDecorSelect').selectOption('original');
+  assert.ok((await decorState()).every(v=>v===true),
+    'Original stadium artwork must be fully restored');
   await page.locator('#fxStyle').selectOption('original');
   await page.locator('#fxStyle').selectOption('soft');
   await page.locator('#speedSelect').selectOption('2');
