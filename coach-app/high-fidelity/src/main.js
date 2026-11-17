@@ -5,6 +5,10 @@ import {
   fromReplayPlayerPlugin, setPlayerAssetBase,
 } from '@rlrml/player';
 import { formatTime, clampTime, timelineMarkers } from './time.js';
+import {
+  validateExternalControl, resolveFocusedPlayer,
+  shouldCorrectReplayTime, safeSessionId,
+} from './external-sync.js';
 import './style.css';
 
 const $ = id => document.getElementById(id);
@@ -24,6 +28,10 @@ let loading = false;
 let scrubbing = false;
 let resumeAfterScrub = false;
 let preferredPlayer = null;
+let bridgeSessionId = null;
+const hdInstanceId = globalThis.crypto?.randomUUID?.() ||
+  'instance-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
+let lastBridgeSeq = 0;
 let lastHudUpdate = -Infinity;
 
 function setStatus(message, isError = false) {
@@ -134,7 +142,7 @@ function updateHud(force = false) {
   $('playBtn').setAttribute('aria-label', state.playing ? 'Pause replay' : 'Play replay');
 }
 
-async function loadFile(file, preferredName = null) {
+async function loadFile(file, preferredName = null, externalSession = null) {
   if (!file || !String(file.name || '').toLowerCase().endsWith('.replay')) {
     setStatus('Choose a .replay file.', true);
     return;
@@ -144,6 +152,9 @@ async function loadFile(file, preferredName = null) {
     return;
   }
   const seq = ++loadSequence;
+  bridgeSessionId = externalSession && safeSessionId(externalSession)
+    ? externalSession : null;
+  lastBridgeSeq = 0;
   loading = true;
   enableControls(false);
   setStatus('Reading replay bytes locally…');
@@ -203,7 +214,17 @@ async function loadFile(file, preferredName = null) {
     $('trailToggle').checked = true;
     setLoading(false);
     updateHud(true);
-    next.play();
+    if (bridgeSessionId) {
+      // Only acknowledge after WASM decoding AND the visual assets are ready.
+      // Wait for parent's first control packet instead of starting an
+      // independently running clock that would immediately drift.
+      window.opener?.postMessage({
+        type:'replay-lab:hd-loaded',sessionId:bridgeSessionId,
+        duration:next.duration,playerCount:roster.length,
+      },location.origin);
+    } else {
+      next.play();
+    }
   } catch (error) {
     if (seq !== loadSequence) return;
     console.error('[Replay Lab HD] Replay failed to load', error);
@@ -211,6 +232,11 @@ async function loadFile(file, preferredName = null) {
     setStatus('Failed to open replay • ' + message, true);
     setLoading(true, 'Replay could not be loaded', 'Try another .replay or inspect the browser console for a parsing/asset error.');
     $('loadError').textContent = message;
+    if (bridgeSessionId) {
+      window.opener?.postMessage({
+        type:'replay-lab:hd-load-error',sessionId:bridgeSessionId,
+      },location.origin);
+    }
   } finally {
     if (seq === loadSequence) loading = false;
   }
@@ -306,20 +332,61 @@ document.addEventListener('keydown', e => {
 
 // The parent Replay Lab can transfer an already-selected File without
 // uploading it again, using a strict same-origin postMessage handshake.
+function applyParentReplayControl(data) {
+  if (!player || loading || !bridgeSessionId) return;
+  const command = validateExternalControl(
+    data, bridgeSessionId, lastBridgeSeq, player.duration
+  );
+  if (!command) return;
+  lastBridgeSeq = command.seq;
+
+  const focus = resolveFocusedPlayer(
+    player.adapter?.playerList, command.focusName, command.focusTeam
+  );
+  // A name+team match is the best available cross-parser identity mapping.
+  // If ambiguous, DO NOT silently attach the wrong player's camera.
+  if (focus && $('playerSelect').value !== String(focus.id)) {
+    $('playerSelect').value = String(focus.id);
+    switchCamera('follow');
+  } else if (!focus) {
+    setStatus('HD synchronization: player identity is ambiguous; camera unchanged.',true);
+  }
+
+  if (Number($('speedSelect').value) !== command.speed) {
+    $('speedSelect').value = String(command.speed);
+    player.setPlaybackRate(command.speed);
+  }
+  const before = player.getState();
+  if (shouldCorrectReplayTime(command.time, before.currentTime,
+                              command.playing)) {
+    player.seek(clampTime(command.time, player.duration));
+  }
+  const after = player.getState();
+  if (command.playing && !after.playing) player.play();
+  else if (!command.playing && after.playing) player.pause();
+  updateHud(true);
+}
+
+// Only the SAME-ORIGIN parent tab can send replay files or control messages.
+// HD still works standalone when opened directly, without a parent.
 window.addEventListener('message', event => {
   if (event.origin !== location.origin || event.source !== window.opener) return;
   if (event.data?.type === 'replay-lab:hd-ping') {
-    window.opener?.postMessage({ type:'replay-lab:hd-ready' }, location.origin);
+    window.opener?.postMessage({ type:'replay-lab:hd-ready', instanceId:hdInstanceId }, location.origin);
+    return;
+  }
+  if (event.data?.type === 'replay-lab:hd-control') {
+    applyParentReplayControl(event.data);
     return;
   }
   if (event.data?.type !== 'replay-lab:hd-load') return;
   const file = event.data.file;
-  if (!(file instanceof File)) return;
+  if (!(file instanceof File) || !safeSessionId(event.data.sessionId)) return;
   void loadFile(file, typeof event.data.preferredPlayer === 'string'
-    ? event.data.preferredPlayer : null);
+    ? event.data.preferredPlayer : null, event.data.sessionId);
 });
 if (window.opener && window.opener !== window) {
-  window.opener.postMessage({ type:'replay-lab:hd-ready' }, location.origin);
+  window.opener.postMessage({ type:'replay-lab:hd-ready', instanceId:hdInstanceId }, location.origin);
 }
 
 function hudLoop() {

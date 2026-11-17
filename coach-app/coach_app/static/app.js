@@ -24,6 +24,18 @@ const remembered = { get(){try{return localStorage.getItem('rl-coach:lastPlayerI
 const nearestIndex = time => { const fs=state.replay?.frames||[]; if(!fs.length)return -1; let lo=0, hi=fs.length-1; while(lo<hi){let mid=(lo+hi)>>1;if(fs[mid].t<time)lo=mid+1;else hi=mid;}return lo>0&&Math.abs(fs[lo-1].t-time)<Math.abs(fs[lo].t-time)?lo-1:lo; };
 const currentFrame = () => state.replay ? (globalThis.ReplayLabViewMath?.sampleReplayState(state.replay.frames, state.time) || state.replay.frames[nearestIndex(state.time)]) : null;
 const show = (message) => { $('toast').textContent=message; $('toast').classList.add('show'); clearTimeout(show.timer); show.timer=setTimeout(()=>$('toast').classList.remove('show'),3600); };
+function publishReplaySyncState(){
+  if(!state.replay)return;
+  const p=playerById(state.focusId);
+  if(!p)return;
+  // Only sends within this browser tab; hd-bridge performs a strict
+  // same-origin, expected-window handshake before forwarding state.
+  window.dispatchEvent(new CustomEvent('replay-lab:sync-state',{detail:{
+    time:state.time, playing:state.playing, speed:state.speed,
+    focusName:p.name, focusTeam:p.team, focusId:p.id,
+    synthetic:state.replay.source==='synthetic',
+  }}));
+}
 function el(tag, attrs={}, text) { const n=document.createElementNS(SVG_NS,tag); for(const [k,v] of Object.entries(attrs))n.setAttribute(k,String(v)); if(text!==undefined)n.textContent=text; return n; }
 function chooseTime(time){
   if(!state.replay)return;
@@ -43,6 +55,7 @@ function chooseTime(time){
     }
   }
   syncVideoToReplay();
+  publishReplaySyncState();
 }
 function setReplay(replay, opts={}){
   if(!replay || !Array.isArray(replay.players) || !Array.isArray(replay.frames) || !replay.frames.length)throw new Error('Invalid replay timeline.');
@@ -70,6 +83,12 @@ function setReplay(replay, opts={}){
   const v = getViewer3d();
   if(v) v.update(currentFrame(), state.focusId, state.replay.players);
   chooseTime(0);
+  // The HD bridge must not apply an old replay's time and focus after
+  // a different File has been selected but before parsing finishes.
+  window.dispatchEvent(new CustomEvent('replay-lab:replay-ready',{
+    detail:{synthetic:!!opts.demo}
+  }));
+  publishReplaySyncState();
 }
 function supportPoint(frame, focusId){let car=frame.cars[focusId];const team=playerById(focusId)?.team||'blue';const ownY=team==='blue'?-5120:5120;return {x:Math.max(-3500,Math.min(3500,frame.ball.x+(car.x<frame.ball.x?-500:500))),y:Math.max(-4400,Math.min(4400,frame.ball.y+(ownY>frame.ball.y?1100:-1100)))};}
 function demoReplay(){const players=[{id:'self',name:'Your car',team:'blue'},{id:'mate',name:'Teammate',team:'blue'},{id:'opp1',name:'Opponent 1',team:'orange'},{id:'opp2',name:'Opponent 2',team:'orange'}];let frames=[];for(let i=0;i<=240;i++){
@@ -420,6 +439,7 @@ function stopPlay(){
   $('playBtn').textContent='▶';
   const video=$('gameVideo');
   if(state.videoUrl&&!video.paused)video.pause();
+  publishReplaySyncState();
 }
 
 function playTick(timestamp){
@@ -456,6 +476,7 @@ function togglePlay(){
     if(target>=0&&target<video.duration)video.play().catch(()=>{});
   }
   playbackHandle=requestAnimationFrame(playTick);
+  publishReplaySyncState();
 }
 function syncVideoToReplay(force=false){
   const video=$('gameVideo');
@@ -580,6 +601,7 @@ function wire(){
     const speed=Number(e.target.value);state.speed=Number.isFinite(speed)&&speed>0?speed:1;
     if(state.videoUrl&&state.videoAligned)$('gameVideo').playbackRate=state.speed;
     if(state.playing){stopPlay();togglePlay();}
+    publishReplaySyncState();
   };
   for(const [id,key] of [['showFacing','facing'],['showTrail','trail'],['showBallTrail','ballTrail']]){
     $(id).onchange=e=>{state.view[key]=e.target.checked;renderPitch();};
