@@ -134,3 +134,32 @@ The system tests software behavior on synthetic fixtures. Real expertise
 still requires independent reviewers, real 2v2 situations, provenance checks
 and explicit validation. Citation keys do not prove the truth of what a model
 says, and timestamps do not prove native event labels were available at t0.
+
+## Separate probability-forecast experiment (not a coaching verdict)
+
+Claude's experimental value models can forecast whether a team will score or
+concede during a fixed future window. Evaluate those probability forecasts
+after they are frozen, **without providing outcome labels to the model input**:
+
+    python -m evaluation.forecast --cases cases.json --forecasts forecasts.json --outcomes heldout_outcomes.json --horizon 5 --output calibration.json
+
+Predictions are a JSON list of:
+    {"case_id":"case-a","system_id":"value-model-v1","horizon_s":5,"p_score":0.2,"p_concede":0.4}
+
+In a SEPARATE, never model-visible file, store observed labels:
+    {"case_id":"case-a","horizon_s":5,"observed_through_s":40.0,"scored_within_horizon":false,"conceded_within_horizon":true}
+
+The observed_through_s timestamp must cover the full t0 + horizon interval.
+If the replay ends before that, the case is **censored** and excluded rather
+than falsely counted as a safe negative. Output includes per-task Brier score,
+log loss, five calibration bins, missing predictions and coverage.
+
+The evaluation_prevalence_reference_brier uses the EVALUATION sample's known
+base rate, so it is only an optimistic diagnostic reference. For a real model
+comparison, also use an independently estimated baseline from training matches,
+with the same grouped folds and identical heldout cases. A predictive model
+should not be trained on outcomes from the match it is evaluated on.
+
+**Crucial:** forecasting that a goal is likely does not establish which
+human decision was correct. A high-quality tactical critic needs separate
+action-conditioned or expert-grounded validation, plus human review.
