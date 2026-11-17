@@ -124,4 +124,8 @@ def test_provenance_stays_coordinator_only_not_in_reviewer_packets():
     result = select_pilot(cases, manifest)
     assert "selection_manifest" not in result
     assert "labels" not in result
-    assert not any("origin" in str(cid) for cid in result["case_ids"])
+    # Output case IDs and source strata are COORDINATOR-only; reviewer packets
+    # receive newly randomized C000xx identifiers from evaluation.prepare.
+    # Source strata must not be embedded as reviewer-facing per-case labels.
+    assert set(result["per_situation"]) == set(DEFAULT_SITUATIONS)
+    assert all(cid in {c["case_id"] for c in cases} for cid in result["case_ids"])
