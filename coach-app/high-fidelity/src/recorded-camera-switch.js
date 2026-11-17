@@ -1,39 +1,47 @@
-import { findCameraTrack, recordedCameraAt } from './camera-timeline.js';
+import { findCameraTrack, recordedCameraAtTime } from './camera-timeline.js';
 
-/** Correct the upstream adapter edge case in which the ReplayModel has
- * replicated camera-switch events but its mutable player entity can retain
- * a stale Ball Cam state after a backward seek. This plugin runs BEFORE the
- * upstream camera renderer and sets its actual mode from the normalized
- * ReplayModel's native event stream, not from our HUD label.
+/** Synchronize the ACTUAL camera renderer from native camera event times.
+ * The renderer's adjusted frame index can disagree with ReplayModel.frames
+ * at a recorded switch. Also respond to seeks immediately instead of
+ * requiring a subsequent rAF tick while paused.
+ *
+ * This plugin runs BEFORE the upstream camera plugin. It never changes the
+ * ReplayPlayer's public recorded/forced selection or emits a state update.
  */
 export function createRecordedCameraSwitchPlugin({
   getCameraPlugin, getFollowId, getCameraOverride,
 }) {
   let lastReplay=null,lastFocus=null,track=null;
+
+  function sync(player,time,viewMode) {
+    if(!player?.replay||viewMode!=='follow'||getCameraOverride()!=='recorded')return;
+    const focusId=getFollowId();
+    if(!focusId)return;
+    if(player.replay!==lastReplay||focusId!==lastFocus){
+      lastReplay=player.replay;lastFocus=focusId;
+      const roster=player.adapter?.playerList||[];
+      const p=roster.find(item=>item.id===focusId);
+      track=findCameraTrack(lastReplay,focusId,p?.name||'');
+    }
+    const observed=recordedCameraAtTime(track,lastReplay,time);
+    if(typeof observed.ballCam!=='boolean')return;
+    const camera=getCameraPlugin();
+    if(camera && camera.getBallCam()!==observed.ballCam){
+      // Set plugin only. Calling player.setBallCamEnabled() would replace
+      // the user's "recorded" mode with a forced manual override.
+      camera.setBallCam(observed.ballCam);
+    }
+  }
+
   return {
     id:'replay-lab-recorded-camera-source',
+    onStateChange(ctx) {
+      // Seeking, frame stepping, and selecting player all update now.
+      sync(ctx.player,ctx.state?.currentTime,ctx.state?.cameraViewMode);
+    },
     beforeRender(ctx) {
-      if(!ctx?.player || ctx.state?.cameraViewMode!=='follow')return;
-      if(getCameraOverride()!=='recorded')return;
-      const focusId=getFollowId();
-      if(!focusId)return;
-      if(ctx.player.replay!==lastReplay||focusId!==lastFocus) {
-        lastReplay=ctx.player.replay;
-        lastFocus=focusId;
-        const roster=ctx.player.adapter?.playerList||[];
-        const p=roster.find(p=>p.id===focusId);
-        track=findCameraTrack(lastReplay,focusId,p?.name||'');
-      }
-      const observed=recordedCameraAt(track,ctx.frameIndex);
-      if(typeof observed.ballCam === 'boolean'){
-        // Do NOT call player.setBallCamEnabled() from a render callback:
-        // it emits a state-change event and would override recorded mode.
-        // Setting the camera plugin directly before its own frame pass
-        // ensures the real camera, not just the UI, follows the replay.
-        const camera=getCameraPlugin();
-        if(camera && camera.getBallCam()!==observed.ballCam)
-          camera.setBallCam(observed.ballCam);
-      }
+      sync(ctx.player,ctx.time??ctx.state?.currentTime,
+        ctx.state?.cameraViewMode);
     },
     teardown(){lastReplay=null;lastFocus=null;track=null;},
   };
