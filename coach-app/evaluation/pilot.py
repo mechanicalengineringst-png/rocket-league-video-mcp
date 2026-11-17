@@ -188,9 +188,18 @@ def main() -> None:
     parser.add_argument("--min-gap", type=float, default=5.0)
     parser.add_argument("--seed", type=int, default=20261117)
     parser.add_argument("--output", type=Path)
+    parser.add_argument("--selected-cases", type=Path,
+                        help="write only the selected blind-review cases")
+    parser.add_argument("--predictions", type=Path,
+                        help="optional full-cohort model predictions")
+    parser.add_argument("--selected-predictions", type=Path,
+                        help="write predictions for only the selected cases")
     args = parser.parse_args()
+    if args.selected_predictions and not args.predictions:
+        parser.error("--selected-predictions requires --predictions")
+    source_cases = _read_records(args.cases)
     selected = select_pilot(
-        _read_records(args.cases), _read_records(args.manifest),
+        source_cases, _read_records(args.manifest),
         per_situation=args.per_situation,
         min_replay_groups=args.min_replays,
         min_time_gap_s=args.min_gap,
@@ -201,6 +210,18 @@ def main() -> None:
         args.output.write_text(result, encoding="utf-8")
     else:
         print(result)
+    chosen = set(selected["case_ids"])
+    if args.selected_cases:
+        by_id = {c["case_id"]: c for c in source_cases}
+        cohort = [by_id[cid] for cid in selected["case_ids"]]
+        args.selected_cases.write_text(json.dumps(cohort, indent=2) + "\n",
+                                       encoding="utf-8")
+    if args.selected_predictions:
+        source_predictions = _read_records(args.predictions)
+        filtered = [row for row in source_predictions if row.get("case_id") in chosen]
+        args.selected_predictions.write_text(
+            json.dumps(filtered, indent=2) + "\n", encoding="utf-8",
+        )
 
 
 if __name__ == "__main__":
