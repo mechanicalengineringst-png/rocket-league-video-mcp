@@ -21,7 +21,8 @@ jobs:
         run: |
           node --check coach-app/coach_app/static/viewer3d-math.js
           node --check coach-app/coach_app/static/boost-pad-state.js
+          node --check coach-app/coach_app/static/boost-pad-state.js
           node --check coach-app/coach_app/static/viewer3d.js
           node --check coach-app/coach_app/static/app.js
-      - name: Test coordinate transforms and cameras
-        run: node --test coach-app/tests/test_viewer_math.cjs coach-app/tests/test_boost_pad_state.cjs
+      - name: Test coordinate transforms, cameras, and boost-pad state
+        run: node --test coach-app/tests/test_viewer_math.cjs coach-app/tests/test_boost_pad_state.cjs coach-app/tests/test_boost_pad_state.cjs
