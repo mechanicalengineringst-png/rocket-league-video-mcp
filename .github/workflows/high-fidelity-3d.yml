@@ -1,0 +1,38 @@
+name: High-Fidelity Replay Preview
+
+on:
+  pull_request:
+    paths:
+      - 'coach-app/high-fidelity/**'
+      - 'coach-app/setup-high-fidelity.cmd'
+      - 'coach-app/coach_app/main.py'
+      - '.github/workflows/high-fidelity-3d.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  build-hd-player:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Install the published replay engine
+        working-directory: coach-app/high-fidelity
+        run: npm install --no-audit --no-fund
+      - name: Test replay UI helpers
+        working-directory: coach-app/high-fidelity
+        run: npm test
+      - name: Bundle the actual @rlrml/player + WASM renderer
+        working-directory: coach-app/high-fidelity
+        run: npm run build
+      - name: Check bundled page, stadium assets and WASM output
+        run: |
+          test -s coach-app/coach_app/static/hd-player/index.html
+          test -s coach-app/coach_app/static/hd-player/models/stadium/stadium.glb
+          test -s coach-app/coach_app/static/hd-player/models/cars/octane/octane.glb
+          find coach-app/coach_app/static/hd-player -maxdepth 3 -name '*.wasm' -o -name '*.js' | head -n 20
+          grep -q "/static/hd-player/" coach-app/coach_app/static/hd-player/index.html
