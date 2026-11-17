@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createRecordedCameraSwitchPlugin} from '../src/recorded-camera-switch.js';
 import {
-  findCameraTrack,recordedCameraAt,cameraEvidence,
+  findCameraTrack,recordedCameraAt,recordedCameraAtTime,replayFrameAtTime,cameraEvidence,
   cameraSwitchMoments,displayCameraMode,
 } from '../src/camera-timeline.js';
 const replay={
@@ -35,6 +35,14 @@ test('camera timeline carries real Ball Cam OFF state and rear look at exact fra
   assert.equal(recordedCameraAt(track,2).yaw,.2);
   assert.equal(recordedCameraAt(track,3).yaw,null);
 });
+test('camera event boundary lookup uses ReplayModel clock, independent of renderer index',()=>{
+  assert.equal(replayFrameAtTime(replay,0),0);
+  assert.equal(replayFrameAtTime(replay,.19999998),2); // native Float32 rounding
+  assert.equal(replayFrameAtTime(replay,.15),1);
+  assert.equal(recordedCameraAtTime(track,replay,.20).ballCam,false);
+  assert.equal(recordedCameraAtTime(track,replay,.49999998).ballCam,true);
+  assert.equal(recordedCameraAtTime(track,replay,.30).ballCam,false);
+});
 test('native camera events map to clock times and stay sorted',()=>{
   const moments=cameraSwitchMoments(replay,track);
   assert.deepEqual(moments.map(x=>x.label),[
@@ -65,7 +73,7 @@ test('replicated swivel and switching events are counted accurately',()=>{
   });
 });
 
-test('recorded Ball Cam ON/OFF updates camera renderer, including backward seek',()=>{
+test('recorded Ball Cam ON/OFF updates actual plugin at event boundaries and seeks',()=>{
   let current=false,override='recorded',focus='epic:1';
   const applied=[];
   const cam={getBallCam:()=>current,setBallCam:next=>{current=next;applied.push(next);}};
@@ -73,16 +81,21 @@ test('recorded Ball Cam ON/OFF updates camera renderer, including backward seek'
     getCameraPlugin:()=>cam,getFollowId:()=>focus,getCameraOverride:()=>override,
   });
   const ctx={player:{replay,adapter:{playerList:[{id:'epic:1',name:'Quarts'}]}},
-    state:{cameraViewMode:'follow'},frameIndex:0};
+    state:{cameraViewMode:'follow',currentTime:0},time:0,frameIndex:0};
   plugin.beforeRender(ctx);
   assert.equal(current,true,'frame-zero recorded ON cannot inherit false fallback');
-  ctx.frameIndex=2;plugin.beforeRender(ctx);
-  assert.equal(current,false,'native Car Cam OFF must actually update plugin');
-  ctx.frameIndex=5;plugin.beforeRender(ctx);
-  assert.equal(current,true,'backward/forward scrubbing must restore native ON state');
+  // Even a renderer-adapter frame index lagging behind the model must not
+  // suppress a native event at its precise replay time.
+  ctx.frameIndex=1;
+  ctx.time=.19999998;
+  plugin.beforeRender(ctx);
+  assert.equal(current,false,'native OFF is applied using event timestamp');
+  ctx.state.currentTime=.49999998;
+  plugin.onStateChange(ctx);
+  assert.equal(current,true,'backward seek/native ON updates immediately');
   assert.deepEqual(applied,[true,false,true]);
-  override='car';ctx.frameIndex=2;plugin.beforeRender(ctx);
-  assert.deepEqual(applied,[true,false,true],'forced mode should be respected');
-  ctx.state.cameraViewMode='free';override='recorded';plugin.beforeRender(ctx);
-  assert.deepEqual(applied,[true,false,true],'free camera must not be overridden');
+  override='car';ctx.time=.2;plugin.beforeRender(ctx);
+  assert.deepEqual(applied,[true,false,true],'forced mode is respected');
+  ctx.state.cameraViewMode='free';override='recorded';plugin.onStateChange(ctx);
+  assert.deepEqual(applied,[true,false,true],'free camera is never overridden');
 });
