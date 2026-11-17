@@ -1,0 +1,22 @@
+{
+  "name": "replay-lab-high-fidelity-preview",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "test": "node --test test/*.test.mjs",
+    "check": "node --check src/main.js && node --check src/bridge.js && npm run test && npm run build"
+  },
+  "dependencies": {
+    "@rlrml/player": "1.5.1",
+    "@rlrml/subtr-actor": "1.5.1",
+    "three": "0.180.0",
+    "camera-controls": "2.10.1"
+  },
+  "devDependencies": {
+    "vite": "8.3.4",
+    "vite-plugin-wasm": "3.6.0"
+  }
+}
