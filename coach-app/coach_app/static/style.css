@@ -33,6 +33,34 @@
 .touch-link small{color:var(--aqua);white-space:nowrap}
 .touch-empty{font-size:11px;color:var(--muted);line-height:1.4}
 .leadin-btn{margin-top:8px}
+
+/* 3D Replay Viewer & Modern Multi-View Controls */
+.view-tabs{display:flex;gap:4px;align-items:center;background:#0c1c28;padding:4px;border-radius:8px;border:1px solid var(--border)}
+.tab-btn{background:transparent;border:0;color:var(--muted);padding:6px 13px;border-radius:6px;font-weight:600;font-size:11px;transition:all .18s;cursor:pointer}
+.tab-btn:hover{color:var(--text)}
+.tab-btn.active{background:#183d4c;color:var(--aqua);border:1px solid #366175}
+
+.pitch-shell{min-height:590px;height:640px;position:relative;background:linear-gradient(150deg,#102932 0%,#0a202d 55%,#0f2834);border:1px solid #254654;border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:12px}
+.viewport-3d{width:100%;height:100%;position:absolute;inset:0;display:block}
+.viewport-3d canvas{width:100%!important;height:100%!important;display:block}
+
+.controls-3d{position:absolute;top:14px;right:14px;display:flex;align-items:center;gap:6px;background:rgba(10,28,38,.88);backdrop-filter:blur(8px);padding:5px 9px;border-radius:8px;border:1px solid #315869;z-index:10}
+.cam-label{font-size:9px;letter-spacing:1px;color:var(--muted);font-weight:700;margin-right:2px}
+.controls-3d .button-mini{padding:4px 8px;font-size:10px}
+.controls-3d .button-mini.active{background:#184252;border-color:var(--aqua);color:var(--aqua)}
+
+.pitch-shell.split-mode{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px}
+.pitch-shell.split-mode #field{position:relative;width:100%;height:100%;max-height:610px}
+.pitch-shell.split-mode .viewport-3d{position:relative;width:100%;height:100%;min-height:580px;inset:auto}
+
+/* Boost pads 2D */
+.boost-big{fill:#ffb300;stroke:#ffca28;stroke-width:1.5;filter:drop-shadow(0 0 5px rgba(255,179,0,.6));opacity:.9}
+.boost-small{fill:#4dd0e1;stroke:#80deea;stroke-width:1;opacity:.75}
+
+/* Scene inspector stability (prevents vertical jumping) */
+.scene-inspector{min-height:220px}
+.findings-list{min-height:140px}
+
 .video-panel{padding:0;overflow:hidden}
 .video-panel summary{list-style:none;cursor:pointer;padding:16px 19px;color:#ecf9fa;font:600 13px 'Space Grotesk',sans-serif}
 .video-panel summary::-webkit-details-marker{display:none}

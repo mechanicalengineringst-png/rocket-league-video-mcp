@@ -1,6 +1,15 @@
 'use strict';
 const $ = id => document.getElementById(id);
-const state = { replay: null, findings: [], focusId: null, selectedId: null, time: 0, playing: false, timer: null, overrides: new Map(), view: {facing:true, travel:false, heights:true, trail:false, ballTrail:false}, speed:1, momentFilter:'all', videoUrl:null, videoOffset:0, videoAligned:false };
+const state = { replay: null, findings: [], focusId: null, selectedId: null, time: 0, playing: false, timer: null, overrides: new Map(), view: {facing:true, travel:false, heights:true, trail:false, ballTrail:false, boostPads:true}, speed:1, momentFilter:'all', videoUrl:null, videoOffset:0, videoAligned:false };
+let viewer3d = null;
+let currentViewMode = '2d';
+function getViewer3d(){
+  if(!viewer3d && typeof Viewer3D !== 'undefined'){
+    const container = $('viewport3d');
+    if(container) viewer3d = new Viewer3D(container);
+  }
+  return viewer3d;
+}
 const SVG_NS = 'http://www.w3.org/2000/svg';
 // Rocket League uses Unreal's left-handed axes: seen from above with the orange goal (+Y)
 // at the top, +X is on the LEFT. Drawing +X to the right mirrors the whole field.
@@ -16,7 +25,18 @@ const nearestIndex = time => { const fs=state.replay?.frames||[]; if(!fs.length)
 const currentFrame = () => state.replay?.frames[nearestIndex(state.time)] || null;
 const show = (message) => { $('toast').textContent=message; $('toast').classList.add('show'); clearTimeout(show.timer); show.timer=setTimeout(()=>$('toast').classList.remove('show'),3600); };
 function el(tag, attrs={}, text) { const n=document.createElementNS(SVG_NS,tag); for(const [k,v] of Object.entries(attrs))n.setAttribute(k,String(v)); if(text!==undefined)n.textContent=text; return n; }
-function chooseTime(time){if(!state.replay)return;state.time=Math.max(startTime(),Math.min(time,state.replay.duration));$('timeRange').value=state.time;$('timeValue').textContent=fmt(state.time)+'.'+String(Math.floor((state.time%1)*100)).padStart(2,'0');const fc=currentFrame()?.cars[state.focusId];$('boostValue').textContent='BOOST '+(fc&&!fc.demolished&&Number.isFinite(fc.boost)?Math.round(fc.boost):'—');renderPitch();renderSceneInspector();syncVideoToReplay();}
+function chooseTime(time){
+  if(!state.replay)return;
+  state.time=Math.max(startTime(),Math.min(time,state.replay.duration));
+  $('timeRange').value=state.time;
+  $('timeValue').textContent=fmt(state.time)+'.'+String(Math.floor((state.time%1)*100)).padStart(2,'0');
+  const fc=currentFrame()?.cars[state.focusId];
+  $('boostValue').textContent='BOOST '+(fc&&!fc.demolished&&Number.isFinite(fc.boost)?Math.round(fc.boost):'—');
+  renderPitch();
+  renderSceneInspector();
+  if(viewer3d) viewer3d.update(currentFrame(), state.focusId, state.replay.players);
+  syncVideoToReplay();
+}
 function setReplay(replay, opts={}){
   if(!replay || !Array.isArray(replay.players) || !Array.isArray(replay.frames) || !replay.frames.length)throw new Error('Invalid replay timeline.');
   stopPlay();removeVideo();state.replay=replay;state.findings=[];
@@ -33,7 +53,10 @@ function setReplay(replay, opts={}){
   $('timeRange').min=startTime();$('timeRange').max=replay.duration;$('startTimeLabel').textContent=fmt(startTime());$('endTime').textContent=fmt(replay.duration);
   $('uploadStatus').textContent=opts.demo?'Simulated example loaded. This is NOT an actual match.':(replay.playerMappingVerified===false?'Replay decoded, but player identities could not be verified from kickoff spawns.':('Decoded '+(replay.telemetrySampleCount||replay.frames.length)+' physics samples; '+(replay.eventCounts?.touch||0)+' touches, '+(replay.eventCounts?.goal_context||0)+' goals. Events are review observations, not proven mistakes.'));
   if(!opts.demo&&!state.focusConfirmed)$('uploadStatus').textContent+=' The recording player could not be identified: confirm "Who are we coaching?".';
-  refreshFindings(opts.demo);chooseTime(0);
+  refreshFindings(opts.demo);renderBoostPads();
+  const v = getViewer3d();
+  if(v) v.update(currentFrame(), state.focusId, state.replay.players);
+  chooseTime(0);
 }
 function supportPoint(frame, focusId){let car=frame.cars[focusId];const team=playerById(focusId)?.team||'blue';const ownY=team==='blue'?-5120:5120;return {x:Math.max(-3500,Math.min(3500,frame.ball.x+(car.x<frame.ball.x?-500:500))),y:Math.max(-4400,Math.min(4400,frame.ball.y+(ownY>frame.ball.y?1100:-1100)))};}
 function demoReplay(){const players=[{id:'self',name:'Your car',team:'blue'},{id:'mate',name:'Teammate',team:'blue'},{id:'opp1',name:'Opponent 1',team:'orange'},{id:'opp2',name:'Opponent 2',team:'orange'}];let frames=[];for(let i=0;i<=240;i++){
@@ -102,7 +125,7 @@ function renderFindings(){
     const title=document.createElement('strong');title.textContent=f.title;
     const summary=document.createElement('small');summary.textContent=f.evidence;
     btn.append(time,title,summary);
-    btn.onclick=()=>{stopPlay();state.selectedId=f.id;chooseTime(f.t);renderFindings();renderDetail();};
+    btn.onclick=()=>{stopPlay();state.selectedId=f.id;chooseTime(Math.max(startTime(),f.t-1.5));renderFindings();renderDetail();};
     list.append(btn);
   }
 }
@@ -136,6 +159,53 @@ function recentPath(kind,focusId,seconds){
     if(p&&Number.isFinite(p.x)&&Number.isFinite(p.y))result.push({t:f.t,x:p.x,y:p.y});
   }
   return result.reverse();
+}
+function renderBoostPads(){
+  const parent=$('boostPadsLayer');
+  if(!parent)return;
+  parent.replaceChildren();
+  if(!state.view.boostPads||typeof BOOST_PADS_2D==='undefined')return;
+  for(const pad of BOOST_PADS_2D){
+    const x=sx(pad.x),y=sy(pad.y);
+    if(pad.big){
+      const ring=el('circle',{cx:x,cy:y,r:13,fill:'none',stroke:'#ffca28','stroke-width':1.8,opacity:'.8'});
+      const dot=el('circle',{cx:x,cy:y,r:8,class:'boost-big'});
+      parent.append(ring,dot);
+    }else{
+      const dot=el('circle',{cx:x,cy:y,r:4.5,class:'boost-small'});
+      parent.append(dot);
+    }
+  }
+}
+function setViewMode(mode){
+  currentViewMode=mode;
+  $('viewTab2d').classList.toggle('active',mode==='2d');
+  $('viewTab3d').classList.toggle('active',mode==='3d');
+  $('viewTabSplit').classList.toggle('active',mode==='split');
+  const shell=$('pitchShell'),field=$('field'),vp3d=$('viewport3d'),ctrl3d=$('controls3d'),badge=$('pitchBadge');
+  if(mode==='2d'){
+    shell.classList.remove('split-mode');
+    field.hidden=false;vp3d.hidden=true;ctrl3d.hidden=true;
+    badge.textContent='REPLAY FIELD · 2D TOP-DOWN VIEW';
+  }else if(mode==='3d'){
+    shell.classList.remove('split-mode');
+    field.hidden=true;vp3d.hidden=false;ctrl3d.hidden=false;
+    badge.textContent='REPLAY FIELD · 3D ARENA RECONSTRUCTION';
+    const v=getViewer3d();v?.onResize();
+    if(state.replay)v?.update(currentFrame(),state.focusId,state.replay.players);
+  }else if(mode==='split'){
+    shell.classList.add('split-mode');
+    field.hidden=false;vp3d.hidden=false;ctrl3d.hidden=false;
+    badge.textContent='REPLAY FIELD · SYNCHRONIZED 2D + 3D VIEW';
+    const v=getViewer3d();v?.onResize();
+    if(state.replay)v?.update(currentFrame(),state.focusId,state.replay.players);
+  }
+}
+function setCamMode(mode){
+  for(const [id,m] of [['camOrbit','orbit'],['camTactical','tactical'],['camFollow','follow'],['camBall','ball']]){
+    $(id)?.classList.toggle('active',m===mode);
+  }
+  getViewer3d()?.setCameraMode(mode);
 }
 function drawTrail(parent,points,color,thickness,dashed){
   if(points.length<2)return;
@@ -402,6 +472,15 @@ function wire(){
   for(const [id,key] of [['showFacing','facing'],['showTravel','travel'],['showHeights','heights'],['showTrail','trail'],['showBallTrail','ballTrail']]){
     $(id).onchange=e=>{state.view[key]=e.target.checked;renderPitch();};
   }
+  $('showBoostPads').onchange=e=>{state.view.boostPads=e.target.checked;renderBoostPads();};
+  $('viewTab2d').onclick=()=>setViewMode('2d');
+  $('viewTab3d').onclick=()=>setViewMode('3d');
+  $('viewTabSplit').onclick=()=>setViewMode('split');
+  $('camOrbit').onclick=()=>setCamMode('orbit');
+  $('camTactical').onclick=()=>setCamMode('tactical');
+  $('camFollow').onclick=()=>setCamMode('follow');
+  $('camBall').onclick=()=>setCamMode('ball');
+  $('camReset').onclick=()=>getViewer3d()?.resetCamera();
   $('momentFilter').onchange=e=>{
     state.momentFilter=e.target.value;
     const shown=visibleFindings();

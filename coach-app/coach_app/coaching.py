@@ -34,6 +34,9 @@ def find_review_candidates(replay: dict[str, Any], focus_id: str,
     teammates = [p['id'] for p in replay['players'] if p['team'] == team and p['id'] != focus_id]
     findings: list[dict[str, Any]] = []
     last_type: dict[str, float] = {}
+    # Kickoff cheats are intentional tactical positioning where teammates approach
+    # the ball together. Do not flag overlap within 4.0 seconds of a kickoff.
+    kickoffs = [ev['t'] for ev in replay.get('events', []) if ev.get('type') == 'kickoff']
 
     for f in replay['frames']:
         current = f['cars'].get(focus_id)
@@ -43,11 +46,12 @@ def find_review_candidates(replay: dict[str, Any], focus_id: str,
         t = f['t']
         target = suggested_support_point(ball, team, current['x'])
         # Only surface candidate overlap when both teammates are tight to the ball
-        # and each other. At high level this can also be entirely appropriate.
+        # and each other, outside of regular kickoff cheat windows.
+        is_kickoff = any(abs(t - kt) <= 4.0 for kt in kickoffs)
         close_mates = [m for pid in teammates if (m := f['cars'].get(pid))
                        and not m.get('demolished')
                        and _dist(m, ball) < 900 and _dist(m, current) < 1300]
-        if _dist(current, ball) < 900 and close_mates and t - last_type.get('overlap', -1e8) >= 18:
+        if not is_kickoff and _dist(current, ball) < 900 and close_mates and t - last_type.get('overlap', -1e8) >= 18:
             findings.append({
                 'id': f'overlap-{len(findings)}', 't': t, 'type': 'overlap',
                 'title': 'Possible two-car commitment', 'confidence': 'low',

@@ -46,7 +46,12 @@
     </aside>
     <section class="main-stage">
       <div class="stage-top">
-        <div><div class="eyebrow">TACTICAL BOARD / TOP-DOWN VIEW</div><h2 id="replayTitle">Your next decision starts here.</h2></div>
+        <div><div class="eyebrow">TACTICAL BOARD & 3D RECONSTRUCTION</div><h2 id="replayTitle">Your next decision starts here.</h2></div>
+        <div class="view-tabs" role="tablist" aria-label="Replay visualization mode">
+          <button id="viewTab2d" class="tab-btn active" type="button" role="tab" aria-selected="true">2D Map</button>
+          <button id="viewTab3d" class="tab-btn" type="button" role="tab" aria-selected="false">3D Arena</button>
+          <button id="viewTabSplit" class="tab-btn" type="button" role="tab" aria-selected="false">Split View</button>
+        </div>
         <div class="legend"><span><i class="blue"></i> Blue</span><span><i class="orange"></i> Orange</span><span><i class="focus-ring"></i> Selected player</span></div>
       </div>
       <div class="view-controls panel" aria-label="Replay field display controls">
@@ -56,9 +61,19 @@
         <label class="view-toggle"><input type="checkbox" id="showHeights" checked /> Height labels</label>
         <label class="view-toggle"><input type="checkbox" id="showTrail" /> My recent path (2s)</label>
         <label class="view-toggle"><input type="checkbox" id="showBallTrail" /> Ball path (1.5s)</label>
+        <label class="view-toggle"><input type="checkbox" id="showBoostPads" checked /> Boost pads</label>
       </div>
-      <div class="pitch-shell">
-        <div class="pitch-badge">REPLAY FIELD · POSITIONAL VIEW</div>
+      <div class="pitch-shell" id="pitchShell">
+        <div class="pitch-badge" id="pitchBadge">REPLAY FIELD · POSITIONAL VIEW</div>
+        <div id="controls3d" class="controls-3d" hidden>
+          <span class="cam-label">CAMERA:</span>
+          <button id="camOrbit" class="button-mini active" type="button">Orbit</button>
+          <button id="camTactical" class="button-mini" type="button">Tactical</button>
+          <button id="camFollow" class="button-mini" type="button">Chase Car</button>
+          <button id="camBall" class="button-mini" type="button">Ball Cam</button>
+          <button id="camReset" class="button-mini" type="button">Reset</button>
+        </div>
+        <div id="viewport3d" class="viewport-3d" hidden></div>
         <svg id="field" viewBox="0 0 760 970" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Rocket League field diagram with player, ball and route overlays">
           <defs><linearGradient id="pitchGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#132d38"/><stop offset="50%" stop-color="#102732"/><stop offset="100%" stop-color="#0c2837"/></linearGradient><filter id="glow"><feGaussianBlur stdDeviation="5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
           <rect x="36" y="31" width="688" height="908" rx="96" fill="url(#pitchGradient)" stroke="#47707a" stroke-width="2"/>
@@ -73,9 +88,10 @@
           <path d="M230 245Q380 315 530 245M230 725Q380 655 530 725" fill="none" stroke="#6da2a9" stroke-opacity=".24" stroke-width="1.5" stroke-dasharray="6 10"/>
           <text x="380" y="19" fill="#d88850" font-size="12" text-anchor="middle" letter-spacing="3">ORANGE GOAL</text>
           <text x="380" y="963" fill="#79aeff" font-size="12" text-anchor="middle" letter-spacing="3">BLUE GOAL</text>
+          <g id="boostPadsLayer"></g>
           <g id="dynamicLayers"></g>
         </svg>
-        <div class="pitch-note">White tips = where cars face; travel arrows = actual horizontal velocity. Height labels are in game units (u); paths only show past movement.</div>
+        <div class="pitch-note" id="pitchNote">White tips = where cars face; travel arrows = actual horizontal velocity. 3D view shows accurate aerial height and spatial depth.</div>
       </div>
       <div class="playback panel">
         <div class="playback-head"><div><strong id="timeValue">00:00</strong><span id="timelineHelp">Replay time (including stoppages)</span></div><span id="boostValue">BOOST —</span></div>
@@ -129,6 +145,9 @@
     </aside>
   </main>
   <div class="toast" id="toast" role="alert" aria-live="polite"></div>
+  <script src="/static/vendor/three.min.js"></script>
+  <script src="/static/vendor/OrbitControls.js"></script>
+  <script src="/static/viewer3d.js"></script>
   <script src="/static/app.js" defer></script>
 </body>
 </html>
