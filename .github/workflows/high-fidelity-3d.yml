@@ -29,6 +29,28 @@ jobs:
       - name: Bundle the actual @rlrml/player + WASM renderer
         working-directory: coach-app/high-fidelity
         run: npm run build
+      - name: Install headless Chromium for real replay QA
+        working-directory: coach-app/high-fidelity
+        run: npx playwright install --with-deps chromium
+      - name: Download an upstream public native replay fixture
+        run: |
+          curl -fsSL --retry 3 https://raw.githubusercontent.com/rlrml/subtr-actor/master/assets/problematic-private-duel-2026-03-20.replay -o /tmp/hd-test.replay
+          test -s /tmp/hd-test.replay
+      - name: Load the real replay inside a WebGL browser
+        working-directory: coach-app/high-fidelity
+        run: |
+          npm run preview > /tmp/hd-replay-preview.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:4173/static/hd-player/ >/dev/null; then break; fi
+            sleep 1
+          done
+          node test/browser-smoke.mjs /tmp/hd-test.replay || { cat /tmp/hd-replay-preview.log; exit 1; }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: replay-hd-chromium-screenshots
+          path: coach-app/high-fidelity/test-artifacts/
+          if-no-files-found: ignore
       - name: Check bundled page, stadium assets and WASM output
         run: |
           test -s coach-app/coach_app/static/hd-player/index.html
