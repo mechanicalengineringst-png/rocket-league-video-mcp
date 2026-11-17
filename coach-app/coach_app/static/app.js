@@ -22,7 +22,7 @@ const playerById = id => state.replay?.players.find(p => p.id === id);
 const startTime = () => state.replay?.frames[0]?.t ?? 0;
 const remembered = { get(){try{return localStorage.getItem('rl-coach:lastPlayerId');}catch(_){return null;}}, set(id){try{localStorage.setItem('rl-coach:lastPlayerId',id);}catch(_){}} };
 const nearestIndex = time => { const fs=state.replay?.frames||[]; if(!fs.length)return -1; let lo=0, hi=fs.length-1; while(lo<hi){let mid=(lo+hi)>>1;if(fs[mid].t<time)lo=mid+1;else hi=mid;}return lo>0&&Math.abs(fs[lo-1].t-time)<Math.abs(fs[lo].t-time)?lo-1:lo; };
-const currentFrame = () => state.replay?.frames[nearestIndex(state.time)] || null;
+const currentFrame = () => state.replay ? (globalThis.ReplayLabViewMath?.sampleReplayState(state.replay.frames, state.time) || state.replay.frames[nearestIndex(state.time)]) : null;
 const show = (message) => { $('toast').textContent=message; $('toast').classList.add('show'); clearTimeout(show.timer); show.timer=setTimeout(()=>$('toast').classList.remove('show'),3600); };
 function el(tag, attrs={}, text) { const n=document.createElementNS(SVG_NS,tag); for(const [k,v] of Object.entries(attrs))n.setAttribute(k,String(v)); if(text!==undefined)n.textContent=text; return n; }
 function chooseTime(time){
@@ -30,11 +30,18 @@ function chooseTime(time){
   state.time=Math.max(startTime(),Math.min(time,state.replay.duration));
   $('timeRange').value=state.time;
   $('timeValue').textContent=fmt(state.time)+'.'+String(Math.floor((state.time%1)*100)).padStart(2,'0');
-  const fc=currentFrame()?.cars[state.focusId];
+  const frame=currentFrame();
+  const fc=frame?.cars?.[state.focusId];
   $('boostValue').textContent='BOOST '+(fc&&!fc.demolished&&Number.isFinite(fc.boost)?Math.round(fc.boost):'—');
   renderPitch();
   renderSceneInspector();
-  if(viewer3d) viewer3d.update(currentFrame(), state.focusId, state.replay.players);
+  if(state.replay.boostPadTimeline) renderBoostPads();
+  if(viewer3d) {
+    viewer3d.update(frame, state.focusId, state.replay.players);
+    if(state.replay.boostPadTimeline) {
+      viewer3d.updateBoostPads(state.replay.boostPadTimeline, state.time);
+    }
+  }
   syncVideoToReplay();
 }
 function setReplay(replay, opts={}){
@@ -202,14 +209,18 @@ function renderBoostPads(){
   if(!parent)return;
   parent.replaceChildren();
   if(!state.view.boostPads||typeof BOOST_PADS_2D==='undefined')return;
-  for(const pad of BOOST_PADS_2D){
+  for(let i=0; i<BOOST_PADS_2D.length; i++){
+    const pad=BOOST_PADS_2D[i];
     const x=sx(pad.x),y=sy(pad.y);
+    const timeline=state.replay?.boostPadTimeline;
+    const st=timeline ? (globalThis.ReplayLabViewMath?.padStateAt(timeline, i, state.time) || {available:true}) : {available:true};
+    const opacity=st.available ? '1.0' : '0.22';
     if(pad.big){
-      const ring=el('circle',{cx:x,cy:y,r:13,fill:'none',stroke:'#ffca28','stroke-width':1.8,opacity:'.8'});
-      const dot=el('circle',{cx:x,cy:y,r:8,class:'boost-big'});
+      const ring=el('circle',{cx:x,cy:y,r:13,fill:'none',stroke:'#ffca28','stroke-width':1.8,opacity:st.available?'.8':'.2'});
+      const dot=el('circle',{cx:x,cy:y,r:8,class:'boost-big',opacity});
       parent.append(ring,dot);
     }else{
-      const dot=el('circle',{cx:x,cy:y,r:4.5,class:'boost-small'});
+      const dot=el('circle',{cx:x,cy:y,r:4.5,class:'boost-small',opacity});
       parent.append(dot);
     }
   }
@@ -388,28 +399,58 @@ function renderRecentActions(){
     list.append(btn);
   }
 }
+let playbackHandle=null;
+let lastPlayTimestamp=0;
+
 function stopPlay(){
-  if(state.timer)clearInterval(state.timer);
-  state.timer=null;state.playing=false;$('playBtn').textContent='▶';
-  const video=$('gameVideo');if(state.videoUrl&&!video.paused)video.pause();
+  if(playbackHandle){
+    cancelAnimationFrame(playbackHandle);
+    playbackHandle=null;
+  }
+  if(state.timer){
+    clearInterval(state.timer);
+    state.timer=null;
+  }
+  state.playing=false;
+  $('playBtn').textContent='▶';
+  const video=$('gameVideo');
+  if(state.videoUrl&&!video.paused)video.pause();
 }
+
+function playTick(timestamp){
+  if(!state.playing||!state.replay){
+    playbackHandle=null;
+    return;
+  }
+  if(!lastPlayTimestamp)lastPlayTimestamp=timestamp;
+  const delta=Math.min(0.1,(timestamp-lastPlayTimestamp)/1000);
+  lastPlayTimestamp=timestamp;
+
+  const next=state.time+delta*(state.speed||1);
+  if(next>=state.replay.duration){
+    chooseTime(state.replay.duration);
+    stopPlay();
+    return;
+  }
+  chooseTime(next);
+  playbackHandle=requestAnimationFrame(playTick);
+}
+
 function togglePlay(){
   if(!state.replay)return;
   if(state.playing){stopPlay();return;}
-  state.playing=true;$('playBtn').textContent='❚❚';
-  const startAt=performance.now(),from=state.time;
+  state.playing=true;
+  $('playBtn').textContent='❚❚';
+  lastPlayTimestamp=performance.now();
+
   const video=$('gameVideo');
-  if(state.videoUrl && state.videoAligned && video.readyState>=1){
+  if(state.videoUrl&&state.videoAligned&&video.readyState>=1){
     video.playbackRate=state.speed;
     syncVideoToReplay(true);
     const target=state.time+state.videoOffset;
     if(target>=0&&target<video.duration)video.play().catch(()=>{});
   }
-  state.timer=setInterval(()=>{
-    const next=from+(performance.now()-startAt)/1000*state.speed;
-    if(next>=state.replay.duration){chooseTime(state.replay.duration);stopPlay();return;}
-    chooseTime(next);
-  },50);
+  playbackHandle=requestAnimationFrame(playTick);
 }
 function syncVideoToReplay(force=false){
   const video=$('gameVideo');
