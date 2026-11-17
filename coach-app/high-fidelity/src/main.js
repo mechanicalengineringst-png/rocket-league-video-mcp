@@ -12,7 +12,7 @@ import {
 } from './camera-timeline.js';
 import { createCameraPolishPlugin } from './camera-polish.js';
 import {
-  applySceneQuality, createEffectRefiner, createVisualEffectsPlugin,
+  applySceneQuality, setFieldDecorStyle, createEffectRefiner, createVisualEffectsPlugin,
 } from './visual-quality.js';
 import './style.css';
 
@@ -120,7 +120,7 @@ function enableControls(enabled) {
     'stepBackBtn','backBtn','playBtn','forwardBtn','stepForwardBtn',
     'seek','speedSelect','playerSelect','ballCamSelect',
     'interpolation','hitboxToggle','trailToggle','replayLookToggle',
-    'qualitySelect','fxStyle','lightingSelect'
+    'qualitySelect','fxStyle','lightingSelect','fieldDecorSelect'
   ]) $(id).disabled = !enabled;
   for (const button of document.querySelectorAll('.cam')) button.disabled = !enabled;
 }
@@ -346,6 +346,7 @@ async function loadFile(file, preferredName = null) {
     $('ballCamSelect').disabled = false;
     $('hitboxToggle').checked = false;
     $('trailToggle').checked = true;
+    setFieldDecorStyle(next,$('fieldDecorSelect').value);
     const sceneQA=applySceneQuality(next,$('qualitySelect').value);
     $('fpsHint').textContent='3D meshes '+sceneQA.meshes+
       ' · filtered textures '+sceneQA.textures;
@@ -381,6 +382,9 @@ $('lightingSelect').addEventListener('change', e=>{
 });
 $('qualitySelect').addEventListener('change', e => {
   if(player) applySceneQuality(player,e.target.value);
+});
+$('fieldDecorSelect').addEventListener('change', e => {
+  if(player) setFieldDecorStyle(player,e.target.value);
 });
 $('fxStyle').addEventListener('change', () => {
   if(player) effectRefiner?.update(player);
