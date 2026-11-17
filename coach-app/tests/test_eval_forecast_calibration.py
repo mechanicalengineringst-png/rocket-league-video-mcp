@@ -54,7 +54,7 @@ def test_brier_calibration_and_coverage_keep_heldout_labels_separate():
     assert stats["forecast_coverage"] == 1.0
     assert stats["tasks"]["score"]["brier"] == 0.04
     assert stats["tasks"]["concede"]["brier"] == 0.04
-    assert stats["tasks"]["score"]["constant_base_rate_brier"] == 0.25
+    assert stats["tasks"]["score"]["evaluation_prevalence_reference_brier"] == 0.25
     assert sum(b["n"] for b in stats["tasks"]["score"]["calibration_bins"]) == 2
 
 
