@@ -225,3 +225,51 @@ The packet generator now rejects conspicuous model-name self-references
 (such as a model signing an output with its provider name or system ID).
 This is not perfect de-identification; manually inspect model outputs for
 other wording that could reveal identity before distributing them.
+
+## Coverage-first 60-case pilot: detector cases AND independent controls
+
+A pilot consisting entirely of detected kickoffs, 50/50s and defensive-role
+events can measure the quality of a chosen critique but **cannot measure
+moments the detector missed**. Do not assume 50 cases from a single replay
+are an independent or representative tactical benchmark.
+
+New helper `evaluation.pilot` selects a fixed 60-case candidate cohort, by
+default **20 each** of `kickoff_support`, `first_man_challenge` and
+`last_man_defense`. It requires **10 detector-selected and 10
+independently time-sampled moments per category** and **at least three complete
+replay groups**, with a default 5-second within-match separation across all
+selected cases. If any stratum is absent, it stops with an explicit error
+instead of silently substituting more easy detected examples.
+
+Data producers must separately supply:
+- **cases.json**: all anonymized, timestamped candidate cases in the standard
+  PR #16 `pre_decision_evidence` schema, with distinct `replay_group` IDs;
+- **selection_manifest.json**: a **private, coordinator-only** JSON array of
+  `{"case_id":"case-a","origin":"detector"}` and
+  `{"case_id":"case-b","origin":"independent_time_sample"}` entries.
+
+An **independent_time_sample** must be drawn from eligible live-play moments
+before the detector or future-outcome labels are examined; manually classifying
+the moment's situation from its available pre-t0 game state is acceptable if
+the labeling is independently audited. Relabeling an event picked by the same
+detector as `independent_time_sample` would invalidate this evaluation.
+
+Run from `coach-app/` (assuming a sufficiently broad pool exists):
+
+    python -m evaluation.pilot --cases cases.json --manifest selection_manifest.json --predictions predictions.json --per-situation 20 --min-replays 3 --min-gap 5 --output private_pilot_selection.json --selected-cases pilot_cases.json --selected-predictions pilot_predictions.json
+    python -m evaluation.prepare make --cases pilot_cases.json --predictions pilot_predictions.json --output-dir private_review_packets
+
+Use only `private_review_packets/decision_packets.json` during Stage 1 and
+only reveal the separate anonymous quality packets **after** initial human
+decision verdicts are frozen. Never reveal `selection_manifest.json`,
+`private_pilot_selection.json`, original player IDs, or future outcomes to
+Stage 1 reviewers. The shortlist manifest is not a replacement for human
+validation; false negatives and unlabelled valid plays must be counted.
+
+**Known limitations:** the selector only validates supplied provenance labels,
+not the actual method of independent time sampling. It guarantees neither
+representative gameplay coverage nor true statistical independence; subjects
+may recur across matches. Real validation should report detector recall on
+an independent annotated time-sampled reference, false criticisms of sound
+plays, good-play recognition, reviewer disagreement and held-out model
+performance. A pilot with 60 labels is intentionally exploratory.
