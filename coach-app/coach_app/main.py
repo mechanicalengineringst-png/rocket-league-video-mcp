@@ -11,7 +11,7 @@ from urllib.parse import unquote, urlsplit
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from starlette.middleware.trustedhost import TrustedHostMiddleware
@@ -46,6 +46,35 @@ async def same_origin_writes_only(request: Request, call_next):
 @app.get('/')
 def index():
     return FileResponse(STATIC / 'index.html', media_type='text/html')
+
+
+@app.get('/hd')
+def high_fidelity_player():
+    """Optional built browser renderer; original app remains fully operational.
+
+    Build from coach-app/setup-high-fidelity.cmd once on the user's machine.
+    Never serve unbuilt local node_modules or replay files to the network.
+    """
+    entry = STATIC / 'hd-player' / 'index.html'
+    if entry.is_file():
+        return FileResponse(entry, media_type='text/html')
+    return HTMLResponse(
+        '<!doctype html><html lang="en"><meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width,initial-scale=1">'
+        '<title>Set up Replay Lab HD</title><body style="background:#071420;'
+        'color:#dcefff;font:16px Segoe UI,sans-serif;max-width:650px;'
+        'margin:12vh auto;padding:30px;line-height:1.6">'
+        '<h1>High-Fidelity 3D viewer is not built yet</h1>'
+        '<p>Install Node.js 22 or newer, then double-click '
+        '<code>coach-app\\setup-high-fidelity.cmd</code> once. '
+        'The script installs @rlrml/player and builds the HD viewer locally.</p>'
+        '<p>Restart is not required: refresh this page when setup finishes. '
+        '<a style="color:#76d8ff" href="/">Back to Replay Lab</a></p>'
+        '<p style="font-size:12px;color:#90a4b8">Your original Replay Lab '
+        'and coaching are unaffected. The HD renderer parses .replay files '
+        'locally in the browser.</p></body></html>',
+        status_code=200,
+    )
 
 
 @app.get('/api/health')
