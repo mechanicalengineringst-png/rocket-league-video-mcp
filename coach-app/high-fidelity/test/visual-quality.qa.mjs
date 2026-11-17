@@ -7,6 +7,7 @@ test('graphics mode respects hardware pixel ratio and anisotropy ceilings',()=>{
   assert.deepEqual(qualitySettings('balanced',1,4),{ratio:1,anisotropy:4});
   assert.deepEqual(qualitySettings('sharp',3,16),{ratio:2,anisotropy:16});
   assert.deepEqual(qualitySettings('performance',2,1),{ratio:1,anisotropy:1});
+  assert.deepEqual(qualitySettings('sharp',1,16),{ratio:2,anisotropy:16});
 });
 test('soft boost particle shader is bounded and can restore the source',()=>{
   const mat=new THREE.ShaderMaterial({
@@ -58,4 +59,35 @@ test('Clean field removes all stacked hex decals but not grass, lines, or boost 
   assert.equal(setFieldDecorStyle(player,'clean'),0);
   assert.equal(setFieldDecorStyle(player,'original'),3);
   assert.ok([hexA,hexB,hexC,grass,lines,boost].every(mesh=>mesh.visible===true));
+});
+
+test('trail settings restore original widths and visibility, including originally hidden effects',()=>{
+  const shader=new THREE.ShaderMaterial({
+    vertexShader:'void main(){}',fragmentShader:'void main(){}'
+  });
+  const originalHidden={visible:false,material:shader};
+  const originalVisible={visible:true,material:shader};
+  const hiddenRibbon={mesh:{visible:false},material:shader};
+  const visibleRibbon={mesh:{visible:true},material:shader};
+  const supersonic={trailWidth:22,segments:[{leftTrail:hiddenRibbon,rightTrail:visibleRibbon}]};
+  const effects={
+    boostTrails:new Map([[1,{points:originalHidden}],[2,{points:originalVisible}]]),
+    supersonicTrails:new Map([[1,supersonic]]),
+  };
+  let selected='soft';
+  const refine=createEffectRefiner(()=>selected);
+  const player={effectsManager:effects};
+  refine.update(player);
+  assert.equal(supersonic.trailWidth,9);
+  assert.equal(originalHidden.visible,false);
+  assert.equal(visibleRibbon.mesh.visible,true);
+  selected='off';refine.update(player);
+  assert.equal(originalVisible.visible,false);
+  assert.equal(visibleRibbon.mesh.visible,false);
+  selected='original';refine.update(player);
+  assert.equal(supersonic.trailWidth,22,'original trail width must not be overwritten with a guessed constant');
+  assert.equal(originalHidden.visible,false,'an effect hidden before refinement must stay hidden');
+  assert.equal(hiddenRibbon.mesh.visible,false);
+  assert.equal(originalVisible.visible,true);
+  assert.equal(visibleRibbon.mesh.visible,true);
 });
