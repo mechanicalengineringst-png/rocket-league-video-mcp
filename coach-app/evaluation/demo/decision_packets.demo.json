@@ -1,0 +1,74 @@
+[
+  {
+    "review_id": "C00001",
+    "situation_type": "kickoff_support",
+    "t0": 4,
+    "pre_decision_evidence": [
+      {
+        "key": "spawn_approach",
+        "claim": "Synthetic demo: second blue player starts behind the kickoff taker and moves toward the center lane at 640 units/s.",
+        "event_time_s": 3.97,
+        "finalized_through_s": 3.97,
+        "source": "synthetic_fixture",
+        "source_quality": "high"
+      },
+      {
+        "key": "boost_at_t0",
+        "claim": "Synthetic demo: the supporting player has 28 boost at this instant.",
+        "event_time_s": 4,
+        "finalized_through_s": 4,
+        "source": "synthetic_fixture",
+        "source_quality": "high"
+      }
+    ],
+    "review_question": "SYNTHETIC DEMO ONLY. Was moving forward in support a reasonable kickoff tradeoff based on this limited predecision information?"
+  },
+  {
+    "review_id": "C00002",
+    "situation_type": "first_man_challenge",
+    "t0": 57.33,
+    "pre_decision_evidence": [
+      {
+        "key": "spacing",
+        "claim": "Synthetic demo: first man is 910 units from the ball and the teammate is 1,800 units behind the ball.",
+        "event_time_s": 57.3,
+        "finalized_through_s": 57.3,
+        "source": "synthetic_fixture",
+        "source_quality": "high"
+      },
+      {
+        "key": "unknown_coverage",
+        "claim": "Synthetic demo: teammate orientation, recovery state and possible opponent arrival times are not available.",
+        "event_time_s": 57.33,
+        "finalized_through_s": 57.33,
+        "source": "synthetic_fixture",
+        "source_quality": "low"
+      }
+    ],
+    "review_question": "SYNTHETIC DEMO ONLY. Is this an unjustified challenge, valid tradeoff, or indeterminate without further coverage information?"
+  },
+  {
+    "review_id": "C00003",
+    "situation_type": "last_man_defense",
+    "t0": 116.25,
+    "pre_decision_evidence": [
+      {
+        "key": "last_defender",
+        "claim": "Synthetic demo: blue last defender is 1,220 units from their goal line, with the ball 2,500 units from the same goal.",
+        "event_time_s": 116.23,
+        "finalized_through_s": 116.23,
+        "source": "synthetic_fixture",
+        "source_quality": "high"
+      },
+      {
+        "key": "boost_resource",
+        "claim": "Synthetic demo: blue last defender has 8 boost; a nearby small pad's availability is unknown.",
+        "event_time_s": 116.25,
+        "finalized_through_s": 116.25,
+        "source": "synthetic_fixture",
+        "source_quality": "medium"
+      }
+    ],
+    "review_question": "SYNTHETIC DEMO ONLY. Can a defensive decision be assessed when opponent momentum and exact car orientation are unknown?"
+  }
+]
