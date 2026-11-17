@@ -2,7 +2,6 @@
 import os
 from pathlib import Path
 import pytest
-import subtr_actor
 
 from coach_app.subtr_replays import parse_subtr_replay
 from coach_app.decision_cases import (
@@ -27,9 +26,6 @@ def get_replay_dir() -> Path:
     local_demos = Path.home() / "Documents" / "My Games" / "Rocket League" / "TAGame" / "DemosEpic"
     if local_demos.is_dir():
         return local_demos
-    alt_drive = Path(r"D:\Users\Sam Meyer\Documents\My Games\Rocket League\TAGame\DemosEpic")
-    if alt_drive.is_dir():
-        return alt_drive
     return Path("./fixtures/replays")
 
 
@@ -39,6 +35,9 @@ def test_real_replay_decision_case_extraction_and_evaluation():
     if not replay_path.exists():
         pytest.skip(f"Real replay fixture not found at {replay_path}. Set RL_REPLAY_DIR to run real-replay tests.")
 
+    # The native decoder is optional in standard GitHub CI. Only require it
+    # when the actual binary .replay fixture exists for this integration test.
+    subtr_actor = pytest.importorskip("subtr_actor", reason="native replay decoder unavailable")
     # Extract native raw events from subtr-actor
     raw_event_data = subtr_actor.get_stats_events(str(replay_path))
     raw_events = raw_event_data.get("events", [])
