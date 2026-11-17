@@ -39,11 +39,14 @@ def test_javascript_review_contract_has_fail_closed_packet_validation():
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const vm = require("node:vm");
-// The browser page loads review_state.js as a classic standalone script.
-// The repository's type=module prevents Node require() from returning its
-// script-global API; evaluate it as a script in the current JS realm instead.
-vm.runInThisContext(fs.readFileSync(process.argv[1], "utf8"), {filename:process.argv[1]});
-const contract = globalThis.ReplayReviewCore;
+// The browser page loads review_state.js as a plain script, whereas this
+// repo marks .js files as ES modules. The test wraps the same browser script
+// with an explicit module object so it runs in the same JS realm and exports
+// the exact API used by the page, independent of Node's module resolution.
+const script = fs.readFileSync(process.argv[1], "utf8");
+const wrapper = vm.runInThisContext("(function(module) {\n" + script +
+  "\nreturn module.exports;\n})", {filename:process.argv[1]});
+const contract = wrapper({exports:{}});
 
 const decision = {
     review_id: "C00001", situation_type: "first_man_challenge",
