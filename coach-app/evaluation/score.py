@@ -146,6 +146,11 @@ def evaluate(
         _need(isinstance(row.get("useful"), bool), "Quality review useful must be boolean")
         human_quality[(system, case_id)][rater] = row
 
+    # Score the same frozen reference cohort for every candidate system.
+    # Selective systems must not look superior simply because they answered
+    # one easy case and omitted all other challenging cases.
+    total_consensus_risk = sum(v == "risk" for v in consensus.values())
+    total_consensus_sound = sum(v == "sound" for v in consensus.values())
     systems = {}
     for system, outputs in sorted(by_system.items()):
         abstentions = 0
@@ -169,6 +174,24 @@ def evaluate(
         supported_risk = sum(g == "risk" for _, g in risk_attempts)
         refuted_risk = sum(g == "sound" for _, g in risk_attempts)
         agreement = sum(p == g for p, g in comparable)
+        reviewed_by_type: dict[str, dict[str, int]] = defaultdict(
+            lambda: {"consensus_cases": 0, "answered_cases": 0,
+                     "correct_cases": 0, "risk_warnings": 0,
+                     "false_blame_of_sound": 0}
+        )
+        for cid, reference in consensus.items():
+            kind = indexed[cid]["situation_type"]
+            stats = reviewed_by_type[kind]
+            stats["consensus_cases"] += 1
+            output = outputs.get(cid)
+            if not output or output["assessment"] == "abstain":
+                continue
+            stats["answered_cases"] += 1
+            stats["correct_cases"] += int(output["assessment"] == reference)
+            stats["risk_warnings"] += int(output["assessment"] == "risk")
+            stats["false_blame_of_sound"] += int(
+                output["assessment"] == "risk" and reference == "sound"
+            )
         qrows = [
             row for (sid, cid), raters in human_quality.items()
             if sid == system for row in raters.values()
@@ -176,15 +199,21 @@ def evaluate(
         systems[system] = {
             "predictions": len(outputs),
             "missing_case_predictions": len(indexed) - len(outputs),
+            "full_cohort_submission_rate": _ratio(len(outputs), len(indexed)),
             "abstentions": abstentions,
             "abstention_rate": _ratio(abstentions, len(outputs)),
             "invalid_evidence_citation_outputs": citation_failures,
             "invalid_evidence_citation_case_ids": citation_failure_examples,
             "consensus_comparable_cases": len(comparable),
+            "consensus_answer_coverage": _ratio(len(comparable), len(consensus)),
             "consensus_agreement": _ratio(agreement, len(comparable)),
+            "consensus_full_cohort_agreement": _ratio(agreement, len(consensus)),
             "risk_warnings_on_consensus_cases": len(risk_attempts),
             "risk_warning_precision": _ratio(supported_risk, len(risk_attempts)),
+            "risk_warning_recall_on_consensus_risks": _ratio(supported_risk, total_consensus_risk),
             "risk_warnings_refuted_by_sound_consensus": refuted_risk,
+            "false_blame_rate_on_consensus_sound": _ratio(refuted_risk, total_consensus_sound),
+            "per_situation": dict(sorted(reviewed_by_type.items())),
             "quality_ratings": len(qrows),
             "human_reported_factual_errors": sum(r["factual_errors"] for r in qrows),
             "human_reported_unsupported_claims": sum(r["unsupported_claims"] for r in qrows),
@@ -200,8 +229,10 @@ def evaluate(
         "systems": systems,
         "interpretation": (
             "Agreement with two reviewers is not tactical optimality. "
+            "All systems share the frozen reference cohort; missing predictions and "
+            "abstentions are excluded from selective agreement but count against full-cohort coverage. "
             "Citations validate referenced keys, not the semantic truth of model claims. "
-            "Review the disputed cases, mechanical feasibility, and causal provenance."
+            "Review disagreements, mechanical feasibility and causal provenance."
         ),
     }
 
