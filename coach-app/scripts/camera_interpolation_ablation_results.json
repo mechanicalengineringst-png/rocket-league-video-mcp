@@ -1,24 +1,74 @@
 {
-  "stepped_30hz": {
-    "pos_jerk_rms": 353958477.89177793,
-    "max_acc": 77893697.41102909,
-    "description": "Zero-order hold: high step-discontinuity jerk"
+  "benchmark_metadata": {
+    "replay_file": "23A661D44DBC5964B0718DBC5F956A33.replay",
+    "target_player": "Plormby",
+    "slice_duration_s": 12.3,
+    "sample_rate_hz": 120.0,
+    "eval_frame_count": 1476,
+    "coordinate_system": "Unreal Left-Handed Z-Up (1 UU = 1 cm)"
   },
-  "linear_lerp": {
-    "pos_jerk_rms": 15950909.251049345,
-    "max_acc": 850952.0428289397,
-    "rot_flip_spikes": 172,
-    "description": "Piecewise linear: causes visible camera shake at 30Hz packet boundaries"
+  "vehicle_trajectory_reconstruction": {
+    "stepped_30hz": {
+      "pos_jerk_rms_uu_s3": 353958477.89177793,
+      "max_acc_uu_s2": 77893697.41102909,
+      "description": "Zero-order hold: extreme velocity impulses at 30Hz packet boundaries"
+    },
+    "piecewise_linear_lerp": {
+      "pos_jerk_rms_uu_s3": 15950909.251049345,
+      "max_acc_uu_s2": 850952.0428289397,
+      "angular_metrics": {
+        "max_ang_vel_deg_s": 10616.09519485015,
+        "mean_ang_vel_deg_s": 234.76639004398314,
+        "ang_jerk_rms_deg_s3": 15337767.84141983,
+        "spikes_over_1000_deg_s": 74,
+        "anomalous_gimbal_inversions": 12
+      },
+      "description": "C0 continuous position with Euler LERP: suffers from coordinate singularities"
+    },
+    "cubic_hermite_slerp": {
+      "pos_jerk_rms_uu_s3": 8281000.4759529745,
+      "max_acc_uu_s2": 546371.3528934168,
+      "angular_metrics": {
+        "max_ang_vel_deg_s": 5381.158285850137,
+        "mean_ang_vel_deg_s": 158.69752011374553,
+        "ang_jerk_rms_deg_s3": 7677217.92642828,
+        "spikes_over_1000_deg_s": 74,
+        "anomalous_gimbal_inversions": 0
+      },
+      "description": "C1 continuous physics-informed spline with shortest-arc Quaternion SLERP"
+    },
+    "improvements": {
+      "pos_jerk_reduction_percent": 48.1,
+      "ang_jerk_reduction_percent": 49.9,
+      "anomalous_gimbal_inversions_eliminated": 12
+    }
   },
-  "cubic_hermite_slerp": {
-    "pos_jerk_rms": 8281000.4759529745,
-    "max_acc": 546371.3528934168,
-    "rot_flip_spikes": 174,
-    "description": "Physics-informed C1 continuous spline with Quaternion SLERP: smooth trajectory, zero gimbal flips"
+  "camera_rig_stabilization": {
+    "cam_jerk_lerp_uu_s3": 125790704.69217864,
+    "cam_jerk_hermite_uu_s3": 62874543.14846341,
+    "cam_jerk_stabilized_uu_s3": 5640740.756735642,
+    "stabilization_jerk_reduction_percent": 95.5,
+    "explanation": "Distinguishes car trajectory smoothness from follow-camera rig filtering. Raw Hermite improves car motion, while stiffness filtering absorbs suspension flutter without latency drift."
   },
-  "discontinuity_gating": {
-    "ungated_teleport_error": 5409.284542432576,
-    "gated_teleport_error": 0.0,
-    "reduction_factor": "100% suppression of ghost car trajectory across goal respawns"
+  "measured_goal_reset_teleport": {
+    "observed_match_jumps_count": 2567,
+    "primary_goal_jump_observed": {
+      "t_start_s": 8.307,
+      "t_end_s": 8.34,
+      "duration_s": 0.033,
+      "teleport_distance_uu": 101.7,
+      "implied_speed_uu_s": 3054.5,
+      "speed_km_h": 110.0
+    },
+    "ungated_interpolator_behavior": {
+      "interpolated_ghost_trajectory": true,
+      "max_interpolated_speed_km_h": 110.0,
+      "visual_artifact": "Car erroneously glides across midfield during 4-second goal replay celebration"
+    },
+    "gated_lifecycle_behavior": {
+      "interpolated_ghost_trajectory": false,
+      "teleport_snap_error_uu": 0.0,
+      "visual_artifact": "None; car visibility suppressed or pinned to respawn point during celebration"
+    }
   }
 }

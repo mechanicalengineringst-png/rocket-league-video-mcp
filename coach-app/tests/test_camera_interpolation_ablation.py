@@ -10,6 +10,8 @@ from scripts.benchmark_camera_interpolation import (
     quat_slerp,
     quat_to_euler,
     hermite_cubic,
+    compute_shortest_arc_angular_metrics,
+    compute_vector_jerk,
 )
 
 
@@ -34,6 +36,22 @@ def test_quat_slerp_halfway():
     assert abs(p - 0.0) < 1e-4
     assert abs(y - 45.0) < 1e-4
     assert abs(r - 0.0) < 1e-4
+
+
+def test_shortest_arc_angular_metrics():
+    # Rotate around Z by 90 deg over 1 second (4 steps of 0.25s)
+    dt = 0.25
+    quats = [
+        euler_to_quaternion(0.0, 0.0, 0.0),
+        euler_to_quaternion(0.0, 22.5, 0.0),
+        euler_to_quaternion(0.0, 45.0, 0.0),
+        euler_to_quaternion(0.0, 67.5, 0.0),
+        euler_to_quaternion(0.0, 90.0, 0.0),
+    ]
+    quats = np.array(quats)
+    metrics = compute_shortest_arc_angular_metrics(quats, dt)
+    assert abs(metrics["mean_ang_vel_deg_s"] - 90.0) < 1e-2
+    assert metrics["anomalous_gimbal_inversions"] == 0
 
 
 def test_hermite_cubic_smoothness():
