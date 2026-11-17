@@ -88,19 +88,32 @@ def compact_game_states(replay: dict[str, Any], focus_id: str, max_frames: int =
     # Short aliases instead of platform ids: fewer tokens, no account ids sent to the
     # model, and - crucially - the roster tells the model who is on which team.
     alias = {p['id']: f'P{i + 1}' for i, p in enumerate(replay['players'])}
+    # The input payload may contain extra tracks. Never include raw platform IDs
+    # in the optional external model prompt, even for unknown tracks.
+    for frame in fs:
+        for pid in frame['cars']:
+            if pid not in alias:
+                alias[pid] = f'U{sum(v.startswith("U") for v in alias.values()) + 1}'
     roster = ', '.join(f'{alias[p["id"]]}={p["team"]}' for p in replay['players'])
     lines = [
-        f'Focus={focus_id} ({players[focus_id]["team"]}), shown below as {alias[focus_id]}',
+        f'Focus={alias[focus_id]} ({players[focus_id]["team"]})',
         f'Players: {roster}',
         'Coordinates: blue goal y=-5120, orange goal y=+5120; field x=+-4096.',
-        'Columns: time | ball x,y,z | cars player:x,y,z,boostPercent. Sampled positions, not frames of video.',
+        'Columns: time | ball x,y,z;velocity-x,y | cars alias:x,y,z,boost,velocity-x,y,forward-x,y. Sampled telemetry, not video.',
     ]
     for f in fs[::stride][:max_frames]:
         b = f['ball']
         def v(n: float | None) -> str:
             return '?' if n is None else str(round(n))
-        cs = '; '.join(f'{alias.get(pid, pid)}:{v(car["x"])},{v(car["y"])},{v(car.get("z"))},{v(car.get("boost"))}'
-                       + (' DEMOLISHED' if car.get('demolished') else '')
-                       for pid, car in f['cars'].items())
-        lines.append(f'{f["t"]:.1f} | {v(b["x"])},{v(b["y"])},{v(b.get("z"))} | {cs}')
+        def two(vector):
+            if not isinstance(vector, (list, tuple)) or len(vector) < 2:
+                return '?,?'
+            return f'{v(vector[0])},{v(vector[1])}'
+        cs = '; '.join(
+            f'{alias[pid]}:{v(car["x"])},{v(car["y"])},{v(car.get("z"))},{v(car.get("boost"))},'
+            f'{two(car.get("velocity"))},{two(car.get("forward"))}'
+            + (' DEMOLISHED' if car.get('demolished') else '')
+            for pid, car in f['cars'].items()
+        )
+        lines.append(f'{f["t"]:.1f} | {v(b["x"])},{v(b["y"])},{v(b.get("z"))};{two(b.get("velocity"))} | {cs}')
     return '\n'.join(lines)

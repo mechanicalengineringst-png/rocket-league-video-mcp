@@ -1,6 +1,6 @@
 'use strict';
 const $ = id => document.getElementById(id);
-const state = { replay: null, findings: [], focusId: null, selectedId: null, time: 0, playing: false, timer: null, overrides: new Map(), view: {facing:true, travel:false, heights:false, trail:false, ballTrail:false, boostPads:true}, speed:1, momentFilter:'shortlist', videoUrl:null, videoOffset:0, videoAligned:false };
+const state = { replay: null, findings: [], focusId: null, selectedId: null, time: 0, playing: false, timer: null, overrides: new Map(), reviewFeedback: new Map(), view: {facing:true, travel:false, heights:false, trail:false, ballTrail:false, boostPads:true}, speed:1, momentFilter:'shortlist', videoUrl:null, videoOffset:0, videoAligned:false };
 let viewer3d = null;
 let currentViewMode = '2d';
 function getViewer3d(){
@@ -46,7 +46,7 @@ function setReplay(replay, opts={}){
   const has=id=>replay.players.some(p=>p.id===id), last=remembered.get();
   state.focusConfirmed=has(replay.primaryPlayerId)||has(last);
   state.focusId=has(replay.primaryPlayerId)?replay.primaryPlayerId:has(last)?last:(replay.players.find(p=>p.team===replay.primaryTeam)?.id||replay.players[0].id);
-  state.selectedId=null;state.overrides.clear();state.time=0;
+  state.selectedId=null;state.overrides.clear();state.reviewFeedback.clear();state.time=0;
   $('replayTitle').textContent=replay.title; $('modeValue').textContent=replay.mode; $('durationValue').textContent=fmt(replay.duration-startTime());
   $('playerSelect').replaceChildren(...replay.players.map(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=`${p.name} — ${p.team.toUpperCase()}`;return o;}));
   $('playerSelect').value=state.focusId;
@@ -70,7 +70,12 @@ frames.push({t,ball:b,cars:{self,mate,opp1,opp2}});
 }return {schema:'rl-coach/0.1',title:'Simulated 2v2 match — interactive demo',mode:'2v2',duration:120,players,frames,source:'synthetic',samplingSeconds:.5};}
 function refreshFindings(demo=false){if(!state.replay)return;
   // Manual markers are not about one player; AI findings belong to the player they were asked about.
-  const findings=state.findings.filter(f=>f.type==='manual'||(f.type==='ai'&&f.focusId===state.focusId));const fs=state.replay.frames;const team=playerById(state.focusId)?.team;
+  const findings=state.findings.filter(f=>f.type==='manual'||(f.type==='ai'&&f.focusId===state.focusId));
+  // Server-side telemetry checks are small, focus-specific and independently
+  // reproducible. They are questions to review, not proven mistakes.
+  const contextual=state.replay.contextualReviews?.[state.focusId]||[];
+  if(Array.isArray(contextual))findings.push(...contextual.filter(f=>f.type==='contextual'));
+  const fs=state.replay.frames;const team=playerById(state.focusId)?.team;
   let seen={};for(const f of fs){const car=f.cars[state.focusId];if(!car||car.demolished)continue;const mate=state.replay.players.filter(p=>p.team===team&&p.id!==state.focusId).map(p=>f.cars[p.id]).find(c=>c&&!c.demolished);const dist=(p,q)=>Math.hypot(p.x-q.x,p.y-q.y);
     if(mate&&dist(car,f.ball)<900&&dist(mate,f.ball)<900&&dist(car,mate)<1300&&f.t-(seen.overlap??-100)>18){findings.push({id:'overlap'+f.t,t:f.t,title:'Two teammates near the ball',type:'overlap',confidence:'low',evidence:'Both teammates are within 900 units of the ball and 1300 units of each other.',advice:'Check who had priority for the next touch. Proximity alone does not prove a double commit.',target:null});seen.overlap=f.t;}
     let ownY=team==='blue'?-5120:5120;
@@ -99,13 +104,13 @@ function refreshFindings(demo=false){if(!state.replay)return;
   const shortlist=visibleFindings();
   if(!shortlist.some(f=>f.id===state.selectedId))state.selectedId=shortlist[0]?.id||null;
   // All native events are retained for navigation, not counted as coaching leads.
-  $('flagsValue').textContent=findings.filter(f=>f.type==='manual'||f.type==='ai').length;
+  $('flagsValue').textContent=findings.filter(f=>['manual','ai','contextual'].includes(f.type)).length;
   renderFindings();renderDetail();
 }
 function visibleFindings(){
   const filter=state.momentFilter;
   return state.findings.filter(f=>{
-    if(filter==='shortlist')return f.type==='manual'||f.type==='ai';
+    if(filter==='shortlist')return f.type==='manual'||f.type==='ai'||f.type==='contextual';
     if(filter==='goals')return f.eventType==='goal_context';
     if(filter==='challenges')return f.eventType==='fifty_fifty';
     if(filter==='flags')return f.type==='boost'||f.type==='overlap';
@@ -120,7 +125,7 @@ function renderFindings(){
   if(!items.length){
     const d=document.createElement('div');d.className='empty';
     d.textContent=state.momentFilter==='shortlist'
-      ? 'No saved review leads yet. Goals and 50/50s are still available in the event filters, but ordinary events are not coaching advice.'
+      ? 'No defensible review leads for this replay yet. Goals and 50/50s remain in the event filters; the model abstains when evidence is insufficient.'
       : 'No events in this category. This is not a judgment of gameplay quality.';
     list.append(d);return;
   }
@@ -128,7 +133,7 @@ function renderFindings(){
     const btn=document.createElement('button');btn.className='finding'+(f.id===state.selectedId?' active':'');btn.type='button';
     const time=document.createElement('div');time.className='time';time.textContent=fmt(f.t);
     const tag=document.createElement('span');tag.className='tag';
-    tag.textContent=f.type==='ai'?'AI REVIEW':f.type==='manual'?'YOUR MARKER':f.type==='event'?'MATCH EVENT':'OBSERVATION';
+    tag.textContent=f.type==='ai'?'AI REVIEW':f.type==='contextual'?'CONTEXT CHECK':f.type==='manual'?'YOUR MARKER':f.type==='event'?'MATCH EVENT':'UNVERIFIED';
     time.append(tag);
     const title=document.createElement('strong');title.textContent=f.title;
     const summary=document.createElement('small');summary.textContent=f.evidence;
@@ -156,6 +161,30 @@ function renderDetail(){
     const paragraph=document.createElement('p');paragraph.textContent=val;
     section.append(heading,paragraph);target.append(section);
   }
+  // Explicit player feedback is the only way to learn about unknown intention.
+  // Keep it collapsed and local. Export it with the review JSON for human QA.
+  const details=document.createElement('details');details.className='feedback-panel';
+  const summary=document.createElement('summary');summary.textContent='Rate this insight / explain your intent';
+  details.append(summary);
+  const key=state.focusId+'|'+f.id;
+  const saved=state.reviewFeedback.get(key)||{};
+  const row=document.createElement('div');row.className='feedback-choices';
+  const buttons=[];
+  for(const [value,label] of [['useful','Helpful'],['wrong','Incorrect'],['unclear','Not sure']]){
+    const btn=document.createElement('button');btn.type='button';btn.className='button-mini'+(saved.rating===value?' active':'');
+    btn.textContent=label;
+    btn.onclick=()=>{
+      state.reviewFeedback.set(key,{...state.reviewFeedback.get(key),rating:value});
+      for(const candidate of buttons)candidate.classList.toggle('active',candidate===btn);
+    };
+    buttons.push(btn);row.append(btn);
+  }
+  details.append(row);
+  const note=document.createElement('textarea');note.rows=3;note.maxLength=1500;
+  note.placeholder='What were you trying to do? What did this analysis miss?';
+  note.value=saved.note||'';
+  note.oninput=()=>state.reviewFeedback.set(key,{...state.reviewFeedback.get(key),note:note.value});
+  details.append(note);target.append(details);
 }
 const xyDistance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 function recentPath(kind,focusId,seconds){
@@ -451,11 +480,40 @@ function wireVideo(){
   });
 }
 
-function exportReview(){const body=JSON.stringify({replay:{schema:state.replay.schema,title:state.replay.title,mode:state.replay.mode,source:state.replay.source,duration:state.replay.duration},focus:playerById(state.focusId),findings:state.findings.map(f=>({...f,target:state.overrides.get(f.id)||f.target}))},null,2);const url=URL.createObjectURL(new Blob([body],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download='rocket-league-review.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+function exportReview(){const body=JSON.stringify({replay:{schema:state.replay.schema,title:state.replay.title,mode:state.replay.mode,source:state.replay.source,duration:state.replay.duration},focus:playerById(state.focusId),findings:state.findings.map(f=>({...f,target:state.overrides.get(f.id)||f.target})),feedback:Object.fromEntries(state.reviewFeedback)},null,2);const url=URL.createObjectURL(new Blob([body],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download='rocket-league-review.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 async function loadFile(file){if(!file)return;if(!file.name.toLowerCase().endsWith('.replay'))return show('Select a Rocket League .replay file.');if(file.size>20*1024*1024)return show('File exceeds 20 MB.');$('uploadStatus').textContent='Processing native replay locally…';try{const r=await fetch('/api/replays',{method:'POST',headers:{'Content-Type':'application/octet-stream','X-Replay-Name':encodeURIComponent(file.name)},body:file});const body=await r.json().catch(()=>({}));if(!r.ok)throw new Error(body.detail||'Replay parser could not read file.');setReplay(body.replay);show('Replay loaded. Choose your player to start.');}catch(e){$('uploadStatus').textContent=e.message;show(e.message);}}
-async function aiReview(){if(!state.replay)return;if(!window.confirm('Send time-sampled car and ball positions (including player IDs/names) to Gemini? This uses your API quota; the raw .replay file is not sent.'))return;
-$('aiBtn').disabled=true;$('aiBtn').textContent='Analyzing positions…';try{const r=await fetch('/api/ai-review',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({replay:{schema:state.replay.schema,title:state.replay.title,mode:state.replay.mode,duration:state.replay.duration,players:state.replay.players,frames:state.replay.frames.filter((_,i)=>i%Math.max(1,Math.ceil(state.replay.frames.length/240))===0).slice(0,240)},player_id:state.focusId})});const body=await r.json();if(!r.ok)throw new Error(body.detail||'AI analysis failed.');for(const f of body.findings||[])state.findings.push({...f,focusId:state.focusId});state.findings.sort((a,b)=>a.t-b.t);state.selectedId=body.findings?.[0]?.id||state.selectedId;$('flagsValue').textContent=state.findings.filter(f=>f.type==='manual'||f.type==='ai').length;renderFindings();renderDetail();if(body.findings?.length)chooseTime(body.findings[0].t);show('Gemini findings received. Verify each observation before trusting it.');}catch(e){show(e.message);}finally{$('aiBtn').textContent='✦ Ask Gemini for coaching';$('aiBtn').disabled=false;}}
-function addManualMarker(){if(!state.replay)return;const f=currentFrame();const id='manual-'+Date.now();const finding={id,t:f.t,type:'manual',title:'Review this decision',confidence:'unverified',evidence:'Manual marker at the current replay timestamp.',advice:'Inspect the opponent, ball height, timing and recent touches. A marker records a question, not a mistaken decision.',target:null};state.findings.push(finding);state.findings.sort((a,b)=>a.t-b.t);state.selectedId=id;$('flagsValue').textContent=state.findings.filter(f=>f.type==='manual'||f.type==='ai').length;renderFindings();renderDetail();renderPitch();}
+async function aiReview(){
+  if(!state.replay)return;
+  const selected=state.findings.find(f=>f.id===state.selectedId);
+  const center=selected?.t??state.time;
+  const windowFrames=state.replay.frames.filter(f=>Math.abs(f.t-center)<=3.0);
+  if(!windowFrames.length)return show('No telemetry near the selected moment.');
+  const stride=Math.max(1,Math.ceil(windowFrames.length/90));
+  const samples=windowFrames.filter((_,i)=>i%stride===0).slice(0,90);
+  if(!window.confirm('Analyze this 6-second replay window with Gemini? Anonymized car and ball telemetry, not your replay video, will be sent. This consumes your API quota.'))return;
+  $('aiBtn').disabled=true;$('aiBtn').textContent='Checking this moment...';
+  try{
+    const r=await fetch('/api/ai-review',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        replay:{schema:state.replay.schema,title:state.replay.title,mode:state.replay.mode,
+          duration:state.replay.duration,players:state.replay.players,frames:samples},
+        player_id:state.focusId,selected_time:center
+      })
+    });
+    const body=await r.json();
+    if(!r.ok)throw new Error(body.detail||'AI analysis failed.');
+    for(const f of body.findings||[])state.findings.push({...f,focusId:state.focusId});
+    state.findings.sort((a,b)=>a.t-b.t);
+    state.selectedId=body.findings?.[0]?.id||state.selectedId;
+    $('flagsValue').textContent=state.findings.filter(f=>['manual','ai','contextual'].includes(f.type)).length;
+    renderFindings();renderDetail();
+    if(body.findings?.length){chooseTime(body.findings[0].t);show('Experimental hypothesis added. Verify it in the replay.');}
+    else show('No defensible hypothesis from this window. No review note added.');
+  }catch(e){show(e.message);}
+  finally{$('aiBtn').textContent='Ask Gemini about selected moment';$('aiBtn').disabled=false;}
+}
+function addManualMarker(){if(!state.replay)return;const f=currentFrame();const id='manual-'+Date.now();const finding={id,t:f.t,type:'manual',title:'Review this decision',confidence:'unverified',evidence:'Manual marker at the current replay timestamp.',advice:'Inspect the opponent, ball height, timing and recent touches. A marker records a question, not a mistaken decision.',target:null};state.findings.push(finding);state.findings.sort((a,b)=>a.t-b.t);state.selectedId=id;$('flagsValue').textContent=state.findings.filter(f=>['manual','ai','contextual'].includes(f.type)).length;renderFindings();renderDetail();renderPitch();}
 function wire(){
   const zone=$('uploadZone'),input=$('fileInput');
   zone.onclick=()=>input.click();
