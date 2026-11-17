@@ -35,6 +35,9 @@ def test_40_case_blinded_packets_and_20_shared_withheld_trigger_labels():
     assert p == prepare_packets(rows)
     assert len(p["primary_packets"]) == 40
     assert len(p["secondary_packets"]) == 20
+    assert p["private_map"]["secondary_ids"] == sorted(
+        q["review_id"] for q in p["secondary_packets"]
+    )
     assert len({q["review_id"] for q in p["primary_packets"]}) == 40
     assert {q["review_id"] for q in p["secondary_packets"]}.issubset(
         {q["review_id"] for q in p["primary_packets"]}
@@ -115,6 +118,11 @@ def test_human_interval_agreement_detector_lead_and_separate_reviewers():
     assert report["candidate_interpretation"] == "fixed_offset_probably_late"
     assert report["primary_detector_readable_choice_compared"] == 30
     assert report["primary_detector_choice_agreement"] == 0.5
+    assert report["primary_detector_unclear_recovered_by_human"] == 10
+    assert report["primary_detector_unclear_total"] == 10
+    assert report["median_detector_lead_by_choice_s"] == {
+        "challenge": 0.5, "shadow": 0.5, "unclear": 0.5
+    }
 
 
 def test_indeterminate_marks_cannot_manufacture_timing_agreement():
@@ -150,3 +158,15 @@ def test_future_mark_invalid_conflicting_reviewer_ids_or_duplicate_id():
                          p["private_map"])
     with pytest.raises(ValueError, match="different reviewer codes"):
         evaluate_timings(p["private_map"], a, annotations(p, "rater-a"))
+
+
+def test_secondary_rater_cannot_silently_switch_to_cherry_picked_twenty_clips():
+    p = prepare_packets(manifest())
+    a = annotations(p, "rater-a")
+    chosen = {x["review_id"] for x in p["secondary_packets"]}
+    unassigned = next(x["review_id"] for x in p["primary_packets"]
+                      if x["review_id"] not in chosen)
+    b = annotations(p, "rater-b", sorted(chosen))
+    b[-1]["review_id"] = unassigned
+    with pytest.raises(ValueError, match="predefined 20"):
+        evaluate_timings(p["private_map"], a, b)
