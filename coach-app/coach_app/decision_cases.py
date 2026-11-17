@@ -7,6 +7,7 @@ via coach_app.evidence.Evidence.
 """
 from __future__ import annotations
 
+import bisect
 import math
 from dataclasses import dataclass, field
 from typing import Any, Iterable, Literal
@@ -17,6 +18,7 @@ from .evidence import (
     partition_evidence,
     require_decision_evidence,
 )
+from .subtr_replays import _player_key
 
 SituationType = Literal[
     "kickoff_support",
@@ -63,11 +65,25 @@ class DecisionCase:
         """Verify that a coaching claim cites only eligible pre-decision evidence."""
         return require_decision_evidence(cited_keys, self.evidence, self.t0)
 
+    def sanitized_pre_decision_context(self) -> dict[str, Any]:
+        """Return tactical context strictly sanitized of any future timestamps or outcomes."""
+        sanitized = {}
+        for k, v in self.tactical_context.items():
+            # Block any explicit post-decision outcome or resolution fields
+            if any(term in k.lower() for term in ("resolve", "outcome", "win", "scoring", "result", "classified")):
+                continue
+            # Block any timestamps that exceed t0
+            if isinstance(v, (int, float)) and not isinstance(v, bool):
+                if "time" in k.lower() and v > self.t0:
+                    continue
+            sanitized[k] = v
+        return sanitized
+
     def to_llm_payload(self, include_quarantined_outcomes: bool = False) -> dict[str, Any]:
         """Serialize into a structured, evidence-guarded payload for LLM analysis.
 
-        Outcomes are quarantined in a separately labeled block so models cannot
-        confound outcome bias with decision quality.
+        Outcomes are quarantined or withheld so models cannot confound outcome bias
+        with decision quality at t0.
         """
         pre_ev = self.pre_decision_evidence()
         outcomes = self.post_decision_outcomes()
@@ -90,8 +106,8 @@ class DecisionCase:
                 }
                 for e in pre_ev
             ],
-            "tactical_context": self.tactical_context,
-            "feasible_alternatives": list(self.feasible_alternatives),
+            "tactical_context": self.sanitized_pre_decision_context(),
+            "hypothetical_alternatives_to_inspect": list(self.feasible_alternatives),
             "epistemic_uncertainties": list(self.uncertainties),
         }
 
@@ -109,53 +125,52 @@ class DecisionCase:
         return payload
 
 
-def _find_car_at_time(frames: list[dict], target_time: float, player_id: str) -> dict[str, Any] | None:
-    """Find the car state closest to target_time in 30Hz resampled frames."""
+def _find_car_at_time(
+    frames: list[dict],
+    target_time: float,
+    player_id: str,
+    max_lookback_s: float = 0.15,
+) -> dict[str, Any] | None:
+    """Find the latest car state observed AT OR BEFORE target_time (ft <= target_time).
+
+    Strictly forbids sampling any future frame (ft > target_time) to prevent hindsight leakage.
+    """
     if not frames:
         return None
-    # Quick binary search for time
-    low, high = 0, len(frames) - 1
-    best_frame = None
-    best_diff = float("inf")
-    while low <= high:
-        mid = (low + high) // 2
-        ft = frames[mid].get("t", 0.0)
-        diff = abs(ft - target_time)
-        if diff < best_diff:
-            best_diff = diff
-            best_frame = frames[mid]
-        if ft < target_time:
-            low = mid + 1
-        elif ft > target_time:
-            high = mid - 1
-        else:
-            break
-    if best_frame and best_diff <= 0.15:
-        return best_frame.get("cars", {}).get(player_id)
+    times = [f.get("t", 0.0) for f in frames]
+    idx = bisect.bisect_right(times, target_time) - 1
+    if idx < 0:
+        return None
+    frame = frames[idx]
+    ft = frame.get("t", 0.0)
+    if ft > target_time:
+        return None
+    if (target_time - ft) <= max_lookback_s:
+        return frame.get("cars", {}).get(player_id)
     return None
 
 
-def _find_ball_at_time(frames: list[dict], target_time: float) -> dict[str, Any] | None:
+def _find_ball_at_time(
+    frames: list[dict],
+    target_time: float,
+    max_lookback_s: float = 0.15,
+) -> dict[str, Any] | None:
+    """Find the latest ball state observed AT OR BEFORE target_time (ft <= target_time).
+
+    Strictly forbids sampling any future frame (ft > target_time) to prevent hindsight leakage.
+    """
     if not frames:
         return None
-    low, high = 0, len(frames) - 1
-    best_frame = None
-    best_diff = float("inf")
-    while low <= high:
-        mid = (low + high) // 2
-        ft = frames[mid].get("t", 0.0)
-        diff = abs(ft - target_time)
-        if diff < best_diff:
-            best_diff = diff
-            best_frame = frames[mid]
-        if ft < target_time:
-            low = mid + 1
-        elif ft > target_time:
-            high = mid - 1
-        else:
-            break
-    if best_frame and best_diff <= 0.15:
-        return best_frame.get("ball")
+    times = [f.get("t", 0.0) for f in frames]
+    idx = bisect.bisect_right(times, target_time) - 1
+    if idx < 0:
+        return None
+    frame = frames[idx]
+    ft = frame.get("t", 0.0)
+    if ft > target_time:
+        return None
+    if (target_time - ft) <= max_lookback_s:
+        return frame.get("ball")
     return None
 
 
@@ -163,15 +178,17 @@ def extract_kickoff_decision_cases(
     replay_payload: dict[str, Any],
     raw_events: list[dict[str, Any]] | None = None,
 ) -> list[DecisionCase]:
-    """Extract kickoff decision cases for all players using native kickoff events."""
+    """Extract kickoff decision cases for all players using native kickoff events.
+
+    Pre-decision evidence is strictly bounded to observations through t0 (prior to touch).
+    Decoder classifications finalized across the kickoff window are partitioned as future-derived.
+    """
     cases: list[DecisionCase] = []
     replay_id = replay_payload.get("title", "replay")
     players = {p["id"]: p for p in replay_payload.get("players", [])}
     frames = replay_payload.get("frames", [])
 
-    # If raw_events not supplied, check replay_payload['events'] or filter
     events_to_scan = raw_events if raw_events is not None else replay_payload.get("events", [])
-
     kickoff_events = [
         ev for ev in events_to_scan
         if ev.get("meta", {}).get("stream") == "kickoff" or ev.get("type") == "kickoff"
@@ -182,7 +199,7 @@ def extract_kickoff_decision_cases(
         if "payload" in payload:
             payload = payload["payload"]
 
-        # Time of kickoff first touch or spawn
+        # Time of kickoff first touch
         t_touch = (
             payload.get("first_touch_time")
             or payload.get("team_zero_taker_touch_time")
@@ -192,21 +209,19 @@ def extract_kickoff_decision_cases(
         t0 = round(max(0.0, t_touch - 0.5), 3)
         t_spawn = round(max(0.0, min(t0, t_touch - 2.5)), 3)
 
-        # Team zero non-takers (cheaters / boost grabbers)
         z_non_takers = payload.get("team_zero_non_takers", [])
         o_non_takers = payload.get("team_one_non_takers", [])
-        z_taker = payload.get("team_zero_taker", {})
-        o_taker = payload.get("team_one_taker", {})
-
         winning_team_0 = payload.get("winning_team_is_team_0")
         win_strength = payload.get("win_strength_band", "unknown")
 
-        # Process non-takers (GC2 tactical decision: cheat vs corner boost)
         all_non_takers = [(nt, "blue") for nt in z_non_takers] + [(nt, "orange") for nt in o_non_takers]
         for nt, team in all_non_takers:
             raw_p = nt.get("player", {})
-            pid = next(iter(raw_p.values()), None) if isinstance(raw_p, dict) and raw_p else None
-            full_pid = next((p for p in players if pid and pid in p), None)
+            full_pid = _player_key(raw_p)
+            if not full_pid or full_pid not in players:
+                val = next(iter(raw_p.values()), "") if isinstance(raw_p, dict) and raw_p else ""
+                val_str = str(val) if not isinstance(val, dict) else str(val.get("online_id", ""))
+                full_pid = next((p for p in players if val_str and val_str in p), None)
             if not full_pid or full_pid not in players:
                 continue
 
@@ -215,6 +230,17 @@ def extract_kickoff_decision_cases(
             support_behavior = nt.get("support_behavior", "unknown")
             spawn_pos = nt.get("spawn_position", "unknown")
             start_boost = nt.get("start_boost", 33.0)
+
+            # Check observed motion at t0 from frames through t0
+            car_t0 = _find_car_at_time(frames, t0, full_pid)
+            motion_desc = "moving forward toward midfield"
+            if car_t0:
+                v = car_t0.get("velocity")
+                if isinstance(v, (list, tuple)) and len(v) >= 2:
+                    vy = v[1]
+                    is_fwd = (team == "blue" and vy > 200) or (team == "orange" and vy < -200)
+                    if not is_fwd:
+                        motion_desc = "turning laterally or toward defensive corner"
 
             ev_items: list[Evidence] = [
                 Evidence(
@@ -236,13 +262,24 @@ def extract_kickoff_decision_cases(
                     source_quality="high",
                 ),
                 Evidence(
-                    key="kickoff_support_chosen",
-                    claim=f"{pname} committed to {support_behavior} kickoff support.",
+                    key="kickoff_approach_motion",
+                    claim=f"{pname} observed at t0 {motion_desc}.",
                     event_time_s=t0,
                     finalized_through_s=t0,
                     kind="decision_context",
                     source="replay",
                     source_quality="high",
+                ),
+                # Note: support_behavior was finalized across the whole kickoff through t_touch,
+                # so its finalized_through_s must be t_touch. At t0 it is strictly future_derived!
+                Evidence(
+                    key="kickoff_support_classified",
+                    claim=f"Decoder post-hoc classified kickoff support as {support_behavior}.",
+                    event_time_s=t0,
+                    finalized_through_s=round(t_touch, 3),
+                    kind="decision_context",
+                    source="derived",
+                    source_quality="medium",
                 ),
             ]
 
@@ -273,9 +310,8 @@ def extract_kickoff_decision_cases(
                 tactical_context={
                     "kickoff_index": idx,
                     "spawn_position": spawn_pos,
-                    "support_behavior": support_behavior,
                     "start_boost": start_boost,
-                    "is_legitimate_cheat": support_behavior == "cheat",
+                    "observed_motion_at_t0": motion_desc,
                 },
                 feasible_alternatives=(
                     "cheat_up_for_dead_ball",
@@ -285,6 +321,7 @@ def extract_kickoff_decision_cases(
                 uncertainties=(
                     "Pre-match teammate kickoff communication (e.g. 'I got it!', 'Need boost!').",
                     "Opponent non-taker cheat speed and angle.",
+                    "Whether kicker intended a dead ball or a controlled corner spill.",
                 ),
                 provenance={"source": "subtr-actor-native-kickoff", "native_event_id": kov.get("meta", {}).get("id")},
             )
@@ -297,7 +334,10 @@ def extract_first_man_challenge_cases(
     replay_payload: dict[str, Any],
     raw_events: list[dict[str, Any]] | None = None,
 ) -> list[DecisionCase]:
-    """Extract first-man challenges & 50/50 decisions with support context."""
+    """Extract first-man challenges & 50/50 decisions with honest depth descriptions.
+
+    Does NOT equate relative depth with verified defensive coverage.
+    """
     cases: list[DecisionCase] = []
     replay_id = replay_payload.get("title", "replay")
     players = {p["id"]: p for p in replay_payload.get("players", [])}
@@ -314,7 +354,6 @@ def extract_first_man_challenge_cases(
         if "payload" in payload:
             payload = payload["payload"]
 
-        # Avoid duplicating kickoffs here; kickoffs have dedicated handler
         if payload.get("is_kickoff"):
             continue
 
@@ -322,14 +361,18 @@ def extract_first_man_challenge_cases(
         resolve_time = payload.get("resolve_time") or (start_time + 0.4)
         winning_team_0 = payload.get("winning_team_is_team_0")
 
-        # Determine participants
         p0_dict = payload.get("team_zero_player") or {}
         p1_dict = payload.get("team_one_player") or {}
-        id0 = next(iter(p0_dict.values()), None) if isinstance(p0_dict, dict) and p0_dict else None
-        id1 = next(iter(p1_dict.values()), None) if isinstance(p1_dict, dict) and p1_dict else None
-
-        full_id0 = next((p for p in players if id0 and id0 in p), None)
-        full_id1 = next((p for p in players if id1 and id1 in p), None)
+        full_id0 = _player_key(p0_dict)
+        full_id1 = _player_key(p1_dict)
+        if not full_id0 or full_id0 not in players:
+            v0 = next(iter(p0_dict.values()), "") if isinstance(p0_dict, dict) and p0_dict else ""
+            v0_str = str(v0) if not isinstance(v0, dict) else str(v0.get("online_id", ""))
+            full_id0 = next((p for p in players if v0_str and v0_str in p), None)
+        if not full_id1 or full_id1 not in players:
+            v1 = next(iter(p1_dict.values()), "") if isinstance(p1_dict, dict) and p1_dict else ""
+            v1_str = str(v1) if not isinstance(v1, dict) else str(v1.get("online_id", ""))
+            full_id1 = next((p for p in players if v1_str and v1_str in p), None)
 
         participants = [(full_id0, "blue", winning_team_0 is True), (full_id1, "orange", winning_team_0 is False)]
 
@@ -339,14 +382,11 @@ def extract_first_man_challenge_cases(
             pinfo = players[pid]
             pname = pinfo.get("name", pid)
 
-            # Pre-decision window: 0.5s before contact
             t0 = round(max(0.0, start_time - 0.4), 3)
 
-            # Check car state at t0
             car_t0 = _find_car_at_time(frames, t0, pid)
             boost_t0 = car_t0.get("boost") if car_t0 else None
 
-            # Check teammate state at t0
             teammates = [other_id for other_id, other_p in players.items() if other_p.get("team") == team and other_id != pid]
             mate_car = _find_car_at_time(frames, t0, teammates[0]) if teammates else None
 
@@ -356,7 +396,6 @@ def extract_first_man_challenge_cases(
                 dx = car_t0.get("x", 0) - mate_car.get("x", 0)
                 dy = car_t0.get("y", 0) - mate_car.get("y", 0)
                 mate_distance = round(math.hypot(dx, dy), 1)
-                # Defending net check (y coordinate relative to own side)
                 if team == "blue":
                     mate_is_back = mate_car.get("y", 0) < car_t0.get("y", 0)
                 else:
@@ -390,8 +429,8 @@ def extract_first_man_challenge_cases(
             if mate_distance is not None:
                 ev_items.append(
                     Evidence(
-                        key="second_man_coverage",
-                        claim=f"Teammate was {mate_distance:.0f} units away ({'behind' if mate_is_back else 'ahead of'} {pname}).",
+                        key="second_man_depth",
+                        claim=f"Teammate was {mate_distance:.0f} units away at defensive depth ({'behind' if mate_is_back else 'ahead of'} {pname}).",
                         event_time_s=t0,
                         finalized_through_s=t0,
                         kind="decision_context",
@@ -405,8 +444,8 @@ def extract_first_man_challenge_cases(
                 Evidence(
                     key="fifty_fifty_outcome",
                     claim=f"50/50 resolved with {pname}'s team {'winning' if won else 'conceding'} possession.",
-                    event_time_s=resolve_time,
-                    finalized_through_s=resolve_time,
+                    event_time_s=round(resolve_time, 3),
+                    finalized_through_s=round(resolve_time, 3),
                     kind="post_decision_outcome",
                     source="replay",
                     source_quality="high",
@@ -423,11 +462,9 @@ def extract_first_man_challenge_cases(
                 situation_type="first_man_challenge",
                 evidence=tuple(ev_items),
                 tactical_context={
-                    "start_time": start_time,
-                    "resolve_time": resolve_time,
                     "mate_distance": mate_distance,
-                    "mate_is_covering": mate_is_back,
-                    "has_backup": mate_is_back and (mate_distance is not None and mate_distance < 3500),
+                    "mate_relative_depth": "behind" if mate_is_back else "ahead",
+                    "defensive_coverage_verified": False,
                 },
                 feasible_alternatives=(
                     "commit_to_50_50_block",
@@ -435,6 +472,7 @@ def extract_first_man_challenge_cases(
                     "shadow_and_delay",
                 ),
                 uncertainties=(
+                    "Teammate car orientation, angular velocity, and defensive readiness cannot be verified from depth alone.",
                     "Opponent flip timing and direction.",
                     "Whether teammate called for a challenge or advised shadow.",
                 ),
@@ -461,20 +499,21 @@ def extract_last_man_defense_cases(
         if ev.get("meta", {}).get("stream") == "depth_role"
     ]
 
-    # Look for last man transitions during defensive half
     for idx, dev in enumerate(depth_events):
         payload = dev.get("payload", {})
         if "payload" in payload:
             payload = payload["payload"]
 
-        # Only check players labeled as deepest or second man in defense
         state = payload.get("state")
         if state not in ("most_back", "second_man", "last_man", "third_man"):
             continue
 
         raw_p = payload.get("player") or dev.get("meta", {}).get("primary_player") or {}
-        pid = next(iter(raw_p.values()), None) if isinstance(raw_p, dict) and raw_p else None
-        full_pid = next((p for p in players if pid and pid in p), None)
+        full_pid = _player_key(raw_p)
+        if not full_pid or full_pid not in players:
+            val = next(iter(raw_p.values()), "") if isinstance(raw_p, dict) and raw_p else ""
+            val_str = str(val) if not isinstance(val, dict) else str(val.get("online_id", ""))
+            full_pid = next((p for p in players if val_str and val_str in p), None)
         if not full_pid or full_pid not in players:
             continue
 
@@ -484,13 +523,11 @@ def extract_last_man_defense_cases(
         timing = dev.get("meta", {}).get("timing", {})
         t0 = round(payload.get("time") or timing.get("start_time") or dev.get("t", 0.0), 3)
 
-        # Check position relative to goal
         car = _find_car_at_time(frames, t0, full_pid)
         ball = _find_ball_at_time(frames, t0)
         if not car or not ball:
             continue
 
-        # In defense? (Blue defends y < 0, Orange defends y > 0)
         is_defending = (team == "blue" and car.get("y", 0) < -1000) or (team == "orange" and car.get("y", 0) > 1000)
         if not is_defending:
             continue
@@ -499,7 +536,6 @@ def extract_last_man_defense_cases(
         dist_to_goal = math.hypot(car.get("x", 0), car.get("y", 0) - goal_y)
         ball_dist = math.hypot(car.get("x", 0) - ball.get("x", 0), car.get("y", 0) - ball.get("y", 0))
 
-        # Only evaluate significant moments (ball within 3500 units of goal)
         ball_goal_dist = math.hypot(ball.get("x", 0), ball.get("y", 0) - goal_y)
         if ball_goal_dist > 3500:
             continue
@@ -548,8 +584,8 @@ def extract_last_man_defense_cases(
             tactical_context={
                 "dist_to_goal": round(dist_to_goal, 1),
                 "ball_dist": round(ball_dist, 1),
-                "boost": round(boost, 1),
-                "is_low_boost": boost < 20,
+                "boost_at_t0": round(boost, 1),
+                "is_constrained_boost": boost < 20,
             },
             feasible_alternatives=(
                 "shadow_across_goal_mouth",
@@ -564,7 +600,6 @@ def extract_last_man_defense_cases(
         )
         cases.append(case)
 
-    # Deduplicate cases that are within 5 seconds of each other for the same player
     filtered: list[DecisionCase] = []
     for c in sorted(cases, key=lambda x: x.t0):
         if not any(c.focus_player_id == ex.focus_player_id and abs(c.t0 - ex.t0) < 5.0 for ex in filtered):

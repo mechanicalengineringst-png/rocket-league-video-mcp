@@ -1,5 +1,7 @@
 """Test DecisionCase extraction and evaluation against real match replay."""
+import os
 from pathlib import Path
+import pytest
 import subtr_actor
 
 from coach_app.subtr_replays import parse_subtr_replay
@@ -15,20 +17,35 @@ from coach_app.decision_evaluation import (
 )
 
 
-REPLAY_PATH = Path(r"D:\Users\Sam Meyer\Documents\My Games\Rocket League\TAGame\DemosEpic\23A661D44DBC5964B0718DBC5F956A33.replay")
+def get_replay_dir() -> Path:
+    env_dir = os.getenv("RL_REPLAY_DIR")
+    if env_dir:
+        p = Path(env_dir)
+        if p.is_dir():
+            return p
+    # Standard local gaming directory fallback
+    local_demos = Path.home() / "Documents" / "My Games" / "Rocket League" / "TAGame" / "DemosEpic"
+    if local_demos.is_dir():
+        return local_demos
+    alt_drive = Path(r"D:\Users\Sam Meyer\Documents\My Games\Rocket League\TAGame\DemosEpic")
+    if alt_drive.is_dir():
+        return alt_drive
+    return Path("./fixtures/replays")
 
 
 def test_real_replay_decision_case_extraction_and_evaluation():
-    if not REPLAY_PATH.exists():
-        return
+    replay_dir = get_replay_dir()
+    replay_path = replay_dir / "23A661D44DBC5964B0718DBC5F956A33.replay"
+    if not replay_path.exists():
+        pytest.skip(f"Real replay fixture not found at {replay_path}. Set RL_REPLAY_DIR to run real-replay tests.")
 
     # Extract native raw events from subtr-actor
-    raw_event_data = subtr_actor.get_stats_events(str(REPLAY_PATH))
+    raw_event_data = subtr_actor.get_stats_events(str(replay_path))
     raw_events = raw_event_data.get("events", [])
     assert len(raw_events) > 1000
 
     # Parse normalized replay payload
-    payload = parse_subtr_replay(REPLAY_PATH)
+    payload = parse_subtr_replay(replay_path)
     assert len(payload["players"]) == 4
 
     # 1. Kickoff decision cases
@@ -46,7 +63,8 @@ def test_real_replay_decision_case_extraction_and_evaluation():
         # Evaluate with Approach A
         finding = evaluate_decision_case_heuristics(kc)
         if finding:
-            assert finding["type"] in ("positive_recognition", "tactical_tradeoff")
+            assert finding["type"] == "tradeoff_consideration"
+            assert finding["assessment"] == "tactical_hypothesis"
             # Admissibility check: cited evidence must be strictly pre-decision
             kc.validate_admissibility(finding["cited_evidence"])
 
@@ -59,7 +77,7 @@ def test_real_replay_decision_case_extraction_and_evaluation():
         assert len(pre_ev) >= 1
         finding = evaluate_decision_case_heuristics(cc)
         if finding:
-            assert finding["type"] in ("positive_recognition", "tactical_risk")
+            assert finding["type"] in ("depth_observation", "tactical_risk")
             cc.validate_admissibility(finding["cited_evidence"])
 
     # 3. Last-man defense decision cases

@@ -145,6 +145,38 @@ async def review_candidates(request: ReviewRequest):
         raise HTTPException(422, 'Invalid replay or player selection.') from e
 
 
+class DecisionCaseRequest(BaseModel):
+    replay: dict
+    player_id: str | None = None
+    evaluate: bool = False
+
+
+@app.post('/api/decision-cases')
+async def decision_cases_endpoint(request: DecisionCaseRequest):
+    """Opt-in endpoint for evidence-safe DecisionCase extraction and evaluation.
+
+    Preserves existing /api/review-candidates and /api/ai-review without breaking changes.
+    """
+    try:
+        from .decision_cases import extract_all_decision_cases
+        from .decision_evaluation import evaluate_decision_case_heuristics
+
+        cases = extract_all_decision_cases(request.replay)
+        if request.player_id:
+            cases = [c for c in cases if c.focus_player_id == request.player_id]
+
+        output = []
+        for c in cases:
+            item = c.to_llm_payload(include_quarantined_outcomes=False)
+            if request.evaluate:
+                eval_res = evaluate_decision_case_heuristics(c)
+                item['evaluation'] = eval_res
+            output.append(item)
+        return {'cases': output, 'count': len(output), 'mode': 'opt_in_decision_engine'}
+    except (KeyError, ValueError, TypeError) as e:
+        raise HTTPException(422, f'Could not process decision cases: {e}') from e
+
+
 @app.post('/api/ai-review')
 async def ai_review(request: Request):
     """Only called after explicit user action; sends sampled positions to Gemini, never raw file."""

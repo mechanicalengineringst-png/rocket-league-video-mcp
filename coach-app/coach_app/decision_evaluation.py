@@ -1,10 +1,11 @@
 """Coaching decision evaluation engine: Approach A (Enhanced Deterministic) & Approach B (Structured LLM).
 
 This module implements two complementary coaching paradigms operating on DecisionCase instances:
-- Approach A: High-level deterministic tactical domain logic with strict false-positive suppression
-  (e.g., distinguishing valid kickoff cheats from double-commits; recognizing advantageous 50/50 spills).
-- Approach B: Evidence-guarded structured prompting for LLMs that quarantines post-decision outcomes
-  to prevent hindsight leakage, with an offline mock adapter for deterministic evaluation.
+- Approach A: Conservative deterministic tactical domain logic with strict false-positive suppression
+  and tactical honesty (treating relative depth as depth rather than verified coverage; framing choices
+  as hypotheses with tradeoffs rather than dogmatic verdicts).
+- Approach B: Evidence-guarded structured prompting for LLMs that completely withholds post-decision
+  outcomes from the decision evaluation prompt, with an offline mock adapter for deterministic evaluation.
 """
 from __future__ import annotations
 
@@ -16,97 +17,132 @@ from .evidence import require_decision_evidence
 
 
 def evaluate_decision_case_heuristics(case: DecisionCase) -> dict[str, Any] | None:
-    """Approach A: Enhanced deterministic tactical evaluation.
+    """Approach A: Conservative deterministic tactical evaluation.
 
-    Returns a structured coaching finding or None if the play is sound / within normal variance.
+    Returns a structured tactical hypothesis/finding or an abstention when telemetry is ambiguous.
     Strictly verifies that any finding cites valid pre-decision evidence keys.
     """
     ctx = case.tactical_context
 
     if case.situation_type == "kickoff_support":
-        behavior = ctx.get("support_behavior")
-        spawn = ctx.get("spawn_position")
-        if behavior == "cheat":
-            # Valid tactical play in 2v2 GC+: Cheating up follows the kicker to win dead balls.
-            # Must NEVER be flagged as double-commit or spacing error.
-            case.validate_admissibility(["kickoff_spawn", "kickoff_role", "kickoff_support_chosen"])
+        motion = ctx.get("observed_motion_at_t0", "")
+        spawn = ctx.get("spawn_position", "unknown")
+        boost = ctx.get("start_boost", 33.0)
+
+        # Pre-decision admissible keys
+        pre_keys = ["kickoff_spawn", "kickoff_role", "kickoff_approach_motion"]
+        case.validate_admissibility(pre_keys)
+
+        if "midfield" in motion.lower() or "forward" in motion.lower():
             return {
                 "case_id": case.case_id,
                 "t": case.t0,
-                "type": "positive_recognition",
-                "title": "Tactically sound kickoff cheat",
-                "assessment": "sound",
-                "evidence": f"{case.focus_player_name} cheated up on kickoff from {spawn}. In competitive 2v2, cheating up secures secondary possession on killed or soft kickoffs.",
-                "advice": "Continue cheating up when coordinating with teammate. Maintain enough distance to react if the kickoff pinches high toward your net.",
-                "cited_evidence": ["kickoff_spawn", "kickoff_role", "kickoff_support_chosen"],
+                "type": "tradeoff_consideration",
+                "title": "Kickoff cheat support hypothesis",
+                "assessment": "tactical_hypothesis",
+                "evidence": (
+                    f"{case.focus_player_name} advanced toward midfield from {spawn} spawn ({boost} boost). "
+                    "Cheating up gains secondary possession if the kickoff stalls or spills neutral, "
+                    "but carries risk of an open net if the kickoff pinches high or is lost cleanly over the car."
+                ),
+                "advice": (
+                    "Inspect whether cheating up matched kicker communication and speed. "
+                    "If the kicker frequently loses kickoffs high, consider holding net or taking a wider arc."
+                ),
+                "cited_evidence": pre_keys,
             }
-        elif behavior == "corner_boost":
-            case.validate_admissibility(["kickoff_spawn", "kickoff_role", "kickoff_support_chosen"])
+        else:
             return {
                 "case_id": case.case_id,
                 "t": case.t0,
-                "type": "tactical_tradeoff",
-                "title": "Corner boost kickoff route",
-                "assessment": "tradeoff",
-                "evidence": f"{case.focus_player_name} chose corner boost route on kickoff.",
-                "advice": "Taking corner boost grants 100 boost but leaves net vulnerable if teammate loses kickoff cleanly. Ensure kickoff partner delays the 50/50.",
-                "cited_evidence": ["kickoff_spawn", "kickoff_role", "kickoff_support_chosen"],
+                "type": "tradeoff_consideration",
+                "title": "Corner boost kickoff route hypothesis",
+                "assessment": "tactical_hypothesis",
+                "evidence": (
+                    f"{case.focus_player_name} directed motion toward perimeter/corner on kickoff. "
+                    "Secures 100 boost for an offensive corner sequence, but concedes immediate central ball control."
+                ),
+                "advice": (
+                    "Inspect whether conceding initial central pressure allowed opponents an uncontested first touch."
+                ),
+                "cited_evidence": pre_keys,
             }
 
     elif case.situation_type == "first_man_challenge":
-        has_backup = ctx.get("has_backup", False)
-        mate_covering = ctx.get("mate_is_covering", False)
+        mate_depth = ctx.get("mate_relative_depth", "unknown")
         mate_dist = ctx.get("mate_distance")
 
-        # Check pre-decision evidence
+        # Admissible pre-decision keys
         required_keys = ["challenge_approach"]
-        if "challenge_boost" in [e.key for e in case.pre_decision_evidence()]:
+        available_pre = {e.key for e in case.pre_decision_evidence()}
+        if "challenge_boost" in available_pre:
             required_keys.append("challenge_boost")
-        if "second_man_coverage" in [e.key for e in case.pre_decision_evidence()]:
-            required_keys.append("second_man_coverage")
+        if "second_man_depth" in available_pre:
+            required_keys.append("second_man_depth")
 
         case.validate_admissibility(required_keys)
 
-        if not mate_covering or (mate_dist is not None and mate_dist > 4500):
+        if mate_depth != "behind" or (mate_dist is not None and mate_dist > 4500):
+            dist_str = f"{mate_dist:.0f} units away" if mate_dist is not None else "distant"
             return {
                 "case_id": case.case_id,
                 "t": case.t0,
                 "type": "tactical_risk",
-                "title": "Unsupported first-man challenge",
-                "assessment": "high_risk",
-                "evidence": f"{case.focus_player_name} committed to a challenge while teammate was {'ahead of play' if not mate_covering else f'{mate_dist:.0f} units away'}.",
-                "advice": "As first man without defensive coverage, fake challenge or shadow to buy time for your teammate to recover rather than diving.",
+                "title": "First-man challenge without defensive depth",
+                "assessment": "tactical_risk",
+                "evidence": (
+                    f"{case.focus_player_name} committed to a challenge while teammate was "
+                    f"{'ahead of play' if mate_depth != 'behind' else dist_str}."
+                ),
+                "advice": (
+                    "Challenging without a recovering teammate behind leaves the net vulnerable if beaten. "
+                    "Inspect whether fake challenging or shadowing to delay the attack was preferable."
+                ),
                 "cited_evidence": required_keys,
             }
         else:
-            # Teammate was covering: this challenge is structurally sound
+            # Teammate has relative depth, but orientation/coverage cannot be proven from depth alone
+            dist_str = f"{mate_dist:.0f} units behind" if mate_dist is not None else "behind"
             return {
                 "case_id": case.case_id,
                 "t": case.t0,
-                "type": "positive_recognition",
-                "title": "Supported first-man challenge",
-                "assessment": "sound",
-                "evidence": f"{case.focus_player_name} challenged with teammate positioned defensively ({mate_dist:.0f} units behind).",
-                "advice": "Good challenge timing: even if the 50/50 is lost or neutral, your teammate is in position to clean up.",
+                "type": "depth_observation",
+                "title": "First-man challenge with teammate at defensive depth",
+                "assessment": "unverified_coverage_hypothesis",
+                "evidence": (
+                    f"{case.focus_player_name} committed to a challenge with teammate positioned {dist_str}. "
+                    "Telemetry confirms relative depth, but car orientation, momentum toward net, and recovery "
+                    "readiness cannot be verified from depth coordinates alone."
+                ),
+                "advice": (
+                    "Review teammate's perspective and camera in the 3D replay. "
+                    "Verify whether they were turned toward the goal and ready to contest a spilled ball."
+                ),
                 "cited_evidence": required_keys,
             }
 
     elif case.situation_type == "last_man_defense":
-        is_low_boost = ctx.get("is_low_boost", False)
-        boost = ctx.get("boost", 0.0)
+        is_constrained = ctx.get("is_constrained_boost", False)
+        boost = ctx.get("boost_at_t0", 0.0)
         dist_to_goal = ctx.get("dist_to_goal", 0.0)
 
         case.validate_admissibility(["last_man_role", "last_man_boost", "ball_threat"])
 
-        if is_low_boost:
+        if is_constrained:
             return {
                 "case_id": case.case_id,
                 "t": case.t0,
                 "type": "contextual_advice",
-                "title": "Low-boost net defense",
-                "assessment": "forced_situation",
-                "evidence": f"{case.focus_player_name} is defending goal with only {boost:.1f} boost.",
-                "advice": "Do not dive forward into an early challenge with low boost. Hold back post, pick up small pads across the goal line, and force the shooter to make the first move.",
+                "title": "Low-boost net defense posture",
+                "assessment": "constrained_situation",
+                "evidence": (
+                    f"{case.focus_player_name} is defending goal with {boost:.1f} boost. "
+                    "Low boost constrains aerial reach and recovery speed."
+                ),
+                "advice": (
+                    "Hold back post, pick up goal-line small pads, and force the shooter to commit. "
+                    "Do not dive forward into an early challenge with limited boost."
+                ),
                 "cited_evidence": ["last_man_role", "last_man_boost", "ball_threat"],
             }
         else:
@@ -115,9 +151,14 @@ def evaluate_decision_case_heuristics(case: DecisionCase) -> dict[str, Any] | No
                 "t": case.t0,
                 "type": "tactical_positioning",
                 "title": "Last-man goal defense posture",
-                "assessment": "sound",
-                "evidence": f"{case.focus_player_name} is positioned {dist_to_goal:.0f} units from goal line with {boost:.1f} boost.",
-                "advice": "Maintain back-post alignment to cover the entirety of the net while reading whether opponent has an unassisted shot.",
+                "assessment": "tactical_hypothesis",
+                "evidence": (
+                    f"{case.focus_player_name} is positioned {dist_to_goal:.0f} units from goal line with {boost:.1f} boost."
+                ),
+                "advice": (
+                    "Inspect whether back-post alignment covered the full net width and allowed reacting "
+                    "to both a direct ground shot and an aerial backboard bounce."
+                ),
                 "cited_evidence": ["last_man_role", "last_man_boost", "ball_threat"],
             }
 
@@ -127,7 +168,8 @@ def evaluate_decision_case_heuristics(case: DecisionCase) -> dict[str, Any] | No
 def build_decision_case_llm_prompt(case: DecisionCase, include_quarantined_outcomes: bool = False) -> str:
     """Approach B: Formats DecisionCase into an evidence-guarded LLM prompt.
 
-    Quarantines post-decision outcomes to prevent hindsight leakage.
+    Default strictly withholds post-decision outcomes so that decision-point critique
+    cannot be contaminated by hindsight bias.
     """
     payload = case.to_llm_payload(include_quarantined_outcomes=include_quarantined_outcomes)
 
@@ -144,12 +186,13 @@ def build_decision_case_llm_prompt(case: DecisionCase, include_quarantined_outco
 
     lines.extend([
         "",
-        "=== SECTION 2: TACTICAL CONTEXT ===",
+        "=== SECTION 2: PRE-DECISION TACTICAL CONTEXT ===",
         json.dumps(payload["tactical_context"], indent=2),
         "",
-        "=== SECTION 3: FEASIBLE ALTERNATIVES CONSIDERED ===",
+        "=== SECTION 3: HYPOTHETICAL ALTERNATIVES TO INSPECT ===",
+        "(Note: These are exploratory hypotheses for replay review, not physically proven paths)",
     ])
-    for alt in payload["feasible_alternatives"]:
+    for alt in payload["hypothetical_alternatives_to_inspect"]:
         lines.append(f"- {alt}")
 
     lines.extend([
@@ -159,10 +202,10 @@ def build_decision_case_llm_prompt(case: DecisionCase, include_quarantined_outco
     for unc in payload["epistemic_uncertainties"]:
         lines.append(f"- {unc}")
 
-    if "quarantined_post_decision_outcomes" in payload:
+    if include_quarantined_outcomes and "quarantined_post_decision_outcomes" in payload:
         lines.extend([
             "",
-            "=== SECTION 5: [QUARANTINED POST-DECISION OUTCOME - DO NOT CONFOUND WITH DECISION QUALITY] ===",
+            "=== SECTION 5: [QUARANTINED POST-DECISION OUTCOME - POST-MATCH CONTEXT ONLY] ===",
             "WARNING: The following occurred AFTER the decision was committed. You MUST NOT use whether a goal",
             "or favorable outcome occurred to judge whether the decision was sound at t0.",
         ])
@@ -173,9 +216,11 @@ def build_decision_case_llm_prompt(case: DecisionCase, include_quarantined_outco
         "",
         "INSTRUCTIONS:",
         "1. Evaluate ONLY whether the decision was tactically reasonable given facts in Section 1 & 2.",
-        "2. Do NOT criticize a decision solely because an unfavorable outcome followed.",
-        "3. Explicitly acknowledge the uncertainties in Section 4.",
-        "4. Return JSON: {\"assessment\": \"sound\"|\"high_risk\"|\"tradeoff\", \"title\": \"...\", \"advice\": \"...\", \"cited_evidence\": [\"...\"]}",
+        "2. Do NOT treat relative depth as verified coverage: a teammate behind may not be facing the threat.",
+        "3. Explicitly acknowledge the epistemic uncertainties in Section 4.",
+        "4. If telemetry is insufficient to make a determination, return assessment: 'abstain'.",
+        "5. Return JSON: {\"assessment\": \"tactical_hypothesis\"|\"tactical_risk\"|\"tradeoff\"|\"abstain\", "
+        "\"title\": \"...\", \"advice\": \"...\", \"cited_evidence\": [\"...\"]}",
     ])
 
     return "\n".join(lines)
@@ -188,30 +233,36 @@ def evaluate_decision_case_llm_mock(
     """Offline test adapter for Approach B.
 
     Evaluates prompt generation and validates that the model output adheres to evidence admissibility.
+    Pre-decision evaluation strictly withholds post-decision outcomes.
     """
-    prompt = build_decision_case_llm_prompt(case, include_quarantined_outcomes=True)
+    prompt = build_decision_case_llm_prompt(case, include_quarantined_outcomes=False)
 
     if custom_model_fn is not None:
         raw_output = custom_model_fn(prompt)
     else:
         # High-fidelity mock model adhering strictly to prompt instructions
-        heuristic = evaluate_decision_case_heuristics(case)
+        heuristic = None
+        try:
+            heuristic = evaluate_decision_case_heuristics(case)
+        except ValueError:
+            heuristic = None
+
         if heuristic:
             raw_output = {
-                "assessment": heuristic.get("assessment", "sound"),
+                "assessment": heuristic.get("assessment", "tactical_hypothesis"),
                 "title": heuristic.get("title", "Tactical Review"),
                 "advice": heuristic.get("advice", ""),
                 "cited_evidence": heuristic.get("cited_evidence", []),
             }
         else:
+            pre_keys = [e.key for e in case.pre_decision_evidence()]
             raw_output = {
-                "assessment": "sound",
-                "title": "Tactical Play",
-                "advice": "Decision was within normal competitive parameters.",
-                "cited_evidence": [e.key for e in case.pre_decision_evidence()[:1]],
+                "assessment": "abstain",
+                "title": "Tactical Play Under Observation",
+                "advice": "Telemetry does not provide conclusive grounds for critique.",
+                "cited_evidence": pre_keys[:1] if pre_keys else [],
             }
 
-    # Verify that returned cited_evidence keys are admissible
     cited = raw_output.get("cited_evidence", [])
     admissible = case.validate_admissibility(cited)
 

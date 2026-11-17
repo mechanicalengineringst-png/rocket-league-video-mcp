@@ -7,28 +7,29 @@
     "player_count": 4,
     "players": [
       {
-        "id": "Steam:76561198399489705",
-        "name": "Plormby",
+        "id": "player_blue_1",
+        "name": "Player Blue 1",
         "team": "blue"
       },
       {
-        "id": "Steam:76561199087093515",
-        "name": "architect_pr",
+        "id": "player_blue_2",
+        "name": "Player Blue 2",
         "team": "blue"
       },
       {
-        "id": "Epic:5dbea40d6d624c45b3e8979741f2ab1e",
-        "name": "Quartzsandstorm",
+        "id": "player_orange_1",
+        "name": "Player Orange 1",
         "team": "orange"
       },
       {
-        "id": "Epic:7e55a03c59fa4dabbd71d38310f816fa",
-        "name": "ch\u0113 z\u00faqi\u00fa",
+        "id": "player_orange_2",
+        "name": "Player Orange 2",
         "team": "orange"
       }
     ],
-    "native_decode_time_s": 2.3357,
-    "native_peak_memory_mb": 27.81,
+    "native_decode_time_s": 2.3674,
+    "native_python_heap_mb": 27.8,
+    "total_process_rss_mb": 315.11,
     "native_total_events": 6788,
     "native_event_types_count": 45,
     "native_event_distribution": {
@@ -53,132 +54,43 @@
       "speed_flip": 43,
       "player_activity": 37
     },
-    "app_load_time_s": 10.87,
-    "app_peak_memory_mb": 80.28,
+    "app_load_time_s": 9.1102,
+    "app_python_heap_mb": 79.05,
     "app_retained_events": 751,
     "app_retained_ratio": 0.1106,
-    "contextual_extraction_time_s": 0.0158,
-    "contextual_reviews_count": {
-      "Steam:76561198399489705": 2,
-      "Steam:76561199087093515": 2,
-      "Epic:5dbea40d6d624c45b3e8979741f2ab1e": 1,
-      "Epic:7e55a03c59fa4dabbd71d38310f816fa": 1
+    "decision_cases_count": 76,
+    "decision_cases_time_s": 0.1584,
+    "decision_cases_by_category": {
+      "kickoff_support": 16,
+      "last_man_defense": 32,
+      "first_man_challenge": 28
     },
-    "contextual_reviews_detail": {
-      "Steam:76561198399489705": [
-        {
-          "id": "support-compression-Steam:76561198399489705-210.36",
-          "t": 210.356,
-          "type": "contextual",
-          "kind": "second_man_support",
-          "title": "Second-man recovery lane to inspect",
-          "confidence": "experimental",
-          "evidence": "At your teammate's preceding touch, you were 1205 units away and -652 units behind them. An opponent was about 822 units from the ball; your teammate was still near it a moment later.",
-          "advice": "Watch the following challenge. If your teammate is dunked, do you still have time and space to cover your net? Consider whether a wider or deeper support lane was possible.",
-          "uncertainty": "Close support can be correct for a planned pass, an intentional 50/50 or immediate follow-up. This is a recovery question, not a double-commit verdict.",
-          "target": null,
-          "source": "deterministic-telemetry-check-v1"
-        },
-        {
-          "id": "support-compression-Steam:76561198399489705-241.00",
-          "t": 240.996,
-          "type": "contextual",
-          "kind": "second_man_support",
-          "title": "Second-man recovery lane to inspect",
-          "confidence": "experimental",
-          "evidence": "At your teammate's preceding touch, you were 769 units away and -758 units behind them. An opponent was about 1025 units from the ball; your teammate was still near it a moment later.",
-          "advice": "Watch the following challenge. If your teammate is dunked, do you still have time and space to cover your net? Consider whether a wider or deeper support lane was possible.",
-          "uncertainty": "Close support can be correct for a planned pass, an intentional 50/50 or immediate follow-up. This is a recovery question, not a double-commit verdict.",
-          "target": null,
-          "source": "deterministic-telemetry-check-v1"
-        }
-      ],
-      "Steam:76561199087093515": [
-        {
-          "id": "support-compression-Steam:76561199087093515-58.57",
-          "t": 58.573,
-          "type": "contextual",
-          "kind": "second_man_support",
-          "title": "Second-man recovery lane to inspect",
-          "confidence": "experimental",
-          "evidence": "At your teammate's preceding touch, you were 675 units away and -655 units behind them. An opponent was about 1477 units from the ball; your teammate was still near it a moment later.",
-          "advice": "Watch the following challenge. If your teammate is dunked, do you still have time and space to cover your net? Consider whether a wider or deeper support lane was possible.",
-          "uncertainty": "Close support can be correct for a planned pass, an intentional 50/50 or immediate follow-up. This is a recovery question, not a double-commit verdict.",
-          "target": null,
-          "source": "deterministic-telemetry-check-v1"
-        },
-        {
-          "id": "support-compression-Steam:76561199087093515-211.99",
-          "t": 211.99,
-          "type": "contextual",
-          "kind": "second_man_support",
-          "title": "Second-man recovery lane to inspect",
-          "confidence": "experimental",
-          "evidence": "At your teammate's preceding touch, you were 459 units away and 368 units behind them. An opponent was about 533 units from the ball; your teammate was still near it a moment later.",
-          "advice": "Watch the following challenge. If your teammate is dunked, do you still have time and space to cover your net? Consider whether a wider or deeper support lane was possible.",
-          "uncertainty": "Close support can be correct for a planned pass, an intentional 50/50 or immediate follow-up. This is a recovery question, not a double-commit verdict.",
-          "target": null,
-          "source": "deterministic-telemetry-check-v1"
-        }
-      ],
-      "Epic:5dbea40d6d624c45b3e8979741f2ab1e": [
-        {
-          "id": "support-compression-Epic:5dbea40d6d624c45b3e8979741f2ab1e-112.84",
-          "t": 112.839,
-          "type": "contextual",
-          "kind": "second_man_support",
-          "title": "Second-man recovery lane to inspect",
-          "confidence": "experimental",
-          "evidence": "At your teammate's preceding touch, you were 663 units away and -302 units behind them. An opponent was about 1443 units from the ball; your teammate was still near it a moment later.",
-          "advice": "Watch the following challenge. If your teammate is dunked, do you still have time and space to cover your net? Consider whether a wider or deeper support lane was possible.",
-          "uncertainty": "Close support can be correct for a planned pass, an intentional 50/50 or immediate follow-up. This is a recovery question, not a double-commit verdict.",
-          "target": null,
-          "source": "deterministic-telemetry-check-v1"
-        }
-      ],
-      "Epic:7e55a03c59fa4dabbd71d38310f816fa": [
-        {
-          "id": "support-compression-Epic:7e55a03c59fa4dabbd71d38310f816fa-282.06",
-          "t": 282.06,
-          "type": "contextual",
-          "kind": "second_man_support",
-          "title": "Second-man recovery lane to inspect",
-          "confidence": "experimental",
-          "evidence": "At your teammate's preceding touch, you were 141 units away and 136 units behind them. An opponent was about 650 units from the ball; your teammate was still near it a moment later.",
-          "advice": "Watch the following challenge. If your teammate is dunked, do you still have time and space to cover your net? Consider whether a wider or deeper support lane was possible.",
-          "uncertainty": "Close support can be correct for a planned pass, an intentional 50/50 or immediate follow-up. This is a recovery question, not a double-commit verdict.",
-          "target": null,
-          "source": "deterministic-telemetry-check-v1"
-        }
-      ]
+    "decision_cases_evaluations": {
+      "tactical_hypothesis": 42,
+      "unverified_coverage_hypothesis": 13,
+      "tactical_risk": 15,
+      "constrained_situation": 6
     },
-    "legacy_candidates_time_s": 0.1749,
+    "legacy_contextual_reviews_time_s": 0.0243,
+    "legacy_contextual_reviews_count": {
+      "player_blue_1": 2,
+      "player_blue_2": 2,
+      "player_orange_1": 1,
+      "player_orange_2": 1
+    },
+    "legacy_candidates_time_s": 0.1616,
     "legacy_candidates_count": {
-      "Steam:76561198399489705": 14,
-      "Steam:76561199087093515": 15,
-      "Epic:5dbea40d6d624c45b3e8979741f2ab1e": 13,
-      "Epic:7e55a03c59fa4dabbd71d38310f816fa": 14
+      "player_blue_1": 14,
+      "player_blue_2": 15,
+      "player_orange_1": 13,
+      "player_orange_2": 14
     },
     "legacy_candidates_categories": {
-      "Steam:76561198399489705": {
-        "overlap": 10,
-        "boost": 4
-      },
-      "Steam:76561199087093515": {
-        "overlap": 10,
-        "boost": 5
-      },
-      "Epic:5dbea40d6d624c45b3e8979741f2ab1e": {
-        "overlap": 9,
-        "boost": 4
-      },
-      "Epic:7e55a03c59fa4dabbd71d38310f816fa": {
-        "overlap": 9,
-        "boost": 5
-      }
+      "overlap": 38,
+      "boost": 18
     },
-    "llm_prompt_chars": 14405,
-    "llm_prompt_estimated_tokens": 3601
+    "legacy_llm_prompt_chars": 14403,
+    "legacy_llm_prompt_estimated_tokens": 3600
   },
   {
     "filename": "03F49B8045D8B49A8C69A2A2EB011C95.replay",
@@ -188,28 +100,29 @@
     "player_count": 4,
     "players": [
       {
-        "id": "Steam:76561198809281629",
-        "name": ".",
+        "id": "player_blue_1",
+        "name": "Player Blue 1",
         "team": "blue"
       },
       {
-        "id": "Steam:76561198956445547",
-        "name": "Grundler-",
+        "id": "player_blue_2",
+        "name": "Player Blue 2",
         "team": "blue"
       },
       {
-        "id": "Epic:5dbea40d6d624c45b3e8979741f2ab1e",
-        "name": "Quartzsandstorm",
+        "id": "player_orange_1",
+        "name": "Player Orange 1",
         "team": "orange"
       },
       {
-        "id": "Epic:9f1c5f4177b64af991adf0a8e2ed1798",
-        "name": "M\u00edchael.",
+        "id": "player_orange_2",
+        "name": "Player Orange 2",
         "team": "orange"
       }
     ],
-    "native_decode_time_s": 3.0018,
-    "native_peak_memory_mb": 28.5,
+    "native_decode_time_s": 2.5613,
+    "native_python_heap_mb": 28.5,
+    "total_process_rss_mb": 308.41,
     "native_total_events": 6924,
     "native_event_types_count": 46,
     "native_event_distribution": {
@@ -234,171 +147,43 @@
       "loose_possession": 69,
       "boost_respawn": 36
     },
-    "app_load_time_s": 10.5703,
-    "app_peak_memory_mb": 72.16,
+    "app_load_time_s": 8.9434,
+    "app_python_heap_mb": 72.16,
     "app_retained_events": 741,
     "app_retained_ratio": 0.107,
-    "contextual_extraction_time_s": 0.0192,
-    "contextual_reviews_count": {
-      "Steam:76561198809281629": 3,
-      "Steam:76561198956445547": 1,
-      "Epic:5dbea40d6d624c45b3e8979741f2ab1e": 2,
-      "Epic:9f1c5f4177b64af991adf0a8e2ed1798": 3
+    "decision_cases_count": 69,
+    "decision_cases_time_s": 0.1215,
+    "decision_cases_by_category": {
+      "kickoff_support": 16,
+      "last_man_defense": 27,
+      "first_man_challenge": 26
     },
-    "contextual_reviews_detail": {
-      "Steam:76561198809281629": [
-        {
-          "id": "defensive-pressure-Steam:76561198809281629-34.47",
-          "t": 34.474,
-          "type": "contextual",
-          "kind": "defensive_pressure",
-          "title": "Last-back, low-boost pressure",
-          "confidence": "experimental",
-          "evidence": "You had about 0 boost near your goal, the ball was moving goalward at 2169 u/s, and your teammate was upfield.",
-          "advice": "Inspect the last few seconds of your recovery. Could a small-pad route have preserved more defensive coverage without making you late to the play?",
-          "uncertainty": "This could be a forced defensive position. The snapshot does not prove a boost-management mistake or that another route was feasible.",
-          "target": null,
-          "source": "deterministic-telemetry-check-v1"
-        },
-        {
-          "id": "support-compression-Steam:76561198809281629-113.70",
-          "t": 113.696,
-          "type": "contextual",
-          "kind": "second_man_support",
-          "title": "Second-man recovery lane to inspect",
-          "confidence": "experimental",
-          "evidence": "At your teammate's preceding touch, you were 607 units away and -356 units behind them. An opponent was about 600 units from the ball; your teammate was still near it a moment later.",
-          "advice": "Watch the following challenge. If your teammate is dunked, do you still have time and space to cover your net? Consider whether a wider or deeper support lane was possible.",
-          "uncertainty": "Close support can be correct for a planned pass, an intentional 50/50 or immediate follow-up. This is a recovery question, not a double-commit verdict.",
-          "target": null,
-          "source": "deterministic-telemetry-check-v1"
-        },
-        {
-          "id": "support-compression-Steam:76561198809281629-219.92",
-          "t": 219.916,
-          "type": "contextual",
-          "kind": "second_man_support",
-          "title": "Second-man recovery lane to inspect",
-          "confidence": "experimental",
-          "evidence": "At your teammate's preceding touch, you were 597 units away and 406 units behind them. An opponent was about 247 units from the ball; your teammate was still near it a moment later.",
-          "advice": "Watch the following challenge. If your teammate is dunked, do you still have time and space to cover your net? Consider whether a wider or deeper support lane was possible.",
-          "uncertainty": "Close support can be correct for a planned pass, an intentional 50/50 or immediate follow-up. This is a recovery question, not a double-commit verdict.",
-          "target": null,
-          "source": "deterministic-telemetry-check-v1"
-        }
-      ],
-      "Steam:76561198956445547": [
-        {
-          "id": "support-compression-Steam:76561198956445547-204.05",
-          "t": 204.046,
-          "type": "contextual",
-          "kind": "second_man_support",
-          "title": "Second-man recovery lane to inspect",
-          "confidence": "experimental",
-          "evidence": "At your teammate's preceding touch, you were 992 units away and -450 units behind them. An opponent was about 528 units from the ball; your teammate was still near it a moment later.",
-          "advice": "Watch the following challenge. If your teammate is dunked, do you still have time and space to cover your net? Consider whether a wider or deeper support lane was possible.",
-          "uncertainty": "Close support can be correct for a planned pass, an intentional 50/50 or immediate follow-up. This is a recovery question, not a double-commit verdict.",
-          "target": null,
-          "source": "deterministic-telemetry-check-v1"
-        }
-      ],
-      "Epic:5dbea40d6d624c45b3e8979741f2ab1e": [
-        {
-          "id": "support-compression-Epic:5dbea40d6d624c45b3e8979741f2ab1e-174.17",
-          "t": 174.172,
-          "type": "contextual",
-          "kind": "second_man_support",
-          "title": "Second-man recovery lane to inspect",
-          "confidence": "experimental",
-          "evidence": "At your teammate's preceding touch, you were 1017 units away and -35 units behind them. An opponent was about 1050 units from the ball; your teammate was still near it a moment later.",
-          "advice": "Watch the following challenge. If your teammate is dunked, do you still have time and space to cover your net? Consider whether a wider or deeper support lane was possible.",
-          "uncertainty": "Close support can be correct for a planned pass, an intentional 50/50 or immediate follow-up. This is a recovery question, not a double-commit verdict.",
-          "target": null,
-          "source": "deterministic-telemetry-check-v1"
-        },
-        {
-          "id": "support-compression-Epic:5dbea40d6d624c45b3e8979741f2ab1e-251.12",
-          "t": 251.122,
-          "type": "contextual",
-          "kind": "second_man_support",
-          "title": "Second-man recovery lane to inspect",
-          "confidence": "experimental",
-          "evidence": "At your teammate's preceding touch, you were 678 units away and -307 units behind them. An opponent was about 1334 units from the ball; your teammate was still near it a moment later.",
-          "advice": "Watch the following challenge. If your teammate is dunked, do you still have time and space to cover your net? Consider whether a wider or deeper support lane was possible.",
-          "uncertainty": "Close support can be correct for a planned pass, an intentional 50/50 or immediate follow-up. This is a recovery question, not a double-commit verdict.",
-          "target": null,
-          "source": "deterministic-telemetry-check-v1"
-        }
-      ],
-      "Epic:9f1c5f4177b64af991adf0a8e2ed1798": [
-        {
-          "id": "defensive-pressure-Epic:9f1c5f4177b64af991adf0a8e2ed1798-118.21",
-          "t": 118.207,
-          "type": "contextual",
-          "kind": "defensive_pressure",
-          "title": "Last-back, low-boost pressure",
-          "confidence": "experimental",
-          "evidence": "You had about 0 boost near your goal, the ball was moving goalward at 1211 u/s, and your teammate was upfield.",
-          "advice": "Inspect the last few seconds of your recovery. Could a small-pad route have preserved more defensive coverage without making you late to the play?",
-          "uncertainty": "This could be a forced defensive position. The snapshot does not prove a boost-management mistake or that another route was feasible.",
-          "target": null,
-          "source": "deterministic-telemetry-check-v1"
-        },
-        {
-          "id": "support-compression-Epic:9f1c5f4177b64af991adf0a8e2ed1798-175.41",
-          "t": 175.406,
-          "type": "contextual",
-          "kind": "second_man_support",
-          "title": "Second-man recovery lane to inspect",
-          "confidence": "experimental",
-          "evidence": "At your teammate's preceding touch, you were 445 units away and 312 units behind them. An opponent was about 1115 units from the ball; your teammate was still near it a moment later.",
-          "advice": "Watch the following challenge. If your teammate is dunked, do you still have time and space to cover your net? Consider whether a wider or deeper support lane was possible.",
-          "uncertainty": "Close support can be correct for a planned pass, an intentional 50/50 or immediate follow-up. This is a recovery question, not a double-commit verdict.",
-          "target": null,
-          "source": "deterministic-telemetry-check-v1"
-        },
-        {
-          "id": "support-compression-Epic:9f1c5f4177b64af991adf0a8e2ed1798-282.12",
-          "t": 282.117,
-          "type": "contextual",
-          "kind": "second_man_support",
-          "title": "Second-man recovery lane to inspect",
-          "confidence": "experimental",
-          "evidence": "At your teammate's preceding touch, you were 724 units away and 375 units behind them. An opponent was about 1253 units from the ball; your teammate was still near it a moment later.",
-          "advice": "Watch the following challenge. If your teammate is dunked, do you still have time and space to cover your net? Consider whether a wider or deeper support lane was possible.",
-          "uncertainty": "Close support can be correct for a planned pass, an intentional 50/50 or immediate follow-up. This is a recovery question, not a double-commit verdict.",
-          "target": null,
-          "source": "deterministic-telemetry-check-v1"
-        }
-      ]
+    "decision_cases_evaluations": {
+      "tactical_hypothesis": 37,
+      "constrained_situation": 6,
+      "unverified_coverage_hypothesis": 12,
+      "tactical_risk": 14
     },
-    "legacy_candidates_time_s": 0.1734,
+    "legacy_contextual_reviews_time_s": 0.0137,
+    "legacy_contextual_reviews_count": {
+      "player_blue_1": 3,
+      "player_blue_2": 1,
+      "player_orange_1": 2,
+      "player_orange_2": 3
+    },
+    "legacy_candidates_time_s": 0.1187,
     "legacy_candidates_count": {
-      "Steam:76561198809281629": 20,
-      "Steam:76561198956445547": 21,
-      "Epic:5dbea40d6d624c45b3e8979741f2ab1e": 14,
-      "Epic:9f1c5f4177b64af991adf0a8e2ed1798": 14
+      "player_blue_1": 20,
+      "player_blue_2": 21,
+      "player_orange_1": 14,
+      "player_orange_2": 14
     },
     "legacy_candidates_categories": {
-      "Steam:76561198809281629": {
-        "overlap": 15,
-        "boost": 5
-      },
-      "Steam:76561198956445547": {
-        "overlap": 15,
-        "boost": 6
-      },
-      "Epic:5dbea40d6d624c45b3e8979741f2ab1e": {
-        "overlap": 10,
-        "boost": 4
-      },
-      "Epic:9f1c5f4177b64af991adf0a8e2ed1798": {
-        "overlap": 10,
-        "boost": 4
-      }
+      "overlap": 50,
+      "boost": 19
     },
-    "llm_prompt_chars": 15158,
-    "llm_prompt_estimated_tokens": 3789
+    "legacy_llm_prompt_chars": 16272,
+    "legacy_llm_prompt_estimated_tokens": 4068
   },
   {
     "filename": "022B278F4EA6E1C6B9E7C8BDC7256FE9.replay",
@@ -408,28 +193,29 @@
     "player_count": 4,
     "players": [
       {
-        "id": "PlayStation:2302798745402544542",
-        "name": "Mondo_Sam",
+        "id": "player_blue_1",
+        "name": "Player Blue 1",
         "team": "blue"
       },
       {
-        "id": "PlayStation:5694202648230678828",
-        "name": "Carona1v1Me",
+        "id": "player_blue_2",
+        "name": "Player Blue 2",
         "team": "blue"
       },
       {
-        "id": "Epic:5dbea40d6d624c45b3e8979741f2ab1e",
-        "name": "Quartzsandstorm",
+        "id": "player_orange_1",
+        "name": "Player Orange 1",
         "team": "orange"
       },
       {
-        "id": "Epic:bd21c84627f6401a98e9c3f09ea2ec06",
-        "name": "Yanzitow .",
+        "id": "player_orange_2",
+        "name": "Player Orange 2",
         "team": "orange"
       }
     ],
-    "native_decode_time_s": 3.0974,
-    "native_peak_memory_mb": 31.07,
+    "native_decode_time_s": 2.7125,
+    "native_python_heap_mb": 31.07,
+    "total_process_rss_mb": 310.36,
     "native_total_events": 6751,
     "native_event_types_count": 45,
     "native_event_distribution": {
@@ -454,116 +240,42 @@
       "speed_flip": 35,
       "wavedash": 33
     },
-    "app_load_time_s": 10.3972,
-    "app_peak_memory_mb": 72.54,
+    "app_load_time_s": 9.7064,
+    "app_python_heap_mb": 72.54,
     "app_retained_events": 754,
     "app_retained_ratio": 0.1117,
-    "contextual_extraction_time_s": 0.0216,
-    "contextual_reviews_count": {
-      "PlayStation:2302798745402544542": 0,
-      "PlayStation:5694202648230678828": 3,
-      "Epic:5dbea40d6d624c45b3e8979741f2ab1e": 2,
-      "Epic:bd21c84627f6401a98e9c3f09ea2ec06": 0
+    "decision_cases_count": 68,
+    "decision_cases_time_s": 0.1275,
+    "decision_cases_by_category": {
+      "kickoff_support": 8,
+      "first_man_challenge": 34,
+      "last_man_defense": 26
     },
-    "contextual_reviews_detail": {
-      "PlayStation:2302798745402544542": [],
-      "PlayStation:5694202648230678828": [
-        {
-          "id": "support-compression-PlayStation:5694202648230678828-200.50",
-          "t": 200.5,
-          "type": "contextual",
-          "kind": "second_man_support",
-          "title": "Second-man recovery lane to inspect",
-          "confidence": "experimental",
-          "evidence": "At your teammate's preceding touch, you were 850 units away and 400 units behind them. An opponent was about 423 units from the ball; your teammate was still near it a moment later.",
-          "advice": "Watch the following challenge. If your teammate is dunked, do you still have time and space to cover your net? Consider whether a wider or deeper support lane was possible.",
-          "uncertainty": "Close support can be correct for a planned pass, an intentional 50/50 or immediate follow-up. This is a recovery question, not a double-commit verdict.",
-          "target": null,
-          "source": "deterministic-telemetry-check-v1"
-        },
-        {
-          "id": "support-compression-PlayStation:5694202648230678828-222.30",
-          "t": 222.304,
-          "type": "contextual",
-          "kind": "second_man_support",
-          "title": "Second-man recovery lane to inspect",
-          "confidence": "experimental",
-          "evidence": "At your teammate's preceding touch, you were 931 units away and 256 units behind them. An opponent was about 315 units from the ball; your teammate was still near it a moment later.",
-          "advice": "Watch the following challenge. If your teammate is dunked, do you still have time and space to cover your net? Consider whether a wider or deeper support lane was possible.",
-          "uncertainty": "Close support can be correct for a planned pass, an intentional 50/50 or immediate follow-up. This is a recovery question, not a double-commit verdict.",
-          "target": null,
-          "source": "deterministic-telemetry-check-v1"
-        },
-        {
-          "id": "defensive-pressure-PlayStation:5694202648230678828-283.73",
-          "t": 283.733,
-          "type": "contextual",
-          "kind": "defensive_pressure",
-          "title": "Last-back, low-boost pressure",
-          "confidence": "experimental",
-          "evidence": "You had about 0 boost near your goal, the ball was moving goalward at 717 u/s, and your teammate was upfield.",
-          "advice": "Inspect the last few seconds of your recovery. Could a small-pad route have preserved more defensive coverage without making you late to the play?",
-          "uncertainty": "This could be a forced defensive position. The snapshot does not prove a boost-management mistake or that another route was feasible.",
-          "target": null,
-          "source": "deterministic-telemetry-check-v1"
-        }
-      ],
-      "Epic:5dbea40d6d624c45b3e8979741f2ab1e": [
-        {
-          "id": "support-compression-Epic:5dbea40d6d624c45b3e8979741f2ab1e-209.57",
-          "t": 209.568,
-          "type": "contextual",
-          "kind": "second_man_support",
-          "title": "Second-man recovery lane to inspect",
-          "confidence": "experimental",
-          "evidence": "At your teammate's preceding touch, you were 332 units away and 274 units behind them. An opponent was about 81 units from the ball; your teammate was still near it a moment later.",
-          "advice": "Watch the following challenge. If your teammate is dunked, do you still have time and space to cover your net? Consider whether a wider or deeper support lane was possible.",
-          "uncertainty": "Close support can be correct for a planned pass, an intentional 50/50 or immediate follow-up. This is a recovery question, not a double-commit verdict.",
-          "target": null,
-          "source": "deterministic-telemetry-check-v1"
-        },
-        {
-          "id": "support-compression-Epic:5dbea40d6d624c45b3e8979741f2ab1e-244.04",
-          "t": 244.042,
-          "type": "contextual",
-          "kind": "second_man_support",
-          "title": "Second-man recovery lane to inspect",
-          "confidence": "experimental",
-          "evidence": "At your teammate's preceding touch, you were 1138 units away and -1113 units behind them. An opponent was about 1049 units from the ball; your teammate was still near it a moment later.",
-          "advice": "Watch the following challenge. If your teammate is dunked, do you still have time and space to cover your net? Consider whether a wider or deeper support lane was possible.",
-          "uncertainty": "Close support can be correct for a planned pass, an intentional 50/50 or immediate follow-up. This is a recovery question, not a double-commit verdict.",
-          "target": null,
-          "source": "deterministic-telemetry-check-v1"
-        }
-      ],
-      "Epic:bd21c84627f6401a98e9c3f09ea2ec06": []
+    "decision_cases_evaluations": {
+      "tactical_hypothesis": 25,
+      "unverified_coverage_hypothesis": 14,
+      "tactical_risk": 20,
+      "constrained_situation": 9
     },
-    "legacy_candidates_time_s": 0.1274,
+    "legacy_contextual_reviews_time_s": 0.0145,
+    "legacy_contextual_reviews_count": {
+      "player_blue_1": 0,
+      "player_blue_2": 3,
+      "player_orange_1": 2,
+      "player_orange_2": 0
+    },
+    "legacy_candidates_time_s": 0.1299,
     "legacy_candidates_count": {
-      "PlayStation:2302798745402544542": 15,
-      "PlayStation:5694202648230678828": 17,
-      "Epic:5dbea40d6d624c45b3e8979741f2ab1e": 11,
-      "Epic:bd21c84627f6401a98e9c3f09ea2ec06": 10
+      "player_blue_1": 15,
+      "player_blue_2": 17,
+      "player_orange_1": 11,
+      "player_orange_2": 10
     },
     "legacy_candidates_categories": {
-      "PlayStation:2302798745402544542": {
-        "overlap": 10,
-        "boost": 5
-      },
-      "PlayStation:5694202648230678828": {
-        "overlap": 10,
-        "boost": 7
-      },
-      "Epic:5dbea40d6d624c45b3e8979741f2ab1e": {
-        "overlap": 6,
-        "boost": 5
-      },
-      "Epic:bd21c84627f6401a98e9c3f09ea2ec06": {
-        "overlap": 6,
-        "boost": 4
-      }
+      "overlap": 32,
+      "boost": 21
     },
-    "llm_prompt_chars": 15363,
-    "llm_prompt_estimated_tokens": 3840
+    "legacy_llm_prompt_chars": 15361,
+    "legacy_llm_prompt_estimated_tokens": 3840
   }
 ]
