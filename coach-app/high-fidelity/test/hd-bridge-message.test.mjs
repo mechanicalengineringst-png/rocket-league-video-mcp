@@ -61,6 +61,7 @@ test('same-origin file transfer, ready/loaded handshake, and selected-player syn
   const {emit,sent,target,advance}=setup();
   const file={name:'real-match.replay'};
   emit('upload','change',{target:{files:[file]}});
+  emit('window','replay-lab:replay-ready',{detail:{synthetic:false}});
   const state={
     time:30.5,playing:false,speed:1,
     focusName:'Blue',focusTeam:'blue',synthetic:false,
@@ -178,6 +179,7 @@ test('switching replay clears previous focused-player and timeline payload',()=>
   const {emit,sent,target}=setup();
   const first={name:'old.replay'},second={name:'new.replay'};
   emit('upload','change',{target:{files:[first]}});
+  emit('window','replay-lab:replay-ready',{detail:{synthetic:false}});
   emit('window','replay-lab:sync-state',{detail:{
     time:105,playing:true,speed:1,focusName:'Old',
     focusTeam:'orange',synthetic:false,
@@ -192,6 +194,12 @@ test('switching replay clears previous focused-player and timeline payload',()=>
   assert.equal(sent.length,3);
   assert.equal(sent[2].value.focusName,'Old');
   emit('upload','change',{target:{files:[second]}});
+  // Any delayed update from the previous replay must be ignored while the
+  // new file is being decoded asynchronously.
+  emit('window','replay-lab:sync-state',{detail:{
+    time:108,playing:true,speed:1,focusName:'Old',
+    focusTeam:'orange',synthetic:false,
+  }});
   assert.equal(sent[3].value.type,'replay-lab:hd-load');
   assert.equal(sent[3].value.file,second);
   const nextSession=sent[3].value.sessionId;
@@ -199,4 +207,29 @@ test('switching replay clears previous focused-player and timeline payload',()=>
     data:{type:'replay-lab:hd-loaded',sessionId:nextSession}});
   // Old focused-player, time and score must not apply to the new replay.
   assert.equal(sent.length,4);
+});
+
+test('new replay state is accepted only after main parser emits replay-ready',()=>{
+  const {emit,sent,target}=setup();
+  const file={name:'parsed.replay'};
+  emit('upload','change',{target:{files:[file]}});
+  const status={time:40,playing:false,speed:1,focusName:'New',
+    focusTeam:'orange',synthetic:false};
+  emit('window','replay-lab:sync-state',{detail:status});
+  emit('button','click',{});
+  emit('window','message',{
+    origin:'http://127.0.0.1:8000',source:target,
+    data:{type:'replay-lab:hd-ready'},
+  });
+  const sessionId=sent[1].value.sessionId;
+  emit('window','message',{
+    origin:'http://127.0.0.1:8000',source:target,
+    data:{type:'replay-lab:hd-loaded',sessionId},
+  });
+  assert.equal(sent.length,2); // stale pre-parse state ignored
+  emit('window','replay-lab:replay-ready',{detail:{synthetic:false}});
+  emit('window','replay-lab:sync-state',{detail:status});
+  assert.equal(sent.length,3);
+  assert.equal(sent[2].value.focusName,'New');
+  assert.equal(sent[2].value.time,40);
 });
