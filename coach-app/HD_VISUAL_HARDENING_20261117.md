@@ -30,3 +30,9 @@ No changes to the separate coaching backend, telemetry schema, source MCP, main,
 6. Separately continue investigating the unresolved black/blue stadium polygon; existing Clean field toggle has not conclusively removed the artifact.
 
 Automated CI verifies code and a public native replay smoke; it is **not** proof of perceptual native Rocket League parity or that this user's local 2v2 replay was visually tested.
+
+## Additional visual-source hardening — 17 November 2026
+
+- `applySceneQuality` no longer overrides imported GLTF `minFilter`/`magFilter` with new sampling modes. Replacing a source `NearestFilter` with a mipmap filter can cause incompatible/incomplete texture sampling; preserve authored sampler choices and only adjust anisotropy/resolution. Added regression test with a genuine Three.js texture/material and mocked player renderer.
+- Clean/Original field-decal toggle now tracks exactly which `Field_STD_Floor_Hex*` meshes were previously visible and restores *their original state*, rather than indiscriminately turning every matching mesh on. Intentionally hidden GLTF overlays remain hidden. Added tests for initially hidden decals, repeated toggles, and unrelated meshes.
+- These changes reduce two renderer-induced artifact risks but do **not** prove the stadium's black/blue polygon is fixed. Inspect the original and clean profiles using `?qa=1` pixel-raycast diagnostics and screenshots. Keep any permanent mesh change subject to user visual acceptance.
