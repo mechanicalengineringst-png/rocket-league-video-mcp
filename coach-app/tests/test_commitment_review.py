@@ -57,7 +57,7 @@ def test_40_case_blinded_packets_and_20_shared_withheld_trigger_labels():
 
 
 def test_rejects_single_replay_and_insufficient_choice_strata():
-    with pytest.raises(ValueError, match="At least 3 distinct matches"):
+    with pytest.raises(ValueError, match="Need at least 3 replay groups"):
         prepare_packets(manifest(groups=("only",)))
     rows = [x for x in manifest() if x["detector_choice"] != "unclear"]
     with pytest.raises(ValueError, match="Not enough unclear"):
