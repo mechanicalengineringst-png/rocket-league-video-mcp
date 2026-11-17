@@ -78,10 +78,11 @@ export function cameraSwitchMoments(replay, track, limit = 80) {
 
 export function displayCameraMode(recorded, override, pluginEffective, following=true) {
   if (!following) return 'FREE / ORBIT';
-  const rear = recorded?.behind === true && override === 'recorded';
-  const effective = override === 'ball' ? true : override === 'car' ? false :
-    typeof recorded?.ballCam === 'boolean' ? recorded.ballCam : pluginEffective;
-  if (rear) return 'REAR LOOK';
-  if (typeof effective !== 'boolean') return 'CAMERA UNKNOWN';
-  return effective ? 'BALL CAM' : 'CAR CAM';
+  // The engine falls back to Ball Cam when the telemetry stream is absent,
+  // but that is NOT evidence that the real player left Ball Cam on.
+  if(override==='ball')return 'BALL CAM';
+  if(override==='car')return 'CAR CAM';
+  if(typeof recorded?.ballCam!=='boolean')return 'CAMERA UNKNOWN';
+  if(recorded.behind===true)return 'REAR LOOK';
+  return recorded.ballCam ? 'BALL CAM' : 'CAR CAM';
 }
