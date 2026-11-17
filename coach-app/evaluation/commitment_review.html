@@ -159,13 +159,17 @@
   function hide(){ $("caseStatus").classList.add("hidden");$("globalStatus").classList.add("hidden"); }
   function text(id,value){ $(id).textContent=String(value); }
   function count(){return state.packets.filter(p=>!!state.answers[p.review_id]).length;}
+  function hasUnsavedEdits(){
+    return Object.keys(state.drafts).some(id =>
+      JSON.stringify(state.drafts[id])!==JSON.stringify(state.answers[id]));
+  }
   function refresh(){
     const n=state.packets.length,c=count();
     text("progressText",c+" / "+n);
     $("progressBar").style.width=n?(100*c/n)+"%":"0%";
     $("chooseSaved").disabled=!n;
-    $("exportDraft").disabled=!c;
-    $("exportFinal").disabled=!n||c!==n;
+    $("exportDraft").disabled=!c||hasUnsavedEdits();
+    $("exportFinal").disabled=!n||c!==n||hasUnsavedEdits();
     $("prev").disabled=state.idx===0;
     $("next").disabled=state.idx>=n-1;
     $("reviewer").disabled=c>0;
@@ -243,12 +247,14 @@
     snapDraft();
     const r=state.drafts[packet.review_id];
     r[which]=Math.round(clip.currentTime*1000)/1000;
-    showMarks();text("savedStatus","Unsaved changes");
+    showMarks();text("savedStatus","Unsaved changes");refresh();
   }
   $("markEarliest").addEventListener("click",()=>currentMark("earliest_s"));
   $("markLatest").addEventListener("click",()=>currentMark("latest_s"));
   for(const field of ["choice","confidence","note","unobservable"]){
-    $(field).addEventListener("change",()=>{snapDraft();showMarks();text("savedStatus","Unsaved changes");});
+    $(field).addEventListener("change",()=>{
+      snapDraft();showMarks();text("savedStatus","Unsaved changes");refresh();
+    });
   }
   for(const [id,shift] of [["stepBack",-.05],["stepForward",.05]]){
     $(id).addEventListener("click",()=>{
@@ -267,6 +273,7 @@
       const record={review_id:packet.review_id,rater_id:who,...answer};
       core.validateAnswer(record,packet);
       state.answers[packet.review_id]=answer;
+      delete state.drafts[packet.review_id];
       refresh();text("savedStatus","Saved");
       msg("Review saved locally. Export JSON before closing this page.",false,true);
     }catch(err){msg(err.message,true,true);}
@@ -317,6 +324,7 @@
   function download(complete){
     try{
       const who=code();
+      if(hasUnsavedEdits())throw Error("Save current edits before exporting. Draft annotations are not automatically included.");
       const rows=core.compile(state.packets,state.answers,who,complete);
       saveLocal("replay-lab-commitment-"+who+"-"+(complete?"final":"draft")+".json",rows);
       msg((complete?"Final":"Draft")+" reviewer JSON exported. Share privately.");
