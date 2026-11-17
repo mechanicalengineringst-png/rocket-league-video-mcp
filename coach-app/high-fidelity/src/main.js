@@ -1,7 +1,8 @@
 import {
   createPlayer, createCameraPlugin, createNameTagPlugin,
   createBoostPadsPlugin, createScoredTextPlugin,
-  createFpsOverlayPlugin, setPlayerAssetBase,
+  createFpsOverlayPlugin, createBoostPickupAnimationPlugin,
+  fromReplayPlayerPlugin, setPlayerAssetBase,
 } from '@rlrml/player';
 import { formatTime, clampTime, timelineMarkers } from './time.js';
 import './style.css';
@@ -170,6 +171,7 @@ async function loadFile(file, preferredName = null) {
         createBoostPadsPlugin(),
         createScoredTextPlugin(),
         createFpsOverlayPlugin(),
+        fromReplayPlayerPlugin(createBoostPickupAnimationPlugin()),
         cameraPlugin,
       ],
     });
@@ -224,8 +226,7 @@ $('speedSelect').addEventListener('change', e => player?.setPlaybackRate(Number(
 $('interpolation').addEventListener('change', e => player?.setMotionInterpolation(e.target.value));
 $('hitboxToggle').addEventListener('change', e => player?.setHitboxWireframesEnabled(e.target.checked));
 $('trailToggle').addEventListener('change', e => { 
-  // Effects are configured at initial player creation; keep this an honest
-  // visual switch for boost-pickup particles, not a fake renderer toggle.
+  // The bridged native pickup particle plugin observes this state.
   player?.setBoostPickupAnimationEnabled(e.target.checked);
 });
 $('playBtn').addEventListener('click', () => {
@@ -286,6 +287,7 @@ document.addEventListener('keydown', e => {
   const typing = ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName);
   if (typing || e.ctrlKey || e.altKey || e.metaKey || !player) return;
   if (e.code === 'Space') {
+    if (cameraPlugin?.getMode() === 'free') return; // Space flies upward in free cam
     e.preventDefault();
     if (player.getState().playing) player.pause(); else player.play();
   } else if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
