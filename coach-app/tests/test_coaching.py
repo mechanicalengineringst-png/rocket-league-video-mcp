@@ -36,9 +36,29 @@ def test_compact_evidence_is_bounded_and_player_validated():
     text = compact_game_states(r, 'a', max_frames=3)
     assert len(text.splitlines()) <= 7  # 4 header lines (incl. team roster) + 3 samples
     assert 'Players: P1=blue, P2=blue, P3=orange, P4=orange' in text
-    assert 'Focus=a' in text
+    assert 'Focus=P1 (blue)' in text
+    assert 'Focus=a' not in text
     try:
         compact_game_states(r, 'not-there')
         assert False
     except ValueError:
         pass
+
+
+def test_compact_evidence_never_exposes_platform_player_ids():
+    r = replay()
+    ids = ['platform_very_private_aaaa', 'platform_very_private_bbbb',
+           'platform_very_private_cccc', 'platform_very_private_dddd']
+    remap = dict(zip(['a', 'b', 'c', 'd'], ids))
+    for player in r['players']:
+        player['id'] = remap[player['id']]
+    for frame in r['frames']:
+        frame['cars'] = {remap[pid]: car for pid, car in frame['cars'].items()}
+    # An unrecognized track must get a local alias rather than its platform ID.
+    r['frames'][0]['cars']['unexpected_account_private_123'] = {
+        'x': 100, 'y': 200, 'z': 17, 'boost': 12}
+    compact = compact_game_states(r, ids[0], max_frames=3)
+    assert 'Focus=P1 (blue)' in compact
+    assert 'U1:' in compact
+    assert all(raw_id not in compact for raw_id in ids)
+    assert 'unexpected_account_private_123' not in compact

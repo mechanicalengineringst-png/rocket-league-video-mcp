@@ -84,9 +84,16 @@ def compact_game_states(replay: dict[str, Any], focus_id: str, max_frames: int =
     # Short aliases instead of platform ids: fewer tokens, no account ids sent to the
     # model, and - crucially - the roster tells the model who is on which team.
     alias = {p['id']: f'P{i + 1}' for i, p in enumerate(replay['players'])}
+    # Some decoded frames may include a track not present in the metadata roster.
+    # Do not leak that unrecognized raw platform ID into the Gemini prompt.
+    # Number unknown tracks deterministically by their first observed occurrence.
+    for frame in fs:
+        for pid in frame['cars']:
+            if pid not in alias:
+                alias[pid] = f'U{sum(value.startswith("U") for value in alias.values()) + 1}'
     roster = ', '.join(f'{alias[p["id"]]}={p["team"]}' for p in replay['players'])
     lines = [
-        f'Focus={focus_id} ({players[focus_id]["team"]}), shown below as {alias[focus_id]}',
+        f'Focus={alias[focus_id]} ({players[focus_id]["team"]})',
         f'Players: {roster}',
         'Coordinates: blue goal y=-5120, orange goal y=+5120; field x=+-4096.',
         'Columns: time | ball x,y,z | cars player:x,y,z,boostPercent. Sampled positions, not frames of video.',
@@ -95,7 +102,7 @@ def compact_game_states(replay: dict[str, Any], focus_id: str, max_frames: int =
         b = f['ball']
         def v(n: float | None) -> str:
             return '?' if n is None else str(round(n))
-        cs = '; '.join(f'{alias.get(pid, pid)}:{v(car["x"])},{v(car["y"])},{v(car.get("z"))},{v(car.get("boost"))}'
+        cs = '; '.join(f'{alias[pid]}:{v(car["x"])},{v(car["y"])},{v(car.get("z"))},{v(car.get("boost"))}'
                        + (' DEMOLISHED' if car.get('demolished') else '')
                        for pid, car in f['cars'].items())
         lines.append(f'{f["t"]:.1f} | {v(b["x"])},{v(b["y"])},{v(b.get("z"))} | {cs}')
