@@ -138,23 +138,20 @@ export function createEffectRefiner(getPreference=()=> 'soft') {
   return {update,get shaderUpdates(){return changes;}};
 }
 
-/** The upstream pad renderer draws a giant opaque black multi-arm assembly
- * under each full boost orb. In the screenshot it looks like a black hole,
- * not a Rocket League boost pad. The original plugin recreates its visibility
- * on pickup state changes, so enforce a cleaner art direction after its hook.
- * Gameplay pickup visibility/timing and emissive lens remain untouched.
+/** Remove an oversized blue-team floor decal that the raycast QA found
+ * immediately beneath the unexplained black/blue polygon in the screenshot.
+ * Only this one mesh is toggled. The native pad and field collisions remain.
+ * Crucially, the user can restore upstream artwork without rebuilding.
  */
-export function refineBoostPadVisuals(player) {
-  let hidden=0;
-  for(const child of player?.scene?.children ?? []){
-    if(child?.userData?.isBig !== true)continue;
-    const base=child.userData.baseGroup;
-    if(base && base.visible){
-      base.visible=false;
-      hidden++;
+export function setFieldDecorStyle(player,style='clean') {
+  let changed=0;
+  for(const mesh of player?.arenaManager?.arenaMeshes ?? []){
+    if(mesh.name==='Field_STD_Floor_Hex002'){
+      const visible=style==='original';
+      if(mesh.visible!==visible){mesh.visible=visible;changed++;}
     }
   }
-  return hidden;
+  return changed;
 }
 
 export function createVisualEffectsPlugin(refiner) {
@@ -162,7 +159,6 @@ export function createVisualEffectsPlugin(refiner) {
     id:'replay-lab-effects-polish',
     beforeRender(ctx) {
       refiner?.update(ctx.player);
-      refineBoostPadVisuals(ctx.player);
     },
   };
 }
