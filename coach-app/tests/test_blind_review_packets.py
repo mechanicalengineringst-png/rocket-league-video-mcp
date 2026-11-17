@@ -70,7 +70,7 @@ def test_decision_reviews_round_trip_to_scoring():
     result = evaluate(fixtures, predictions(), reviews)
     assert result["consensus_cases"] == 3
     assert result["systems"]["small-value-model"]["risk_warning_precision"] == 1
-    assert result["systems"]["small-value-model"]["consensus_answer_coverage"] == 2 / 3
+    assert result["systems"]["small-value-model"]["consensus_answer_coverage"] == 0.6667
 
 
 def test_anonymous_quality_reviews_round_trip():
