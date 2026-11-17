@@ -66,3 +66,18 @@ select{border:1px solid #345369;background:#0a1c2b;border-radius:5px;color:#dcea
 .muted{font-size:11px;color:#7895a7}
 @media(max-width:1100px){.camera-mode-group{width:100%;margin-right:0}.camera-row{gap:8px}.stadium-shell{height:58vh}.engine-tag{display:none}}
 @media(max-width:700px){.app-shell{padding:0 8px 15px}.site-bar{height:65px}.brand small{font-size:7px}.brand strong{font-size:18px}.top-actions{font-size:10px}.stadium-shell{min-height:330px;height:50vh}.info-strip #fpsHint{display:none}.controls{padding:9px}.timeline-row{gap:5px;flex-wrap:wrap}.timeline-row .seek-stack{order:5;flex-basis:100%}.cam{padding:6px 8px}.insights-strip{grid-template-columns:1fr}}
+
+
+/* Editorial HUD: native camera evidence and honest viewer override states. */
+.camera-source{margin-left:10px;font:600 9px Inter,Segoe UI,sans-serif;color:#9cbacb;letter-spacing:.7px}
+.camera-evidence{font:600 11px/1.45 Inter,Segoe UI,sans-serif;padding:8px 13px;border-radius:7px;border:1px solid #254b5b;background:#091b28;color:#a0d9ee}
+.camera-evidence.unknown{border-color:#6b5536;color:#e6c18b}
+.events-container:nth-child(2){min-width:0}
+.insights-strip{grid-template-columns:1fr 1fr}
+.insights-strip>p{grid-column:1/-1}
+#cameraEventList{margin-top:10px;display:flex;gap:7px;flex-wrap:wrap;max-height:112px;overflow-y:auto}
+#cameraEventList button{border:1px solid #3b6377;border-radius:4px;background:#102d40;color:#b3dcfc;padding:5px 9px;font-size:10px}
+#cameraEventList button.off{border-color:#9d7250;color:#f3c28e}
+#qualitySelect,#fxStyle{max-width:160px}
+.lower-controls select{font-size:11px;padding:5px 8px}
+@media(max-width:700px){.camera-source{display:none}.camera-evidence{font-size:10px}.insights-strip{grid-template-columns:1fr}.insights-strip>p{grid-column:auto}.lower-controls{gap:7px}}

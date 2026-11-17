@@ -356,28 +356,57 @@
           ring.position.set(x, 0.03, z);
           this.scene.add(ring);
         }
-        this.padEntries.push({ id: idx, pad, mesh, ring, mat });
+        // Allocate once: the renderer only changes the ring's draw range
+        // while scrubbing, never creates new geometry per frame.
+        const inner=pad.big?1.98:0.67;
+        const sweepGeo=new THREE.RingGeometry(inner,inner+(pad.big?.28:.19),48);
+        const sweep=new THREE.Mesh(sweepGeo,new THREE.MeshBasicMaterial({
+          color:pad.big?0xffe4a3:0x9cf2ff,
+          transparent:true,opacity:.85,depthWrite:false,side:THREE.DoubleSide
+        }));
+        sweep.rotation.x=-Math.PI/2;
+        sweep.position.set(x,0.07,z);
+        sweep.visible=false;
+        this.scene.add(sweep);
+        this.padEntries.push({ id: idx, pad, mesh, ring, sweep, mat });
       });
     }
 
-    updateBoostPads(timeline, time) {
-      if (!this.padEntries || !timeline || !Array.isArray(timeline.pads) || !replayMath) return;
+    updateBoostPads(timeline, time, compiled = null, visible = true) {
+      if (!this.padEntries) return;
+      const evaluator=globalThis.ReplayLabBoostPadState;
       this.padEntries.forEach(entry => {
-        const st = replayMath.padStateAt(timeline, entry.id, time);
-        if (st.available) {
-          entry.mat.emissiveIntensity = entry.pad.big ? 0.75 : 0.5;
-          entry.mat.opacity = 1.0;
-          entry.mesh.scale.set(1.0, 1.0, 1.0);
-          if (entry.ring) {
-            entry.ring.visible = true;
-            entry.ring.material.opacity = 0.55;
-          }
+        entry.mesh.visible=visible;
+        if(!visible){
+          if(entry.ring)entry.ring.visible=false;
+          if(entry.sweep)entry.sweep.visible=false;
+          return;
+        }
+        // The original P0 evaluator treated unmatched native pickups as
+        // available pads. Use the newer three-valued v1 contract instead.
+        const st=evaluator?.at(compiled,entry.id,time)||
+          {known:false,available:null,remaining:null,progress:0};
+        if (!st.known) {
+          entry.mat.emissiveIntensity=.13;
+          entry.mat.opacity=.52;
+          entry.mesh.scale.set(.9,.65,.9);
+          if(entry.ring){entry.ring.visible=true;entry.ring.material.opacity=.22;}
+          if(entry.sweep)entry.sweep.visible=false;
+        } else if (st.available) {
+          entry.mat.emissiveIntensity=entry.pad.big?.75:.50;
+          entry.mat.opacity=1;
+          entry.mesh.scale.set(1,1,1);
+          if(entry.ring){entry.ring.visible=true;entry.ring.material.opacity=.55;}
+          if(entry.sweep)entry.sweep.visible=false;
         } else {
-          entry.mat.emissiveIntensity = 0.05;
-          entry.mat.opacity = 0.32;
-          entry.mesh.scale.set(0.65, 0.35, 0.65);
-          if (entry.ring) {
-            entry.ring.visible = false;
+          entry.mat.emissiveIntensity=.05;
+          entry.mat.opacity=.26;
+          entry.mesh.scale.set(.65,.35,.65);
+          if(entry.ring)entry.ring.visible=false;
+          if(entry.sweep){
+            entry.sweep.visible=true;
+            entry.sweep.geometry.setDrawRange(0,
+              Math.max(0,Math.min(48,Math.round((st.progress||0)*48)))*6);
           }
         }
       });
