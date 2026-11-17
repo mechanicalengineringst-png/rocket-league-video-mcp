@@ -7,3 +7,9 @@ __pycache__/
 coach_app/static/hd-player/
 .env
 .DS_Store
+
+# Human review packet private maps and local clip exports.
+# Store videos under a local untracked workspace (not in GitHub).
+PRIVATE_DO_NOT_COMMIT_*.json
+evaluation/local_review/
+evaluation/local_commitment_review/
