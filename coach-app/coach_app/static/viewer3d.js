@@ -262,6 +262,29 @@
       wallGeo.setFromPoints(pts);
       const wallLines = new THREE.LineSegments(wallGeo, wallMat);
       this.scene.add(wallLines);
+      // Translucent pitch enclosure adds stadium depth without blocking review.
+      const glass = new THREE.MeshStandardMaterial({
+        color:0x315c6a, transparent:true, opacity:0.10,
+        roughness:0.2, metalness:0.15, depthWrite:false, side:THREE.DoubleSide
+      });
+      for (const side of [-1,1]) {
+        const sideGlass = new THREE.Mesh(new THREE.PlaneGeometry(PITCH_L, 12), glass);
+        sideGlass.rotation.y = Math.PI/2;
+        sideGlass.position.set(side*(hw+0.75), 6, 0);
+        this.scene.add(sideGlass);
+        const endGlass = new THREE.Mesh(new THREE.PlaneGeometry(PITCH_W, 12), glass);
+        endGlass.position.set(0,6,side*(hl+0.75));
+        this.scene.add(endGlass);
+      }
+      const rail = new THREE.MeshBasicMaterial({color:0x4da6a8});
+      for (const side of [-1,1]) {
+        const longRail = new THREE.Mesh(new THREE.BoxGeometry(0.12,0.12,PITCH_L),rail);
+        longRail.position.set(side*hw,4.5,0);
+        this.scene.add(longRail);
+        const shortRail = new THREE.Mesh(new THREE.BoxGeometry(PITCH_W,0.12,0.12),rail);
+        shortRail.position.set(0,4.5,side*hl);
+        this.scene.add(shortRail);
+      }
     }
 
     buildGoal(zPos, direction, colorHex) {
@@ -351,6 +374,12 @@
         metalness: 0.5
       });
       this.ballMesh = new THREE.Mesh(ballGeo, ballMat);
+      // Low-contrast panel seams give the ball a visible rotational silhouette.
+      const seams = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.IcosahedronGeometry(radius*1.012, 1)),
+        new THREE.LineBasicMaterial({color:0x536671,transparent:true,opacity:0.45})
+      );
+      this.ballMesh.add(seams);
       this.ballMesh.castShadow = true;
       this.scene.add(this.ballMesh);
 
@@ -383,28 +412,55 @@
       const bodyColor = isBlue ? 0x1e88e5 : 0xf57c00;
       const trimColor = isBlue ? 0x0d47a1 : 0xe65100;
 
-      // Chassis body (Octane proportions)
-      const bodyGeo = new THREE.BoxGeometry(1.6, 0.55, 2.3);
+      // Sculpted, bevelled silhouette instead of a single box. These original
+      // geometries are intentionally not ripped Rocket League game assets.
+      const outline = new THREE.Shape();
+      outline.moveTo(-0.57, -1.33);
+      outline.lineTo(0.57, -1.33);
+      outline.lineTo(0.80, -0.80);
+      outline.lineTo(0.85, 0.70);
+      outline.lineTo(0.65, 1.19);
+      outline.lineTo(-0.65, 1.19);
+      outline.lineTo(-0.85, 0.70);
+      outline.lineTo(-0.80, -0.80);
+      outline.closePath();
+      const bodyGeo = new THREE.ExtrudeGeometry(outline, {
+        depth: 0.37, bevelEnabled: true, bevelThickness: 0.11,
+        bevelSize: 0.08, bevelSegments: 3, curveSegments: 3
+      });
       const bodyMat = new THREE.MeshStandardMaterial({
-        color: bodyColor,
-        roughness: 0.4,
-        metalness: 0.5
+        color: bodyColor, roughness: 0.28, metalness: 0.55
       });
       const body = new THREE.Mesh(bodyGeo, bodyMat);
-      body.position.y = 0.45;
+      body.rotation.x = -Math.PI / 2;
+      body.position.y = 0.24;
       body.castShadow = true;
       group.add(body);
 
-      // Cabin / windshield
-      const cabinGeo = new THREE.BoxGeometry(1.2, 0.45, 1.1);
-      const cabinMat = new THREE.MeshStandardMaterial({
-        color: 0x1b2832,
-        roughness: 0.2,
-        metalness: 0.8
-      });
-      const cabin = new THREE.Mesh(cabinGeo, cabinMat);
-      cabin.position.set(0, 0.8, -0.15);
+      // Sloped glass cabin/roof, with distinct windscreen and rear-window angle.
+      const cabinShape = new THREE.BufferGeometry();
+      const corners = new Float32Array([
+        -0.64,0.60, 0.53,  0.64,0.60, 0.53,
+         0.64,0.60,-0.78, -0.64,0.60,-0.78,
+        -0.42,1.12, 0.12,  0.42,1.12, 0.12,
+         0.42,1.10,-0.55, -0.42,1.10,-0.55
+      ]);
+      cabinShape.setAttribute('position', new THREE.BufferAttribute(corners, 3));
+      cabinShape.setIndex([
+        0,1,5, 0,5,4,  1,2,6, 1,6,5,
+        2,3,7, 2,7,6,  3,0,4, 3,4,7,
+        4,5,6, 4,6,7
+      ]);
+      cabinShape.computeVertexNormals();
+      const cabin = new THREE.Mesh(cabinShape, new THREE.MeshStandardMaterial({
+        color: 0x213849, roughness: 0.13, metalness: 0.52, side: THREE.DoubleSide
+      }));
       group.add(cabin);
+      // Metallic roof rail makes its tilt and roll legible in aerial playback.
+      const roof = new THREE.Mesh(new THREE.BoxGeometry(0.85,0.065,0.7),
+        new THREE.MeshStandardMaterial({color: trimColor, metalness:0.6, roughness:0.3}));
+      roof.position.set(0,1.15,-0.22);
+      group.add(roof);
 
       // Spoiler wing
       const wingGeo = new THREE.BoxGeometry(1.5, 0.1, 0.35);
@@ -457,15 +513,28 @@
         wheel.rotation.z = Math.PI / 2;
         wheel.position.set(wx, wy, wz);
         group.add(wheel);
+        const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.20,0.20,0.295,20),
+          new THREE.MeshStandardMaterial({color:0x9aa9ae,metalness:0.85,roughness:0.25}));
+        rim.rotation.z = Math.PI/2;
+        rim.position.set(wx, wy, wz);
+        group.add(rim);
       });
 
-      // Directional nose cone / arrow
-      const noseGeo = new THREE.ConeGeometry(0.28, 0.6, 8);
-      const noseMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-      const nose = new THREE.Mesh(noseGeo, noseMat);
-      nose.rotation.x = -Math.PI / 2;
-      nose.position.set(0, 0.5, 1.4);
-      group.add(nose);
+      // Realistic orientation cues (front headlights / rear tail lamps)
+      // replace the floating directional nose arrow.
+      const lampGeo = new THREE.BoxGeometry(0.34, 0.14, 0.07);
+      for (const side of [-1, 1]) {
+        const frontLamp = new THREE.Mesh(lampGeo, new THREE.MeshStandardMaterial({
+          color:0xb8ecff, emissive:0x9edfff, emissiveIntensity:0.85
+        }));
+        frontLamp.position.set(side*0.47, 0.43, 1.32);
+        group.add(frontLamp);
+        const rearLamp = new THREE.Mesh(lampGeo, new THREE.MeshStandardMaterial({
+          color:0xc71d22, emissive:0xff162d, emissiveIntensity:0.65
+        }));
+        rearLamp.position.set(side*0.47, 0.45, -1.19);
+        group.add(rearLamp);
+      }
 
       // Focus player indicator halo
       const haloGeo = new THREE.RingGeometry(1.2, 1.45, 24);
