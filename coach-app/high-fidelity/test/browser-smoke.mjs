@@ -54,7 +54,7 @@ try{
   await page.locator('[data-camera="follow"]').click();
   assert.equal(await page.locator('#cameraLabel').textContent(),'PLAYER CAM');
   await page.locator('#speedSelect').selectOption('2');
-  await page.locator('#seek').fill('2');
+  await page.locator('#seek').evaluate(element => { element.value='2'; element.dispatchEvent(new Event('input',{bubbles:true})); });
   await page.locator('#playBtn').click();
   await page.waitForTimeout(400);
   const after=await page.locator('#currentTime').textContent();
