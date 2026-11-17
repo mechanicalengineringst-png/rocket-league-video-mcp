@@ -1,0 +1,142 @@
+import * as THREE from 'three';
+
+/** Progressive, reversible quality pass on the ACTUAL GLTF scene/materials.
+ * Preserve GLTFLoader's baseColor color-space settings, normal maps and decals.
+ * Do not fabricate texture files or change stadium geometry.
+ */
+const maps = ['map','emissiveMap','normalMap','roughnessMap',
+  'metalnessMap','aoMap','alphaMap','bumpMap'];
+const settings = {
+  performance:{ratio:1,anisotropy:2},
+  balanced:{ratio:1.5,anisotropy:8},
+  sharp:{ratio:2,anisotropy:16},
+};
+export function qualitySettings(name, dpr=1, maxAniso=16) {
+  const profile=settings[name] || settings.balanced;
+  return {
+    ratio:Math.max(1,Math.min(profile.ratio,Number(dpr)||1)),
+    anisotropy:Math.max(1,Math.min(profile.anisotropy,Number(maxAniso)||1)),
+  };
+}
+export function applySceneQuality(player, name='balanced') {
+  const renderer=player?.renderer;
+  if (!renderer || !player?.scene) return {textures:0,meshes:0,ratio:1};
+  const max=renderer.capabilities?.getMaxAnisotropy?.() ?? 1;
+  const {ratio,anisotropy}=qualitySettings(name,window.devicePixelRatio||1,max);
+  if (typeof renderer.setPixelRatio==='function') renderer.setPixelRatio(ratio);
+  const done=new Set();
+  let meshes=0;
+  player.scene.traverse(obj=>{
+    if (!obj.isMesh) return;
+    meshes++;
+    const materials=Array.isArray(obj.material)?obj.material:[obj.material];
+    for (const mat of materials) {
+      if (!mat) continue;
+      for (const field of maps) {
+        const t=mat[field];
+        if (!t?.isTexture || done.has(t)) continue;
+        done.add(t);
+        const sampler=t.minFilter;
+        // Filter near camera and at grazing angles; leave packed color
+        // spaces and alpha/depth behavior chosen by the GLTF author alone.
+        t.magFilter=THREE.LinearFilter;
+        if (sampler===THREE.NearestFilter || sampler===THREE.NearestMipmapNearestFilter)
+          t.minFilter=THREE.LinearMipmapLinearFilter;
+        t.anisotropy=anisotropy;
+        t.needsUpdate=true;
+      }
+    }
+  });
+  return {textures:done.size,meshes,ratio,anisotropy};
+}
+
+function getEffectCollections(player) {
+  const effects=player?.effectsManager;
+  return {
+    boost:effects?.boostTrails instanceof Map?[...effects.boostTrails.values()]:[],
+    supersonic:effects?.supersonicTrails instanceof Map?[...effects.supersonicTrails.values()]:[],
+  };
+}
+
+/** Optional, non-destructive patch to the upstream particle shaders.
+ * We retain exact originals and can restore them on quality-toggle.
+ */
+export function createEffectRefiner(getPreference=()=> 'soft') {
+  const originals=new WeakMap();
+  const applied=new WeakMap();
+  let changes=0;
+  function materialStyle(mat,kind,style) {
+    if (!mat?.isShaderMaterial) return;
+    if (!originals.has(mat)) originals.set(mat,{
+      vertex:mat.vertexShader,fragment:mat.fragmentShader
+    });
+    if (applied.get(mat)===style) return;
+    const original=originals.get(mat);
+    let vertex=original.vertex,fragment=original.fragment;
+    if (style==='soft' && kind==='boost') {
+      vertex=vertex.replace(
+        /gl_PointSize\s*=\s*size\s*\*\s*\(2500\.0\s*\/\s*-mvPosition\.z\)\s*;/,
+        'gl_PointSize = clamp(size * (1750.0 / max(1.0, -mvPosition.z)), 1.0, 15.0);'
+      );
+      // Soft incandescent center, reduced oversaturation and aliasing.
+      fragment=fragment.replace(
+        'gl_FragColor = vec4(flameColor * glow * 1.5, vAlpha * glow);',
+        'gl_FragColor = vec4(flameColor * glow * 1.1, vAlpha * glow * 0.85);'
+      );
+    }
+    if (style==='soft' && kind==='supersonic') {
+      fragment=fragment.replace(
+        /gl_FragColor\s*=\s*vColor\s*\*\s*textureColor\s*;/,
+        [
+          'vec4 shade = vColor * textureColor;',
+          'float edge = smoothstep(0.0, 0.18, vUV.y) *',
+          '             (1.0 - smoothstep(0.76, 1.0, vUV.y));',
+          'gl_FragColor = vec4(shade.rgb, shade.a * edge * 0.66);'
+        ].join('\n')
+      );
+    }
+    if(mat.vertexShader!==vertex || mat.fragmentShader!==fragment) {
+      mat.vertexShader=vertex;
+      mat.fragmentShader=fragment;
+      mat.needsUpdate=true;
+      changes++;
+    }
+    applied.set(mat,style);
+  }
+  function update(player) {
+    const preference=getPreference();
+    const style=preference==='soft'?'soft':'original';
+    const visible=preference!=='off';
+    const effect=getEffectCollections(player);
+    for (const trail of effect.boost) {
+      if (trail?.points) {
+        trail.points.visible=visible;
+        materialStyle(trail.points.material,'boost',style);
+      }
+    }
+    for (const trail of effect.supersonic) {
+      if (typeof trail.trailWidth==='number' && preference==='soft') {
+        trail.trailWidth=9; // new segments: less blocky cross-section
+      } else if (typeof trail.trailWidth==='number') {
+        trail.trailWidth=15;
+      }
+      for (const segment of trail?.segments ?? []) {
+        for (const ribbon of [segment.leftTrail,segment.rightTrail]) {
+          if(ribbon?.mesh) ribbon.mesh.visible=visible;
+          if(ribbon?.material) materialStyle(ribbon.material,'supersonic',style);
+        }
+      }
+    }
+    return changes;
+  }
+  return {update,get shaderUpdates(){return changes;}};
+}
+
+export function createVisualEffectsPlugin(refiner) {
+  return {
+    id:'replay-lab-effects-polish',
+    beforeRender(ctx) {
+      refiner?.update(ctx.player);
+    },
+  };
+}
