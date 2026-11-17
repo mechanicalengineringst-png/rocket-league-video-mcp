@@ -1,7 +1,8 @@
 'use strict';
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const M=require('../coach_app/static/viewer3d-math.js');
+require('../coach_app/static/viewer3d-math.js');
+const M=globalThis.ReplayLabViewMath;
 
 const close=(actual,expected,eps=1e-5)=>{
   assert.ok(Math.abs(actual-expected)<eps, String(actual)+' != '+String(expected));
