@@ -309,6 +309,10 @@ document.addEventListener('keydown', e => {
 // uploading it again, using a strict same-origin postMessage handshake.
 window.addEventListener('message', event => {
   if (event.origin !== location.origin || event.source !== window.opener) return;
+  if (event.data?.type === 'replay-lab:hd-ping') {
+    window.opener?.postMessage({ type:'replay-lab:hd-ready' }, location.origin);
+    return;
+  }
   if (event.data?.type !== 'replay-lab:hd-load') return;
   const file = event.data.file;
   if (!(file instanceof File)) return;
