@@ -29,6 +29,8 @@ let scrubbing = false;
 let resumeAfterScrub = false;
 let preferredPlayer = null;
 let bridgeSessionId = null;
+const hdInstanceId = globalThis.crypto?.randomUUID?.() ||
+  'instance-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
 let lastBridgeSeq = 0;
 let lastHudUpdate = -Infinity;
 
@@ -370,7 +372,7 @@ function applyParentReplayControl(data) {
 window.addEventListener('message', event => {
   if (event.origin !== location.origin || event.source !== window.opener) return;
   if (event.data?.type === 'replay-lab:hd-ping') {
-    window.opener?.postMessage({ type:'replay-lab:hd-ready' }, location.origin);
+    window.opener?.postMessage({ type:'replay-lab:hd-ready', instanceId:hdInstanceId }, location.origin);
     return;
   }
   if (event.data?.type === 'replay-lab:hd-control') {
@@ -384,7 +386,7 @@ window.addEventListener('message', event => {
     ? event.data.preferredPlayer : null, event.data.sessionId);
 });
 if (window.opener && window.opener !== window) {
-  window.opener.postMessage({ type:'replay-lab:hd-ready' }, location.origin);
+  window.opener.postMessage({ type:'replay-lab:hd-ready', instanceId:hdInstanceId }, location.origin);
 }
 
 function hudLoop() {
