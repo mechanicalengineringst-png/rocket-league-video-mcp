@@ -16,6 +16,7 @@ from pydantic import BaseModel
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .coaching import compact_game_states, find_review_candidates
+from .contextual_review import build_contextual_reviews
 from .replays import ReplayParseError, parse_replay_file
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
@@ -77,7 +78,27 @@ async def upload_replay(request: Request):
         except ReplayParseError as e:
             raise HTTPException(422, str(e)) from e
     result['title'] = Path(filename).stem[:128]
-    return {'replay': result, 'candidates': find_review_candidates(result, result.get('primaryPlayerId') or result['players'][0]['id'])}
+    # Generate all player-specific review leads once, while the decoded telemetry
+    # is in memory. Switching the selected player needs no second large upload.
+    # A failure here must never prevent the replay itself from being viewed.
+    try:
+        result['contextualReviews'] = {
+            p['id']: build_contextual_reviews(result, p['id'])
+            for p in result['players']
+        }
+    except (KeyError, TypeError, ValueError, OverflowError):
+        result['contextualReviews'] = {}
+        result.setdefault('notes', []).append(
+            'Contextual review unavailable; replay playback is unaffected.'
+        )
+    return {
+        'replay': result,
+        # Backward compatibility for existing API consumers; these are raw
+        # positional observations, not the new coaching shortlist.
+        'candidates': find_review_candidates(
+            result, result.get('primaryPlayerId') or result['players'][0]['id']
+        ),
+    }
 
 
 class ReviewRequest(BaseModel):
