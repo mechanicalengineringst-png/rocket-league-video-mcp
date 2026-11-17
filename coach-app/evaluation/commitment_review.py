@@ -166,6 +166,7 @@ def prepare_packets(
         "private_map": {
             "schema": SCHEMA,
             "seed": seed,
+            "secondary_ids": sorted(p["review_id"] for p in second),
             "cases": mappings,
         },
     }
@@ -229,21 +230,30 @@ def evaluate_timings(
     # the agreed 20 subset is encouraged but not enforced by evaluator.
     _need(set(a) == set(reference), "Primary reviewer must cover all 40 cases")
     overlap = sorted(set(a).intersection(b))
-    _need(bool(overlap), "No cases reviewed by both raters")
-    _need(set(b).issubset(reference), "Secondary includes unknown review IDs")
+    expected_secondary = private_map.get("secondary_ids")
+    _need(isinstance(expected_secondary, list) and len(expected_secondary) == 20,
+          "Private map must contain the predefined 20 secondary IDs")
+    _need(set(b) == set(expected_secondary) and len(overlap) == 20,
+          "Secondary must review exactly the predefined 20 shared clips")
     leads = []
     readable = []
     detector_matches = []
+    readable_unclear = 0
+    grouped_leads: dict[str, list[float]] = defaultdict(list)
     observed_count = 0
     for rid, review in a.items():
         case = reference[rid]
         if review["choice"] != "unclear" and case["detector_choice"] != "unclear":
             readable.append(rid)
             detector_matches.append(review["choice"] == case["detector_choice"])
+        if case["detector_choice"] == "unclear" and review["choice"] != "unclear":
+            readable_unclear += 1
         if review["mark_type"] == "interval":
             observed_count += 1
             latest_world_s = case["clip_start_s"] + review["latest_s"]
-            leads.append(case["source_t0_s"] - latest_world_s)
+            gap = case["source_t0_s"] - latest_world_s
+            leads.append(gap)
+            grouped_leads[case["detector_choice"]].append(gap)
     pair_interval = [
         rid for rid in overlap
         if a[rid]["mark_type"] == b[rid]["mark_type"] == "interval"
@@ -281,6 +291,15 @@ def evaluate_timings(
         "primary_unobservable": len(a) - observed_count,
         "primary_detector_readable_choice_compared": len(readable),
         "primary_detector_choice_matches": sum(detector_matches),
+        "primary_detector_unclear_recovered_by_human": readable_unclear,
+        "primary_detector_unclear_total": sum(
+            m["detector_choice"] == "unclear" for m in reference.values()
+        ),
+        "median_detector_lead_by_choice_s": {
+            label: (round(statistics.median(grouped_leads[label]), 5)
+                    if grouped_leads[label] else None)
+            for label in DETECTOR_CHOICES
+        },
         "primary_detector_choice_agreement": (
             round(sum(detector_matches)/len(readable), 4) if readable else None
         ),
