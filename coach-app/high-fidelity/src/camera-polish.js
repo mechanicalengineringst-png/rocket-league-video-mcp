@@ -38,7 +38,10 @@ export function createCameraPolishPlugin({getCameraPlugin,getFollowId,getReplayL
       // A rear-view toggle flips the offset around the car. It only modifies
       // forced/recorded Car Cam; Ball Cam remains driven by its ball target.
       const isBallCam=cp.getBallCam();
-      if(getReplayLook() && !isBallCam) {
+      // Rear-view input can happen while Ball Cam is on. It temporarily
+      // takes priority over ball focus, unlike ordinary manual free-look.
+      const rearView=recorded.behind===true;
+      if(getReplayLook() && (!isBallCam || rearView)) {
         const car=ctx.cars.find(c=>c.id===focus)?.object3d;
         if(car) {
           car.getWorldPosition(anchor);
