@@ -284,7 +284,7 @@ function updateHud(force = false) {
   const mode=cameraPlugin?.getMode()||'orbit';
   const recorded=recordedCameraAt(currentCameraTrack(),state.frameIndex);
   const override=$('ballCamSelect').value;
-  const label=displayCameraMode(recorded,override,cameraPlugin?.getBallCam?.(),mode==='follow');
+  const label=displayCameraMode(recorded,override,cameraPlugin?.getBallCam?.(),mode==='follow',$('replayLookToggle').checked);
   $('cameraLabel').textContent=mode==='follow'?label:
     mode==='free'?'FLY CAM':mode==='ballOrbit'?'BALL ORBIT':'ORBIT CAM';
   $('cameraSource').textContent=mode!=='follow'?'VIEWER CONTROL':
