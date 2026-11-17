@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import json
 import random
+import re
 from pathlib import Path
 from typing import Any
 
@@ -71,6 +72,21 @@ def build_packets(
         advice = row.get("advice", "")
         _need(isinstance(title, str) and isinstance(advice, str),
               "Title and advice must be strings")
+        output_text = title + "\n" + advice
+        # A reviewer cannot be blind if the model signs its response.
+        # Fail closed for common provider names and the exact experiment ID.
+        # This is a guardrail, not exhaustive language-based de-identification.
+        common_names = re.compile(
+            r"\b(?:Claude|Gemini|ChatGPT|GPT[-_ ]?\d+(?:\.\d+)?|"
+            r"Qwen|DeepSeek|Ollama|Llama)\b", re.IGNORECASE,
+        )
+        direct_id = re.compile(
+            r"(?<![\w-])" + re.escape(system_id) + r"(?![\w-])",
+            re.IGNORECASE,
+        ) if len(system_id) >= 5 else None
+        _need(not common_names.search(output_text)
+              and not (direct_id and direct_id.search(output_text)),
+              f"{case_id}/{system_id}: output self-identifies the model; anonymize it")
         candidates.append({
             "case_id": case_id,
             "system_id": system_id,
