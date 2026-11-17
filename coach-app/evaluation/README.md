@@ -68,3 +68,69 @@ The evaluation package itself uses only Python's standard library. These tests u
 - A two-reviewer agreement is a useful provisional reference, not tactical ground truth; seek expert input and monitor reviewer disagreement.
 - The tool scores predictions only on cases where systems actually supplied predictions; compare missing-case counts and abstentions to avoid optimizing for silence.
 - No local GPU tests, real replay fixture replays, model training or paid API calls have been run by this independent evaluation branch.
+
+## Blinded human-review workflow (new)
+
+The evaluator can score raw human judgments, but reviewers must not see model
+names, real case identifiers, or the eventual result of a play. Use the
+additional stdlib-only packet generator for blind review:
+
+1. Run from coach-app:
+   python -m evaluation.prepare make --cases cases.json --predictions predictions.json --output-dir local_review --seed 20261117
+2. Send local_review/decision_packets.json to two independent reviewers FIRST.
+   Freeze or stop the replay at decision time; do not reveal the goal or 50/50 outcome.
+3. After decision verdicts are frozen, send quality_packets.json, containing
+   outputs in randomized order with anonymous model IDs. It uses case_ref to
+   link back to an anonymous decision case.
+4. NEVER commit or distribute PRIVATE_DO_NOT_COMMIT_mapping.json. It connects
+   anonymous C00001 and Q00001 review IDs back to source cases and systems.
+5. Reviewers submit independent records with review_id and rater_id:
+   decision: {"review_id":"C00001","rater_id":"human-1","verdict":"tradeoff"}
+   quality: {"review_id":"Q00001","rater_id":"human-1","factual_errors":0,"unsupported_claims":0,"useful":true}
+6. Map these frozen labels back to score-compatible IDs locally:
+   python -m evaluation.prepare resolve --kind decision --submissions decision_answers.json --mapping local_review/PRIVATE_DO_NOT_COMMIT_mapping.json --output decision_reviews_resolved.json
+   python -m evaluation.prepare resolve --kind quality --submissions quality_answers.json --mapping local_review/PRIVATE_DO_NOT_COMMIT_mapping.json --output quality_reviews_resolved.json
+7. Score:
+   python -m evaluation.score --cases cases.json --predictions predictions.json --reviews decision_reviews_resolved.json --quality-reviews quality_reviews_resolved.json --output results.json
+
+Quality reviews are optional. Both source evidence and the original case
+identifiers MUST already be anonymized before producing packets: platform-ID
+pattern checks are not a complete privacy guarantee for free-text nicknames.
+Blinding is a scientific workflow, not cryptographic protection.
+
+## Model-data splits that avoid obvious replay leakage
+
+Do not randomly split nearby frames into training and evaluation: states from
+the same replay overlap heavily. Every case intended for model training
+must carry a stable anonymized replay_group. Create match-disjoint folds:
+
+    python -m evaluation.splits --cases cases.json --folds 3 --seed 20261117 --output match_folds.json
+
+Every match is held out in its entirety in one evaluation fold, and the other
+matches form the training set. This does not ensure different players across
+matches; audit player/session identity separately when that becomes possible.
+
+## Compare all candidate models on the same frozen cohort
+
+New metrics in evaluation.score:
+- full_cohort_submission_rate — fraction of source cases receiving any output.
+- consensus_answer_coverage — fraction of reviewed consensus cases the system
+  answered without abstaining.
+- consensus_full_cohort_agreement — fraction of ALL consensus cases answered
+  correctly, penalizing missing responses and abstention through coverage.
+- risk_warning_precision — supported risky-play flags among flags issued.
+- risk_warning_recall_on_consensus_risks — what share of consensus risky plays
+  were actually flagged (unanswered or abstained risky cases count as missed).
+- false_blame_rate_on_consensus_sound — what share of consensus sound plays
+  were wrongly labeled risky.
+- per_situation — count-level diagnostic to reveal which play categories
+  each model does or does not handle.
+
+A model that answers one easy case correctly can achieve 100% selective
+precision; look at submission/answer coverage and missed risks before
+concluding it is superior.
+
+The system tests software behavior on synthetic fixtures. Real expertise
+still requires independent reviewers, real 2v2 situations, provenance checks
+and explicit validation. Citation keys do not prove the truth of what a model
+says, and timestamps do not prove native event labels were available at t0.
