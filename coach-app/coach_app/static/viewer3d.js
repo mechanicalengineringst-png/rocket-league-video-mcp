@@ -9,6 +9,7 @@
   'use strict';
 
   const SCALE = 0.01;
+  const replayMath = global.ReplayLabViewMath;
   const PITCH_W = 8192 * SCALE; // 81.92
   const PITCH_L = 10240 * SCALE; // 102.4
   const CEILING = 2044 * SCALE; // 20.44
@@ -67,7 +68,12 @@
       this.camera = null;
       this.renderer = null;
       this.controls = null;
-      this.cameraMode = 'orbit'; // 'orbit', 'tactical', 'follow', 'ball'
+      this.cameraMode = 'orbit'; // orbit, tactical, follow, ball, pov (close chase)
+      this.cameraTarget = null;
+      this.previousHeading = null;
+      this.lastCameraTime = null;
+      this.lastFocusId = null;
+      this.forceCameraSnap = true;
       this.focusPlayerId = null;
       this.carObjects = new Map();
       this.ballMesh = null;
@@ -80,6 +86,10 @@
     }
 
     init() {
+      if (!replayMath) {
+        console.error('Replay camera-math module was not loaded.');
+        return;
+      }
       if (typeof THREE === 'undefined') {
         console.warn('Three.js is not loaded yet.');
         return;
@@ -91,7 +101,7 @@
       this.scene.background = new THREE.Color(0x0c1e28);
       this.scene.fog = new THREE.FogExp2(0x0c1e28, 0.007);
 
-      this.camera = new THREE.PerspectiveCamera(50, width / height, 0.5, 350);
+      this.camera = new THREE.PerspectiveCamera(62, width / height, 0.08, 350);
       this.camera.position.set(0, 36, -55);
 
       this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
@@ -494,26 +504,61 @@
     }
 
     setCameraMode(mode) {
+      if (!['orbit', 'tactical', 'follow', 'ball', 'pov'].includes(mode)) return;
       this.cameraMode = mode;
-      if (!this.controls) return;
-      if (mode === 'orbit') {
-        this.controls.enabled = true;
-      } else if (mode === 'tactical') {
-        this.controls.enabled = true;
-        this.camera.position.set(0, 42, -50);
+      this.forceCameraSnap = true;
+      this.cameraTarget = null;
+      this.previousHeading = null;
+      if (!this.controls || !this.camera) return;
+      const free = mode === 'orbit' || mode === 'tactical';
+      this.controls.enabled = free;
+      if (free) {
+        this.camera.fov = mode === 'tactical' ? 64 : 62;
+        this.camera.updateProjectionMatrix();
+        const pos = mode === 'tactical' ? [0, 67, -18] : [0, 36, -55];
+        this.camera.position.set(...pos);
         this.controls.target.set(0, 2, 0);
-      } else if (mode === 'follow' || mode === 'ball' || mode === 'pov') {
-        this.controls.enabled = false;
+        this.controls.update();
+      } else if (this.lastFrame) {
+        this.updateCamera(this.lastFrame, true);
       }
     }
 
     resetCamera() {
-      this.cameraMode = 'orbit';
-      if (this.controls) {
-        this.controls.enabled = true;
-        this.camera.position.set(0, 36, -55);
-        this.controls.target.set(0, 3, 0);
+      this.setCameraMode('orbit');
+    }
+
+    updateCamera(frame, switching = false) {
+      if (!frame || !['follow', 'ball', 'pov'].includes(this.cameraMode)) return;
+      const car = frame.cars && frame.cars[this.focusPlayerId];
+      if (!car || car.demolished || !replayMath) return;
+      const plan = replayMath.planCamera(
+        this.cameraMode, car, frame.ball, this.previousHeading
+      );
+      if (!plan) return;
+      const nextPos = new THREE.Vector3(...plan.position);
+      const nextTarget = new THREE.Vector3(...plan.target);
+      // Seeking and switching players should not fly a camera across the map.
+      const t = Number(frame.t);
+      const jump = !Number.isFinite(this.lastCameraTime) ||
+        !Number.isFinite(t) || Math.abs(t - this.lastCameraTime) > 0.32;
+      const snap = switching || this.forceCameraSnap || jump ||
+        this.lastFocusId !== this.focusPlayerId;
+      if (snap || !this.cameraTarget) {
+        this.camera.position.copy(nextPos);
+        this.cameraTarget = nextTarget;
+      } else {
+        this.camera.position.lerp(nextPos, 0.26);
+        this.cameraTarget.lerp(nextTarget, 0.38);
       }
+      this.camera.fov = plan.fov;
+      this.camera.updateProjectionMatrix();
+      this.camera.up.set(0, 1, 0); // Never roll the *camera* with a rolling car.
+      this.camera.lookAt(this.cameraTarget);
+      this.previousHeading = plan.heading;
+      this.lastCameraTime = t;
+      this.lastFocusId = this.focusPlayerId;
+      this.forceCameraSnap = false;
     }
 
     update(frame, focusPlayerId, players) {
@@ -577,24 +622,28 @@
         const cz = toThreeZ(carData.y);
         carEntry.group.position.set(cx, cy, cz);
 
-        // Orientation from forward vector
-        if (carData.forward && carData.forward.length === 3) {
-          // RL forward is [fx, fy, fz]; Three forward is [-fx, fz, -fy]
-          const [fx, fy, fz] = carData.forward;
-          const target = new THREE.Vector3(cx - fx * 5, cy + fz * 5, cz - fy * 5);
-          carEntry.group.lookAt(target);
+        // Apply recorded roll, pitch and yaw, not just the car's nose.
+        // The replay axes change handedness when mapped into Three.js.
+        const attitude = replayMath.basisFromRotation(carData.rotation, carData.forward);
+        if (attitude) {
+          const rot = new THREE.Matrix4().makeBasis(
+            new THREE.Vector3(...attitude.right),
+            new THREE.Vector3(...attitude.up),
+            new THREE.Vector3(...attitude.forward)
+          );
+          carEntry.group.quaternion.setFromRotationMatrix(rot);
         }
 
         // Focus halo
         const isFocus = pid === focusPlayerId;
-        carEntry.halo.visible = isFocus;
+        carEntry.halo.visible = isFocus && (this.cameraMode === 'orbit' || this.cameraMode === 'tactical');
         if (isFocus) {
           focusCarObj = carEntry;
           carEntry.halo.rotation.z += 0.03;
         }
 
         // Aerial vertical drop stalk
-        if (cy > 0.8) {
+        if (cy > 1.3 && (this.cameraMode === 'orbit' || this.cameraMode === 'tactical')) {
           carEntry.stalk.visible = true;
           carEntry.stalk.position.set(cx, 0, cz);
           carEntry.stalk.scale.set(1, cy, 1);
@@ -607,32 +656,9 @@
         carEntry.shadow.position.set(cx, 0.03, cz);
       });
 
-      // Update Camera based on mode
-      if (focusCarObj && this.cameraMode === 'follow') {
-        const cpos = focusCarObj.group.position;
-        // Chase camera 8 units back, 4 units up
-        const forwardDir = new THREE.Vector3();
-        focusCarObj.group.getWorldDirection(forwardDir);
-        const camTargetPos = cpos.clone().sub(forwardDir.clone().multiplyScalar(9)).add(new THREE.Vector3(0, 4.5, 0));
-        this.camera.position.lerp(camTargetPos, 0.12);
-        this.camera.lookAt(cpos.clone().add(new THREE.Vector3(0, 1.2, 0)));
-      } else if (focusCarObj && this.ballMesh && this.cameraMode === 'ball') {
-        const cpos = focusCarObj.group.position;
-        const bpos = this.ballMesh.position;
-        const toBall = bpos.clone().sub(cpos).normalize();
-        const camTargetPos = cpos.clone().sub(toBall.multiplyScalar(8)).add(new THREE.Vector3(0, 4, 0));
-        this.camera.position.lerp(camTargetPos, 0.12);
-        this.camera.lookAt(bpos.clone().add(new THREE.Vector3(0, 0.5, 0)));
-      } else if (focusCarObj && this.cameraMode === 'pov') {
-        const cpos = focusCarObj.group.position;
-        const forwardDir = new THREE.Vector3();
-        focusCarObj.group.getWorldDirection(forwardDir);
-        // Driver / bumper camera right above the hood looking forward
-        const camPos = cpos.clone().add(new THREE.Vector3(0, 0.95, 0)).add(forwardDir.clone().multiplyScalar(0.6));
-        this.camera.position.copy(camPos);
-        const lookTarget = camPos.clone().add(forwardDir.clone().multiplyScalar(25));
-        this.camera.lookAt(lookTarget);
-      }
+      // Camera placement is solved independently from the car mesh; the close
+      // camera cannot clip through the car body at its own origin.
+      this.updateCamera(frame);
     }
 
     animate() {
