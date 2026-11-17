@@ -16,6 +16,7 @@ from pydantic import BaseModel
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .coaching import compact_game_states, find_review_candidates
+from .companion import RocketLeagueCompanion, CompanionConnectionError
 from .replays import ReplayParseError, parse_replay_file
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
@@ -162,3 +163,48 @@ async def ai_review(request: Request):
     except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError) as e:
         # Never echo a secret or raw upstream error payload to the browser.
         raise HTTPException(502, 'Gemini analysis did not complete. Check server logs/quota and retry later.') from e
+
+
+class CompanionCommand(BaseModel):
+    action: str
+    params: dict = {}
+
+
+companion_client = RocketLeagueCompanion()
+
+
+@app.get('/api/companion/status')
+def get_companion_status():
+    """Check connectivity and state with Rocket League native Stats & Control API."""
+    return companion_client.get_status()
+
+
+@app.post('/api/companion/command')
+def execute_companion_command(payload: CompanionCommand):
+    """Execute playback or replay command on the native Rocket League client."""
+    action = payload.action.strip().lower()
+    params = payload.params or {}
+    try:
+        if action == 'load_replay':
+            replay = str(params.get('replay', ''))
+            return companion_client.load_replay(replay)
+        elif action == 'seek_replay':
+            t = float(params.get('time_seconds', 0.0))
+            return companion_client.seek_replay(t)
+        elif action == 'change_pov':
+            target = str(params.get('target', ''))
+            return companion_client.change_pov(target)
+        elif action == 'set_game_speed':
+            speed = float(params.get('speed', 1.0))
+            return companion_client.set_game_speed(speed)
+        elif action == 'set_match_paused':
+            paused = bool(params.get('paused', True))
+            return companion_client.set_match_paused(paused)
+        elif action == 'set_hud_visibility':
+            visible = bool(params.get('visible', True))
+            return companion_client.set_hud_visibility(visible)
+        else:
+            return companion_client.send_json_command(action, params)
+    except CompanionConnectionError as exc:
+        raise HTTPException(503, str(exc)) from exc
+

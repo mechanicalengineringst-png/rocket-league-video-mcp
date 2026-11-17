@@ -52,3 +52,19 @@ def test_original_replay_upload_invokes_parser_without_manual_exports(monkeypatc
     assert response.status_code == 200, response.text
     assert received == [payload]
     assert response.json()['replay']['title'] == 'my-match'
+
+
+def test_companion_api_endpoints():
+    # 1. Status endpoint when offline
+    res = client.get('/api/companion/status')
+    assert res.status_code == 200
+    data = res.json()
+    assert data['connected'] is False
+    assert data['status'] == 'offline'
+    assert 'TAStatsAPI' in data['message']
+
+    # 2. Command endpoint when offline returns 503
+    cmd_res = client.post('/api/companion/command', json={'action': 'seek_replay', 'params': {'time_seconds': 10.0}})
+    assert cmd_res.status_code == 503
+    assert 'Cannot connect to Rocket League' in cmd_res.json()['detail']
+
