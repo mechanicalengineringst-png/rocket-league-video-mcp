@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap');
 :root{color-scheme:dark;--bg:#060e18;--panel:#0d1a2a;--line:#29435a;--txt:#e9f4ff;--quiet:#91a9be;--teal:#40f4d5;--blue:#329cf9;--orange:#ff9b4b}
 *{box-sizing:border-box}
 body{background:radial-gradient(circle at 50% 6%,#17314b 0,#081321 44%,#050b12 100%);color:var(--txt);margin:0;font:13px/1.5 Inter,Segoe UI,sans-serif}
