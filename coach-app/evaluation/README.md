@@ -273,3 +273,129 @@ may recur across matches. Real validation should report detector recall on
 an independent annotated time-sampled reference, false criticisms of sound
 plays, good-play recognition, reviewer disagreement and held-out model
 performance. A pilot with 60 labels is intentionally exploratory.
+
+
+## NEW: 40-clip commitment-timing review (before tactical-quality scoring)
+
+Claude's timing research found that our detected \`t0\` may occur after a player
+committed. Human reviewers must establish **whether commitment is observable,
+which action was taken, and a plausible commitment interval** before we ask
+the later 60-case panel whether that action was strategically sound.
+
+Separate implementation:
+- \`evaluation/commitment_review.py\` — prepare 40 anonymized video packets,
+  select 20 overlapping clips for a genuinely independent second reviewer,
+  and calculate interval/timing/choice agreement from private mappings.
+- \`evaluation/commitment_review.html\` and \`commitment_review_core.js\` —
+  offline annotation page with local videos, fine seek controls, interval
+  marks, observed choice, confidence, an explicit unobservable option, reviewer
+  notes and local JSON export/import. No server, account, browser storage or
+  paid AI service is needed.
+- \`tests/test_commitment_review.py\` and
+  \`tests/test_commitment_review_ui.py\` — synthetic protocol and Node/browser
+  contract checks. These verify software logic, **not** actual Rocket League
+  commitment correctness, true 60fps seek precision or accessibility across
+  all browsers.
+
+### Required source clips (produced elsewhere)
+
+Antigravity's/native export or a separate trusted video pipeline needs to
+provide enough cropped MP4/WebM moments from **at least three competitive
+2v2 matches**, with an anonymized visual cue identifying the target car.
+Each clip should show the movement before and shortly after candidate
+commitment, without revealing the later goal, winner banners, match outcome,
+usernames, other personal identifiers, or the original detector label. Video
+frames may be inspected in retrospect for **timing annotation only**; this
+does not authorize showing later behavior in predecision coaching.
+
+The private candidate manifest is a JSON array with **exactly** these fields
+per row:
+
+\`\`\`json
+{
+  "case_id": "anonymized-match-one-candidate-1",
+  "replay_group": "anonymous-match-one",
+  "detector_choice": "challenge",
+  "source_t0_s": 35.88,
+  "clip_start_s": 32.88,
+  "clip_end_s": 37.38,
+  "clip_file": "local-private-clip-1.mp4",
+  "focus_hint": "Follow the outlined blue car"
+}
+\`\`\`
+
+The visible review packet has **no** \`source_t0_s\`, \`detector_choice\`,
+\`replay_group\` or original filename. Video files get renamed to anonymous
+\`T00001.mp4\` etc. Source filenames and timestamps are stored **only** in
+\`PRIVATE_DO_NOT_COMMIT_commitment_mapping.json\`. A person may still
+recognize a particular match from its visuals: manually scrub source clips.
+
+From \`coach-app/\`:
+
+\`\`\`bash
+python -m evaluation.commitment_review prepare \
+  --manifest private_manifest.json \
+  --clips-dir private_clip_files \
+  --output-dir evaluation/local_commitment_review
+\`\`\`
+
+This deliberately refuses insufficient data, including fewer than three
+matches, not enough detector-choice strata (15 challenge / 15 shadow / 10
+unclear), and within-match duplicated moments less than 5s apart. These
+strata are **detector claims**, not human truth, and the sample is NOT
+randomly representative of gameplay. The original video export is the
+upstream responsibility; the preparation script cannot synthesize videos.
+
+### Human review workflow
+
+1. Give Reviewer A \`primary_packets.json\` and the 40 renamed video files.
+   Give Reviewer B the separate \`secondary_packets.json\` and its 20
+   overlapping video files. Never give either the private mapping.
+2. Open \`evaluation/commitment_review.html\` by double-clicking it in a
+   modern browser. The companion \`commitment_review_core.js\` must be
+   in the same folder. Load packet JSON; select the relevant anonymous
+   MP4/WebM clips (multiple selection).
+3. Reviewer chooses observed choice — challenge, shadow, fake, other or
+   unclear — then marks **earliest and latest plausible reversible-choice
+   bounds** from video times. If not reliably visible, choose
+   **Not reliably observable** rather than forcing a number. Save a note
+   describing what prevented reliable timing.
+4. Export a draft JSON periodically. The browser doesn't remember work
+   on reload, but saved reviewer JSON can be imported to resume. Export
+   final JSON only after all assigned cases have a recorded review.
+5. Coordinator runs:
+   \`\`\`bash
+   python -m evaluation.commitment_review analyze \
+     --private-map evaluation/local_commitment_review/PRIVATE_DO_NOT_COMMIT_commitment_mapping.json \
+     --primary primary_rater_final.json \
+     --secondary secondary_rater_final.json \
+     --output PRIVATE_commitment_results.json
+   \`\`\`
+   The output is a **private study report**: two-reviewer choice agreement,
+   interval endpoint agreement within 0.3s, the proportion deemed unobservable,
+   median time gap from detector \`t0\` to Reviewer A's last reversible moment,
+   and detector-vs-human choice agreement where both are readable.
+
+For the predefined 20 overlapping clips, Claude proposed treating >=14/20
+endpoint agreements within 0.3s as encouraging evidence that commitment
+timing can be annotated. A median detector lead >=0.5s would suggest the
+current trigger is late; <0.25s is more consistent with the old assumption.
+Intermediate cases require more clips. **Do not turn these pilot cutoffs into
+claims of validated physical irreversibility or tactical quality.**
+
+Known limitations:
+- The video export can still include future/outcome cues; the local review
+  interface cannot prove blinding.
+- The clip may not expose all physical alternatives, player inputs or mental
+  intent. Recorded movement and the true decision are different.
+- The latest plausible point is a human judgment, not a formal collision
+  or reachability guarantee; a jumping car may still steer.
+- Camera quality, playback resolution and video timing affect raters.
+- The comparison excludes \`unclear\` detector cases from readable-choice
+  agreement and reports the denominator, rather than quietly claiming
+  the model labeled every case.
+- Reviewer comparison reports are private and match-correlated; the
+  second rater's 20 overlapping clips are not another 20 independent matches.
+- Run the broader 60-case tactical-quality study **after** timing/provenance
+  issues have been resolved. Don't merge research modules into live coaching
+  without expert review.
