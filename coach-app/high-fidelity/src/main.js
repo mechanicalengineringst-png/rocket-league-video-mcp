@@ -4,7 +4,17 @@ import {
   createBoostPickupAnimationPlugin,
   fromReplayPlayerPlugin, setPlayerAssetBase,
 } from '@rlrml/player';
+import * as THREE from 'three';
 import { formatTime, clampTime, timelineMarkers } from './time.js';
+import {
+  findCameraTrack, recordedCameraAtTime, cameraEvidence,
+  cameraSwitchMoments, displayCameraMode,
+} from './camera-timeline.js';
+import { createCameraPolishPlugin } from './camera-polish.js';
+import { createRecordedCameraSwitchPlugin } from './recorded-camera-switch.js';
+import {
+  applySceneQuality, setFieldDecorStyle, createEffectRefiner, createVisualEffectsPlugin,
+} from './visual-quality.js';
 import './style.css';
 
 const $ = id => document.getElementById(id);
@@ -16,15 +26,107 @@ const viewer = $('viewport');
 const assetBase = import.meta.env.DEV ? '/' : import.meta.env.BASE_URL;
 setPlayerAssetBase(assetBase);
 
+// Disable the upstream skybox's artificial 2-degree/second rotation, which
+// can read as background camera shake while reviewing stationary gameplay.
+const STILL_HDR={
+  id:'replay-lab-stable-stadium',
+  skyboxUrl:'/skyboxes/PlanetaryEarth4k.hdr',
+  exposure:1.20,
+  rotation:{x:8,y:0,z:28},
+  animation:{enabled:false,speed:0}
+};
+
 let player = null;
 let cameraPlugin = null;
-let unsubscribe = null;
+let cameraPolish = null;
+let effectRefiner = null;
 let loadSequence = 0;
 let loading = false;
 let scrubbing = false;
 let resumeAfterScrub = false;
-let preferredPlayer = null;
 let lastHudUpdate = -Infinity;
+// Optional QA-only mesh probe, only enabled by ?qa=1 on this same-origin page.
+// It reports what the renderer really draws under a pixel, to locate oversized
+// black field decorations without guessing at material names.
+if(new URLSearchParams(location.search).get('qa')==='1'){
+  window.__rlReplayLabQA={
+    effectiveCameraState(){
+      if(!player)return null;
+      const state=player.getState();
+      return {
+        attached:state.attachedPlayerId,
+        viewMode:state.cameraViewMode,
+        useReplayBallCam:state.useReplayBallCam,
+        effectiveBallCamEnabled:state.effectiveBallCamEnabled,
+        pluginBallCam:cameraPlugin?.getBallCam?.(),
+        pluginMode:cameraPlugin?.getMode?.(),
+        time:state.currentTime
+      };
+    },
+    hitsAt(clientX,clientY){
+      if(!player?.scene||!player?.camera)return [];
+      const bounds=viewer.getBoundingClientRect();
+      const mouse=new THREE.Vector2(
+        ((clientX-bounds.left)/bounds.width)*2-1,
+        -((clientY-bounds.top)/bounds.height)*2+1
+      );
+      const ray=new THREE.Raycaster();
+      ray.setFromCamera(mouse,player.camera);
+      return ray.intersectObjects(player.scene.children,true)
+        .filter(hit=>hit.distance>10 && hit.object?.isMesh &&
+          hit.object.visible &&
+          hit.object.parent?.visible !== false)
+        .slice(0,18).map(hit=>{
+          const mat=Array.isArray(hit.object.material)?
+            hit.object.material[0]:hit.object.material;
+          return {
+            name:hit.object.name||'(unnamed)',
+            parent:hit.object.parent?.name||'(unnamed)',
+            geometry:hit.object.geometry?.type||'',
+            material:mat?.name||'(unnamed)',
+            color:mat?.color?.getHexString?.()??null,
+            point:hit.point.toArray().map(x=>Math.round(x)),
+            distance:Math.round(hit.distance),
+            pad:hit.object.userData?.padId??null,
+            visible:hit.object.visible,
+            opacity:mat?.opacity??null,
+            renderOrder:hit.object.renderOrder,
+          };
+        });
+    },
+    arenaMeshes(){
+      return (player?.arenaManager?.arenaMeshes||[]).map(mesh=>({
+        name:mesh.name,material:mesh.material?.name||'',
+        visible:mesh.visible,castShadow:mesh.castShadow,
+      }));
+    },
+    setArenaMeshVisible(name,visible){
+      let count=0;
+      for(const mesh of player?.arenaManager?.arenaMeshes||[]){
+        if(mesh.name===name){mesh.visible=!!visible;count++;}
+      }
+      return count;
+    },
+    setBoostMeshesVisible(visible){
+      let count=0;
+      for(const child of player?.scene?.children||[]){
+        if(Number.isInteger(child.userData?.padId)){
+          child.visible=!!visible;count++;
+        }
+      }
+      return count;
+    },
+    setSceneShadows(enabled){
+      const renderer=player?.renderer;
+      if(renderer?.shadowMap)renderer.shadowMap.enabled=!!enabled;
+      return renderer?.shadowMap?.enabled??null;
+    },
+    freezeAt(t){
+      player?.pause();player?.seek(t);
+    },
+  };
+}
+
 
 function setStatus(message, isError = false) {
   $('statusText').textContent = message;
@@ -42,7 +144,8 @@ function enableControls(enabled) {
   for (const id of [
     'stepBackBtn','backBtn','playBtn','forwardBtn','stepForwardBtn',
     'seek','speedSelect','playerSelect','ballCamSelect',
-    'interpolation','hitboxToggle','trailToggle'
+    'interpolation','hitboxToggle','trailToggle','replayLookToggle',
+    'qualitySelect','fxStyle','lightingSelect','fieldDecorSelect'
   ]) $(id).disabled = !enabled;
   for (const button of document.querySelectorAll('.cam')) button.disabled = !enabled;
 }
@@ -50,39 +153,87 @@ function enableControls(enabled) {
 function currentPlayer() {
   return player?.adapter?.playerList?.find(p => p.id === $('playerSelect').value) ?? null;
 }
+function currentCameraTrack() {
+  const p=currentPlayer();
+  return p ? findCameraTrack(player?.replay,p.id,p.name) : null;
+}
+function invalidateCamera() { cameraPolish?.invalidate(); }
 function switchCamera(mode) {
   if (!cameraPlugin || !player) return;
-  const available = new Set(['follow', 'orbit', 'ballOrbit', 'free']);
-  if (!available.has(mode)) return;
-  const picked = currentPlayer();
-  if (mode === 'follow') {
-    if (picked) cameraPlugin.follow(picked.name);
-  } else if (mode === 'orbit') {
-    cameraPlugin.release();
-  } else {
-    cameraPlugin.setMode(mode);
+  if (!['follow','orbit','ballOrbit','free'].includes(mode)) return;
+  const picked=currentPlayer();
+  if(mode==='follow'){
+    // Use the *public* parity API, not plugin.follow alone. Keeping the
+    // attached player in the engine state lets applyReplayBallCam reproduce
+    // per-player native Ball Cam toggles during seeking and playback.
+    if(picked) player.setAttachedPlayer(picked.id);
+  }else{
+    player.setCameraViewMode('free');
+    if(mode==='orbit') cameraPlugin.release();
+    else cameraPlugin.setMode(mode);
   }
-  for (const button of document.querySelectorAll('.cam')) {
-    const active = button.dataset.camera === mode;
-    button.classList.toggle('active', active);
-    button.setAttribute('aria-pressed', String(active));
+  invalidateCamera();
+  for(const button of document.querySelectorAll('.cam')){
+    const active=button.dataset.camera===mode;
+    button.classList.toggle('active',active);
+    button.setAttribute('aria-pressed',String(active));
   }
-  $('ballCamSelect').disabled = mode !== 'follow';
-  $('cameraLabel').textContent = ({
-    follow: 'PLAYER CAM',
-    orbit: 'ORBIT CAM',
-    ballOrbit: 'BALL ORBIT',
-    free: 'FLY CAM',
-  })[mode];
-  $('playerHud').textContent = mode === 'follow' && picked ? picked.name : 'FREE CAMERA';
+  $('ballCamSelect').disabled=mode!=='follow';
+  $('playerHud').textContent=mode==='follow'&&picked?picked.name:
+    mode==='free'?'FREE FLY CAMERA':mode==='ballOrbit'?'BALL ORBIT':'ORBIT CAMERA';
+  updateHud(true);
 }
-
 function applyBallCam(value) {
-  if (!cameraPlugin) return;
-  cameraPlugin.setBallCam(value === 'recorded' ? null : value === 'ball');
-  $('ballCamSelect').value = value;
+  if(!player)return;
+  // null means use replay-authored camera changes, not "ball cam always on".
+  player.setBallCamEnabled(value==='recorded'?null:value==='ball');
+  $('ballCamSelect').value=value;
+  invalidateCamera();
+  updateHud(true);
 }
-
+function updateCameraEvidence(){
+  const evidence=cameraEvidence(currentCameraTrack());
+  const el=$('cameraEvidence');
+  if(!evidence.events){
+    el.classList.add('unknown');
+    el.textContent='This player has no replicated Ball Cam switch events. Recorded state is unknown; use Force Car Cam or Force Ball Cam for comparison.';
+  }else{
+    el.classList.remove('unknown');
+    el.textContent='Native camera events: '+evidence.events+
+      ' • Ball Cam OFF: '+evidence.ballOff+
+      ' • Ball Cam ON: '+evidence.ballOn+
+      ' • Rear view: '+evidence.rear+
+      ' • Manual-look samples: '+(evidence.hasSwivel?'present':'not replicated')+
+      '. The game does not store a literal camera-world transform.';
+  }
+}
+function refreshCameraEvents() {
+  const list=$('cameraEventList');
+  list.replaceChildren();
+  // Native 2v2 camera tracks can contain hundreds of toggles; limiting the
+  // strip to the first 60 prevented seeking to legitimate later Car Cam OFF
+  // moments. The list has a fixed-height scroll container in style.css.
+  const moments=cameraSwitchMoments(player?.replay,currentCameraTrack(),500);
+  if(!moments.length){
+    const span=document.createElement('span');
+    span.className='muted';
+    span.textContent='No recorded camera switches for this player.';
+    list.append(span);
+    return;
+  }
+  for(const moment of moments){
+    const btn=document.createElement('button');
+    btn.type='button';
+    btn.classList.toggle('off',moment.label==='Ball Cam off');
+    btn.textContent=moment.label+' · '+formatTime(moment.time);
+    btn.addEventListener('click',()=>{
+      player?.pause();invalidateCamera();
+      player?.seek(clampTime(moment.time,player.duration));
+      updateHud(true);
+    });
+    list.append(btn);
+  }
+}
 function fillPlayers(players, preferredName = null) {
   const select = $('playerSelect');
   select.replaceChildren();
@@ -114,6 +265,7 @@ function refreshEvents() {
     btn.title = event.label;
     btn.addEventListener('click', () => {
       player?.pause();
+      invalidateCamera();
       player?.seek(clampTime(event.time,player.duration));
       updateHud(true);
     });
@@ -132,6 +284,15 @@ function updateHud(force = false) {
   if (!scrubbing) $('seek').value = String(state.currentTime);
   $('playBtn').textContent = state.playing ? '❚❚' : '▶';
   $('playBtn').setAttribute('aria-label', state.playing ? 'Pause replay' : 'Play replay');
+  const mode=cameraPlugin?.getMode()||'orbit';
+  const recorded=recordedCameraAtTime(currentCameraTrack(),player?.replay,state.currentTime);
+  const override=$('ballCamSelect').value;
+  const label=displayCameraMode(recorded,override,cameraPlugin?.getBallCam?.(),mode==='follow',$('replayLookToggle').checked);
+  $('cameraLabel').textContent=mode==='follow'?label:
+    mode==='free'?'FLY CAM':mode==='ballOrbit'?'BALL ORBIT':'ORBIT CAM';
+  $('cameraSource').textContent=mode!=='follow'?'VIEWER CONTROL':
+    override!=='recorded'?'FORCED VIEW':
+    recorded.hasRecordedSwitch?'REPLAY TELEMETRY':'NO RECORDED SWITCH';
 }
 
 async function loadFile(file, preferredName = null) {
@@ -149,20 +310,34 @@ async function loadFile(file, preferredName = null) {
   setStatus('Reading replay bytes locally…');
   setLoading(true, 'Decoding native match…', 'Using subtr-actor WebAssembly. The replay file stays in your browser.');
   try {
-    if (unsubscribe) { unsubscribe(); unsubscribe = null; }
     player?.pause();
     player?.dispose?.();
     player = null;
+    cameraPolish=null;
+    effectRefiner=null;
+    lastHudUpdate=-Infinity;
     viewer.replaceChildren();
     const bytes = new Uint8Array(await file.arrayBuffer());
     if (seq !== loadSequence) return;
-    cameraPlugin = createCameraPlugin({mode:'orbit'});
+    cameraPlugin = createCameraPlugin({mode:'orbit',useRecordedSettings:true});
+    cameraPolish=createCameraPolishPlugin({
+      getCameraPlugin:()=>cameraPlugin,
+      getFollowId:()=>currentPlayer()?.id,
+      getReplayLook:()=>$('replayLookToggle').checked,
+    });
+    const cameraStateSource=createRecordedCameraSwitchPlugin({
+      getCameraPlugin:()=>cameraPlugin,
+      getFollowId:()=>currentPlayer()?.id,
+      getCameraOverride:()=>$('ballCamSelect').value,
+    });
+    effectRefiner=createEffectRefiner(()=>$('fxStyle').value);
     setStatus('Building stadium, cars and replay timeline…');
     const next = await createPlayer(viewer, bytes, {
       autoplay: false,
       loop: false,
       motionInterpolation: 'hermite',
       motionSmoothing: true,
+      environment: $('lightingSelect').value==='neutral'?false:STILL_HDR,
       initialSkipPostGoalTransitionsEnabled: false,
       initialSkipKickoffsEnabled: false,
       assetBase,
@@ -171,15 +346,19 @@ async function loadFile(file, preferredName = null) {
         createBoostPadsPlugin(),
         createScoredTextPlugin(),
         fromReplayPlayerPlugin(createBoostPickupAnimationPlugin()),
+        cameraStateSource, // native source overrides stale adapter BEFORE camera renders
         cameraPlugin,
+        cameraPolish, // must run AFTER native camera plugin
+        createVisualEffectsPlugin(effectRefiner),
       ],
     });
     if (seq !== loadSequence) { next.dispose?.(); return; }
     player = next;
-    preferredPlayer = preferredName;
     const roster = next.adapter.playerList || [];
     if (!roster.length) throw new Error('Replay has no readable player tracks.');
     fillPlayers(roster, preferredName);
+    updateCameraEvidence();
+    refreshCameraEvents();
     next.setPlaybackRate(Number($('speedSelect').value) || 1);
     next.setMotionInterpolation($('interpolation').value);
     applyBallCam($('ballCamSelect').value);
@@ -201,6 +380,10 @@ async function loadFile(file, preferredName = null) {
     $('ballCamSelect').disabled = false;
     $('hitboxToggle').checked = false;
     $('trailToggle').checked = true;
+    setFieldDecorStyle(next,$('fieldDecorSelect').value);
+    const sceneQA=applySceneQuality(next,$('qualitySelect').value);
+    $('fpsHint').textContent='3D meshes '+sceneQA.meshes+
+      ' · filtered textures '+sceneQA.textures;
     setLoading(false);
     updateHud(true);
     next.play();
@@ -219,10 +402,27 @@ async function loadFile(file, preferredName = null) {
 for (const button of document.querySelectorAll('.cam')) {
   button.addEventListener('click', () => switchCamera(button.dataset.camera));
 }
-$('playerSelect').addEventListener('change', () => switchCamera('follow'));
+$('playerSelect').addEventListener('change', () => {
+  switchCamera('follow');
+  updateCameraEvidence();
+  refreshCameraEvents();
+});
 $('ballCamSelect').addEventListener('change', e => applyBallCam(e.target.value));
 $('speedSelect').addEventListener('change', e => player?.setPlaybackRate(Number(e.target.value)));
 $('interpolation').addEventListener('change', e => player?.setMotionInterpolation(e.target.value));
+$('replayLookToggle').addEventListener('change', invalidateCamera);
+$('lightingSelect').addEventListener('change', e=>{
+  player?.setEnvironment(e.target.value==='neutral'?false:STILL_HDR);
+});
+$('qualitySelect').addEventListener('change', e => {
+  if(player) applySceneQuality(player,e.target.value);
+});
+$('fieldDecorSelect').addEventListener('change', e => {
+  if(player) setFieldDecorStyle(player,e.target.value);
+});
+$('fxStyle').addEventListener('change', () => {
+  if(player) effectRefiner?.update(player);
+});
 $('hitboxToggle').addEventListener('change', e => player?.setHitboxWireframesEnabled(e.target.checked));
 $('trailToggle').addEventListener('change', e => { 
   // The bridged native pickup particle plugin observes this state.
@@ -234,22 +434,26 @@ $('playBtn').addEventListener('click', () => {
   updateHud(true);
 });
 $('backBtn').addEventListener('click', () => {
+  invalidateCamera();
   player?.seek(clampTime((player?.getState().currentTime || 0) - 5,player?.duration));
   updateHud(true);
 });
 $('forwardBtn').addEventListener('click', () => {
+  invalidateCamera();
   player?.seek(clampTime((player?.getState().currentTime || 0) + 5,player?.duration));
   updateHud(true);
 });
-$('stepBackBtn').addEventListener('click', () => { player?.stepBackwardFrame(); updateHud(true); });
-$('stepForwardBtn').addEventListener('click', () => { player?.stepForwardFrame(); updateHud(true); });
+$('stepBackBtn').addEventListener('click', () => { invalidateCamera(); player?.stepBackwardFrame(); updateHud(true); });
+$('stepForwardBtn').addEventListener('click', () => { invalidateCamera(); player?.stepForwardFrame(); updateHud(true); });
 $('seek').addEventListener('pointerdown', () => {
   scrubbing = true;
+  invalidateCamera();
   resumeAfterScrub = !!player?.getState().playing;
   player?.pause();
 });
 $('seek').addEventListener('input', e => {
   const t = Number(e.target.value);
+  invalidateCamera();
   player?.seek(t);
   $('currentTime').textContent = formatTime(t);
 });
@@ -290,7 +494,9 @@ document.addEventListener('keydown', e => {
     e.preventDefault();
     if (player.getState().playing) player.pause(); else player.play();
   } else if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
+    if (cameraPlugin?.getMode() === 'free') return; // arrows move fly camera
     e.preventDefault();
+    invalidateCamera();
     player.seek(clampTime(player.getState().currentTime +
       (e.code === 'ArrowLeft' ? -5 : 5),player.duration));
   } else if (e.code === 'KeyB') {
@@ -298,6 +504,10 @@ document.addEventListener('keydown', e => {
     switchCamera('follow');
     const value = $('ballCamSelect').value === 'ball' ? 'car' : 'ball';
     applyBallCam(value);
+  } else if (e.code === 'KeyR') {
+    e.preventDefault();
+    switchCamera('follow');
+    applyBallCam('recorded');
   } else if (e.code === 'KeyF') {
     e.preventDefault();
     $('fullscreenBtn').click();

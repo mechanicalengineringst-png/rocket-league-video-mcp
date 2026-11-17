@@ -25,14 +25,19 @@ const browser=await chromium.launch({
 const page=await browser.newPage({viewport:{width:1440,height:900}});
 const browserErrors=[];
 const assetErrors=[];
+const shaderErrors=[];
 page.on('pageerror',error=>browserErrors.push(error.message));
+page.on('console',entry=>{
+  if(entry.type()==='error' && /shader error|webglprogram|fragment shader|vertex shader/i.test(entry.text()))
+    shaderErrors.push(entry.text().slice(0,400));
+});
 page.on('response',response=>{
   if(response.status()>=400 && /\/static\/hd-player\//.test(response.url())){
     assetErrors.push(response.status() + ' ' + response.url());
   }
 });
 try{
-  const nav=await page.goto(base,{waitUntil:'domcontentloaded',timeout:45000});
+  const nav=await page.goto(base+'?qa=1',{waitUntil:'domcontentloaded',timeout:45000});
   assert.equal(nav?.status(),200,'HD player page must load');
   await page.locator('#fileInput').setInputFiles(path.resolve(fixture));
   await page.locator('#viewport canvas').waitFor({state:'attached',timeout:120000});
@@ -42,7 +47,6 @@ try{
   },{},{timeout:150000});
   const status=await page.locator('#statusText').textContent();
   console.log('HD_REPLAY_STATUS',status);
-  await page.screenshot({path:path.join(output,'native-replay-in-browser.png'),fullPage:true});
   assert.match(status,/High-fidelity stadium loaded/,'The GLTF stadium should load, not a fallback floor');
   const players=await page.locator('#playerSelect option').count();
   console.log('HD_REPLAY_PLAYERS',players);
@@ -52,7 +56,52 @@ try{
   await page.locator('[data-camera="orbit"]').click();
   assert.equal(await page.locator('#cameraLabel').textContent(),'ORBIT CAM');
   await page.locator('[data-camera="follow"]').click();
-  assert.equal(await page.locator('#cameraLabel').textContent(),'PLAYER CAM');
+  const label=await page.locator('#cameraLabel').textContent();
+  assert.match(label,/BALL CAM|CAR CAM|REAR LOOK|CAMERA UNKNOWN/);
+  const evidence=await page.locator('#cameraEvidence').textContent();
+  assert.ok(evidence.length>25,'Recorded camera evidence must be visible');
+  console.log('HD_CAMERA_EVIDENCE',evidence);
+  await page.locator('#ballCamSelect').selectOption('car');
+  assert.equal(await page.locator('#cameraLabel').textContent(),'CAR CAM');
+  await page.locator('#ballCamSelect').selectOption('ball');
+  assert.equal(await page.locator('#cameraLabel').textContent(),'BALL CAM');
+  await page.locator('#ballCamSelect').selectOption('recorded');
+  assert.equal(await page.locator('#cameraSource').textContent(),
+    /Native camera events/i.test(evidence)?'REPLAY TELEMETRY':'NO RECORDED SWITCH');
+  // Camera label alone could be UI theater: assert the actual replay engine
+  // switched its CameraManager state using decoded native toggle events.
+  const firstOff=page.locator('#cameraEventList button.off').first();
+  if(await firstOff.count()) {
+    await firstOff.click(); await page.waitForTimeout(320);
+    const off=await page.evaluate(()=>window.__rlReplayLabQA?.effectiveCameraState());
+    console.log('HD_REAL_CAMERA_OFF_STATE',JSON.stringify(off));
+    assert.equal(off.viewMode,'follow');
+    assert.equal(off.pluginBallCam,false,'Native Ball Cam OFF should reach real camera plugin');
+    const firstOn=page.locator('#cameraEventList button').filter({hasText:'Ball Cam on'}).first();
+    await firstOn.click(); await page.waitForTimeout(320);
+    const on=await page.evaluate(()=>window.__rlReplayLabQA?.effectiveCameraState());
+    console.log('HD_REAL_CAMERA_ON_STATE',JSON.stringify(on));
+    assert.equal(on.pluginBallCam,true,'Native Ball Cam ON should reach real camera plugin');
+  }
+  await page.locator('#replayLookToggle').uncheck();
+  await page.locator('#replayLookToggle').check();
+  await page.locator('#qualitySelect').selectOption('sharp');
+  await page.locator('#qualitySelect').selectOption('balanced');
+  const decorState=()=>page.evaluate(()=>(
+    window.__rlReplayLabQA?.arenaMeshes()?.filter(x=>
+      x.name.startsWith('Field_STD_Floor_Hex')).map(x=>x.visible) ?? []
+  ));
+  const original=await decorState();
+  assert.ok(original.length>=2,'GLTF has multiple stacked field-hex decals');
+  assert.ok(original.every(v=>v===true),'Original scene must load unchanged by default');
+  await page.locator('#fieldDecorSelect').selectOption('clean');
+  assert.ok((await decorState()).every(v=>v===false),
+    'Experimental simplified view hides all stacked decorative hex layers');
+  await page.locator('#fieldDecorSelect').selectOption('original');
+  assert.ok((await decorState()).every(v=>v===true),
+    'Original stadium artwork must be fully restored');
+  await page.locator('#fxStyle').selectOption('original');
+  await page.locator('#fxStyle').selectOption('soft');
   await page.locator('#speedSelect').selectOption('2');
   await page.locator('#seek').evaluate(element => { element.value='2'; element.dispatchEvent(new Event('input',{bubbles:true})); });
   await page.locator('#playBtn').click();
@@ -62,12 +111,26 @@ try{
   assert.ok(after && after!=='00:00.00','Timeline should seek and advance');
   assert.deepEqual(assetErrors,[],'Model/wasm asset requests must return HTTP 2xx');
   assert.deepEqual(browserErrors,[],'No unhandled JavaScript errors during replay');
+  assert.deepEqual(shaderErrors,[],'Soft VFX patches must not produce shader compile errors');
+  // Capture is diagnostic, not a validation prerequisite. Headless
+  // SwiftShader occasionally stalls during screenshot readback even when
+  // the 3D scene, car cameras, and replay are functioning correctly.
+  try {
+    await page.screenshot({
+      path:path.join(output,'native-replay-in-browser.png'),
+      fullPage:false,animations:'disabled',timeout:18000,
+    });
+    console.log('HD_QA_SCREENSHOT_CAPTURED');
+  }catch(error) {
+    console.warn('HD_QA_SCREENSHOT_UNAVAILABLE',error.message?.slice(0,160));
+  }
   console.log('HD_REPLAY_BROWSER_SMOKE_PASS');
 }catch(error){
   console.error('HD_REPLAY_BROWSER_SMOKE_FAIL',error);
   console.error('PAGE_ERRORS',browserErrors);
   console.error('ASSET_ERRORS',assetErrors);
-  try{await page.screenshot({path:path.join(output,'native-replay-error.png'),fullPage:true})}catch{}
+  console.error('SHADER_ERRORS',shaderErrors);
+  try{await page.screenshot({path:path.join(output,'native-replay-error.png'),timeout:5000})}catch{}
   throw error;
 }finally{
   await browser.close();
