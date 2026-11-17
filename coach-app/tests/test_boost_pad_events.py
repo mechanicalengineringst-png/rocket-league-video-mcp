@@ -91,7 +91,8 @@ def test_small_pad_respawns_after_four_seconds():
     )
     assert pad_state_at(timeline, 6, 11.9)['available'] is False
     assert pad_state_at(timeline, 6, 12)['available'] is True
-    assert pad_state_at(timeline, 5, 11.9)['available'] is True
+    # No kickoff/reset or pickup for pad 5: do not invent an available state.
+    assert pad_state_at(timeline, 5, 11.9)['available'] is None
 
 
 def test_no_pickup_stream_marks_coverage_unknown_not_guaranteed_active():
