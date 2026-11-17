@@ -163,3 +163,48 @@ should not be trained on outcomes from the match it is evaluated on.
 **Crucial:** forecasting that a goal is likely does not establish which
 human decision was correct. A high-quality tactical critic needs separate
 action-conditioned or expert-grounded validation, plus human review.
+
+## Standalone offline blind-review page (no installation)
+
+Use **coach-app/evaluation/review.html** as a dependency-free local reviewer
+interface. It loads its companion JavaScript file **review_state.js** from
+the same folder; copy BOTH files together if distributing a review kit.
+
+1. The coordinator first runs:
+   python -m evaluation.prepare make --cases cases.json --predictions predictions.json --output-dir local_review
+2. Supply reviewers ONLY these anonymized files (as separate stages):
+   decision_packets.json first, then quality_packets.json once their decision
+   judgments are finalized. **Never share the private mapping or outcome file.**
+3. A reviewer opens review.html in a modern browser (double-click; no server,
+   no account, no external assets or network traffic). Enter an arbitrary
+   reviewer code such as reviewer-a, load decisions and choose one of four
+   labels per case. Optionally enter reasoning notes.
+4. Click Finalize & export once all Stage 1 cases are rated. This saves a
+   private JSON file and locks the first-stage labels in that browser session.
+   The Stage 2 file picker unlocks only afterward.
+5. Load quality_packets.json, compare each anonymous model output against
+   the corresponding blinded case evidence, and record factual-error count,
+   unsupported-claim count and whether it is useful. Save each rating and
+   export when complete.
+6. Send the two exported JSON files privately to the coordinator. The
+   coordinator runs evaluation.prepare resolve using the mapping on their
+   own machine, then evaluation.score to compare systems.
+
+The interface can Save draft and Import saved decisions/ratings to resume a
+review. It does not persist information to any network or browser storage,
+so a browser refresh loses unsaved progress. When resuming from a decision
+draft, finalize the restored decisions again before viewing outputs. Reviewer
+notes can be stored in exported submissions for later qualitative audit,
+but scoring ignores notes.
+
+**Important limitations:** this standalone page displays **textual
+pre-decision evidence**. It does not render a camera replay or enforce stopping
+a separately opened replay viewer at t0. Reviewer-provided decisions cannot
+replace physically verified video/telemetry or high-rank expert adjudication.
+A timestamped claim may still be semantically post-hoc if the exporter gave
+it an incorrect finalized_through_s. Independently audit the source data.
+Real nicknames and player identities must already be scrubbed by the producer.
+
+A smoke test runs the review-state contract with Node when available and checks
+that review.html remains a standalone, offline, staged reviewer page:
+    python -m pytest tests/test_blind_review_ui.py -q
