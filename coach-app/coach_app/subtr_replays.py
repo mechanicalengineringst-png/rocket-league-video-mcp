@@ -13,6 +13,8 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+from .boost_pad_events import classify_pad_type, match_boost_pickup, make_pad_timeline
+
 FPS = 30.0
 GLOBAL_FEATURES = ['BallRigidBody', 'CurrentTime', 'SecondsRemaining']
 PLAYER_FEATURES = ['PlayerRigidBody', 'PlayerBoost', 'PlayerAnyJump']
@@ -198,6 +200,15 @@ def _events(event_data: dict, players: list[dict], times: list[float]) -> tuple[
             item['touchDodgeState'] = safe_tags.get('dodge_state')
             change = _finite(content.get('ball_speed_change'))
             item['ballSpeedChange'] = round(change, 1) if change is not None else None
+        if kind == 'boost_pickups':
+            # Preserve pad class on unmatched native pickups so downstream
+            # availability can explicitly remain uncertain, not incorrectly lit.
+            kind_label = classify_pad_type(content.get('pad_type'))
+            if kind_label:
+                item['padType'] = kind_label
+            pad_match = match_boost_pickup(content)
+            if pad_match:
+                item.update(pad_match)
         if kind == 'goal_context':
             item['scorerId'] = _player_key(content.get('scorer'))
             item['scoringTeam'] = 'blue' if content.get('scoring_team_is_team_0') else 'orange'
@@ -314,6 +325,9 @@ def normalize_subtr_replay(meta: dict, data: Any, event_data: dict,
     if not any(len(f['cars']) >= 2 for f in frames):
         raise SubtrReplayError('No physics samples with both cars and the ball were found.')
     aligned_events, counts = _events(event_data, players, times)
+    boost_pad_timeline = make_pad_timeline(
+        aligned_events, events, frames[0]['t'], frames[-1]['t']
+    )
     # A demolished car is reported frozen at the spot where it died until it
     # respawns. Flag those samples so the UI and heuristics do not treat it as live.
     for event in aligned_events:
@@ -357,6 +371,7 @@ def normalize_subtr_replay(meta: dict, data: Any, event_data: dict,
             'startTime': frames[0]['t'], 'duration': frames[-1]['t'], 'players': players,
             'primaryPlayerId': primary_id, 'primaryTeam': primary_team, 'frames': frames,
             'events': aligned_events, 'eventCounts': counts,
+            'boostPadTimeline': boost_pad_timeline,
             'playerMappingVerified': verified, 'telemetrySampleCount': len(frames),
             'source': 'subtr-actor-native-replay', 'samplingSeconds': 1 / FPS, 'notes': notes}
 

@@ -2,6 +2,7 @@
 const $ = id => document.getElementById(id);
 const state = { replay: null, findings: [], focusId: null, selectedId: null, time: 0, playing: false, timer: null, overrides: new Map(), reviewFeedback: new Map(), view: {facing:true, travel:false, heights:false, trail:false, ballTrail:false, boostPads:true}, speed:1, momentFilter:'shortlist', videoUrl:null, videoOffset:0, videoAligned:false };
 let viewer3d = null;
+let boostPadModel = null;
 let currentViewMode = '2d';
 function getViewer3d(){
   if(!viewer3d && typeof Viewer3D !== 'undefined'){
@@ -34,12 +35,22 @@ function chooseTime(time){
   $('boostValue').textContent='BOOST '+(fc&&!fc.demolished&&Number.isFinite(fc.boost)?Math.round(fc.boost):'—');
   renderPitch();
   renderSceneInspector();
-  if(viewer3d) viewer3d.update(currentFrame(), state.focusId, state.replay.players);
+  updateBoostPads2D(state.time);
+  if(viewer3d){
+    viewer3d.update(currentFrame(), state.focusId, state.replay.players);
+    // Use the exact playhead, not just the nearest 30 Hz physics timestamp.
+    viewer3d.updateBoostPadStates(state.time);
+  }
   syncVideoToReplay();
 }
 function setReplay(replay, opts={}){
   if(!replay || !Array.isArray(replay.players) || !Array.isArray(replay.frames) || !replay.frames.length)throw new Error('Invalid replay timeline.');
   stopPlay();removeVideo();state.replay=replay;state.findings=[];
+  boostPadModel = typeof ReplayLabBoostPadState !== 'undefined'
+    ? ReplayLabBoostPadState.compile(replay.boostPadTimeline) : null;
+  const padStatus=$('boostPadDataStatus');
+  if(padStatus && typeof ReplayLabBoostPadState !== 'undefined')
+    padStatus.textContent=ReplayLabBoostPadState.describe(boostPadModel);
   if($('recentActionsList'))$('recentActionsList').dataset.signature='';
   // Preference: the replay's recording player, then the player chosen last time, then a
   // player on the recording team. Anything weaker is a guess and is labelled as one.
@@ -56,7 +67,11 @@ function setReplay(replay, opts={}){
   if(!opts.demo&&!state.focusConfirmed)$('uploadStatus').textContent+=' The recording player could not be identified: confirm "Who are we coaching?".';
   refreshFindings(opts.demo);renderBoostPads();
   const v = getViewer3d();
-  if(v) v.update(currentFrame(), state.focusId, state.replay.players);
+  if(v){
+    v.setBoostPadTimeline(replay.boostPadTimeline);
+    v.setBoostPadsVisible(state.view.boostPads);
+    v.update(currentFrame(), state.focusId, state.replay.players);
+  }
   chooseTime(0);
 }
 function supportPoint(frame, focusId){let car=frame.cars[focusId];const team=playerById(focusId)?.team||'blue';const ownY=team==='blue'?-5120:5120;return {x:Math.max(-3500,Math.min(3500,frame.ball.x+(car.x<frame.ball.x?-500:500))),y:Math.max(-4400,Math.min(4400,frame.ball.y+(ownY>frame.ball.y?1100:-1100)))};}
@@ -202,15 +217,63 @@ function renderBoostPads(){
   if(!parent)return;
   parent.replaceChildren();
   if(!state.view.boostPads||typeof BOOST_PADS_2D==='undefined')return;
-  for(const pad of BOOST_PADS_2D){
-    const x=sx(pad.x),y=sy(pad.y);
-    if(pad.big){
-      const ring=el('circle',{cx:x,cy:y,r:13,fill:'none',stroke:'#ffca28','stroke-width':1.8,opacity:'.8'});
-      const dot=el('circle',{cx:x,cy:y,r:8,class:'boost-big'});
-      parent.append(ring,dot);
+  const pads=boostPadModel?.pads || BOOST_PADS_2D;
+  pads.forEach((pad,i)=>{
+    const x=sx(pad.x),y=sy(pad.y),big=!!pad.big;
+    const r=big?8:4.5, outer=big?13:7.5;
+    const group=el('g',{'data-pad-id':i,'aria-label':big?'Large boost pad':'Small boost pad'});
+    const progress=el('circle',{
+      class:'boost-pad-progress',cx:x,cy:y,r:outer,
+      fill:'none',stroke:big?'#ffc65c':'#62d6e5','stroke-width':big?2.6:1.7,
+      'stroke-dasharray':'0 200',opacity:'.45',
+      transform:'rotate(-90 '+x+' '+y+')'
+    });
+    const ring=el('circle',{
+      cx:x,cy:y,r:outer,fill:'none',stroke:'#537584',
+      'stroke-width':big?1.9:1.1,opacity:'.65'
+    });
+    const dot=el('circle',{
+      class:(big?'boost-big':'boost-small')+' boost-pad-dot',
+      cx:x,cy:y,r,opacity:'.36'
+    });
+    const label=el('text',{
+      class:'boost-pad-countdown',x,y:y-outer-5,'text-anchor':'middle',
+      'font-size':big?10:8,'font-weight':'700',fill:'#edeeee',
+      'paint-order':'stroke',stroke:'#0b1c28','stroke-width':'2.4'
+    },'');
+    const tooltip=el('title',{},'Pickup status unknown');
+    group.append(ring,progress,dot,label,tooltip);
+    parent.append(group);
+  });
+  updateBoostPads2D(state.time);
+}
+function updateBoostPads2D(time){
+  const parent=$('boostPadsLayer');
+  if(!parent || !parent.childElementCount || typeof ReplayLabBoostPadState==='undefined')return;
+  for(const group of parent.children){
+    const i=Number(group.getAttribute('data-pad-id'));
+    const pad=boostPadModel?.pads[i] || BOOST_PADS_2D[i];
+    if(!pad)continue;
+    const status=ReplayLabBoostPadState.at(boostPadModel,i,time);
+    const dot=group.querySelector('.boost-pad-dot');
+    const ring=group.querySelector('.boost-pad-progress');
+    const label=group.querySelector('.boost-pad-countdown');
+    const tooltip=group.querySelector('title');
+    const big=!!pad.big;
+    const circumference=2*Math.PI*(big?13:7.5);
+    dot.setAttribute('opacity',status.known?(status.available?'1':'0.13'):'0.36');
+    ring.setAttribute('opacity',status.known&&!status.available?'1':'0.08');
+    ring.setAttribute('stroke-dasharray',status.known&&!status.available
+      ?(circumference*status.progress).toFixed(2)+' '+circumference.toFixed(2)
+      :'0 200');
+    label.textContent=status.known&&!status.available&&big
+      ?Math.ceil(status.remaining)+'s':'';
+    if(status.known&&!status.available){
+      tooltip.textContent=(big?'Large':'Small')+' pad cooling down: '+
+        status.remaining.toFixed(1)+'s remaining';
     }else{
-      const dot=el('circle',{cx:x,cy:y,r:4.5,class:'boost-small'});
-      parent.append(dot);
+      tooltip.textContent=(big?'Large':'Small')+
+        (status.known?' pad estimated available':' pad status unknown');
     }
   }
 }
@@ -538,7 +601,11 @@ function wire(){
   for(const [id,key] of [['showFacing','facing'],['showTrail','trail'],['showBallTrail','ballTrail']]){
     $(id).onchange=e=>{state.view[key]=e.target.checked;renderPitch();};
   }
-  $('showBoostPads').onchange=e=>{state.view.boostPads=e.target.checked;renderBoostPads();};
+  $('showBoostPads').onchange=e=>{
+    state.view.boostPads=e.target.checked;
+    renderBoostPads();
+    if(viewer3d)viewer3d.setBoostPadsVisible(state.view.boostPads);
+  };
   $('recentActionsPanel').ontoggle=renderRecentActions;
   $('viewTab2d').onclick=()=>setViewMode('2d');
   $('viewTab3d').onclick=()=>setViewMode('3d');
