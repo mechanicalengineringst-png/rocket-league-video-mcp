@@ -1,7 +1,7 @@
 import {
   createPlayer, createCameraPlugin, createNameTagPlugin,
   createBoostPadsPlugin, createScoredTextPlugin,
-  createFpsOverlayPlugin, createBoostPickupAnimationPlugin,
+  createBoostPickupAnimationPlugin,
   fromReplayPlayerPlugin, setPlayerAssetBase,
 } from '@rlrml/player';
 import { formatTime, clampTime, timelineMarkers } from './time.js';
@@ -170,7 +170,6 @@ async function loadFile(file, preferredName = null) {
         createNameTagPlugin(),
         createBoostPadsPlugin(),
         createScoredTextPlugin(),
-        createFpsOverlayPlugin(),
         fromReplayPlayerPlugin(createBoostPickupAnimationPlugin()),
         cameraPlugin,
       ],
