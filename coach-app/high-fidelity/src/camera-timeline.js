@@ -36,6 +36,29 @@ export function recordedCameraAt(track, frameIndex) {
   };
 }
 
+/** Camera events use indexes in ReplayModel.frames, which can differ from
+ * the renderer adapter's current frame index around seeks or adjusted
+ * timelines. Resolve from the exact ReplayModel clock, with a tiny epsilon
+ * for Float32 native-frame time rounding. A logged switch takes effect at
+ * its recorded frame time, even when the viewer seeks backwards.
+ */
+export function replayFrameAtTime(replay,time) {
+  const frames=Array.isArray(replay?.frames)?replay.frames:[];
+  if(!frames.length||!finite(time))return 0;
+  let lo=0,hi=frames.length;
+  const at=time+0.0001;
+  while(lo<hi){
+    const mid=(lo+hi)>>>1;
+    if(finite(frames[mid]?.time) && frames[mid].time<=at)lo=mid+1;
+    else hi=mid;
+  }
+  return Math.max(0,lo-1);
+}
+
+export function recordedCameraAtTime(track,replay,time) {
+  return recordedCameraAt(track,replayFrameAtTime(replay,time));
+}
+
 export function cameraEvidence(track) {
   const events = Array.isArray(track?.cameraEvents) ? track.cameraEvents : [];
   const frames = Array.isArray(track?.frames) ? track.frames : [];
