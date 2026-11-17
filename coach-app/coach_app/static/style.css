@@ -106,3 +106,16 @@
 .feedback-choices .button-mini{font-size:10px;padding:7px}
 .feedback-choices .button-mini.active{background:#184252;border-color:#7de2d7;color:#7de2d7}
 .feedback-panel textarea{width:100%;background:#0c2530;color:#eaf6f7;border:1px solid #31505a;border-radius:7px;padding:9px;resize:vertical;font-size:11px;line-height:1.5}
+
+/* 3D controls remain legible in both single-arena and split-screen modes. */
+.controls-3d{max-width:calc(100% - 22px);flex-wrap:wrap;justify-content:flex-end;row-gap:5px}
+.controls-3d .button-mini{min-height:28px}
+.pitch-shell.split-mode .controls-3d{max-width:calc(50% - 23px);top:8px;right:8px}
+.pitch-shell.split-mode .controls-3d .cam-label{display:none}
+.pitch-shell.split-mode .controls-3d .button-mini{font-size:9px;padding:5px 7px}
+@media(max-width:850px){
+  .pitch-shell.split-mode{grid-template-columns:1fr;min-height:970px;height:auto}
+  .pitch-shell.split-mode #field{max-height:420px}
+  .pitch-shell.split-mode .viewport-3d{min-height:440px}
+  .pitch-shell.split-mode .controls-3d{max-width:calc(100% - 20px);top:auto;bottom:9px}
+}
