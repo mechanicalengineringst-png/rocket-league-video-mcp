@@ -83,6 +83,12 @@ function setReplay(replay, opts={}){
   const v = getViewer3d();
   if(v) v.update(currentFrame(), state.focusId, state.replay.players);
   chooseTime(0);
+  // The HD bridge must not apply an old replay's time and focus after
+  // a different File has been selected but before parsing finishes.
+  window.dispatchEvent(new CustomEvent('replay-lab:replay-ready',{
+    detail:{synthetic:!!opts.demo}
+  }));
+  publishReplaySyncState();
 }
 function supportPoint(frame, focusId){let car=frame.cars[focusId];const team=playerById(focusId)?.team||'blue';const ownY=team==='blue'?-5120:5120;return {x:Math.max(-3500,Math.min(3500,frame.ball.x+(car.x<frame.ball.x?-500:500))),y:Math.max(-4400,Math.min(4400,frame.ball.y+(ownY>frame.ball.y?1100:-1100)))};}
 function demoReplay(){const players=[{id:'self',name:'Your car',team:'blue'},{id:'mate',name:'Teammate',team:'blue'},{id:'opp1',name:'Opponent 1',team:'orange'},{id:'opp2',name:'Opponent 2',team:'orange'}];let frames=[];for(let i=0;i<=240;i++){
