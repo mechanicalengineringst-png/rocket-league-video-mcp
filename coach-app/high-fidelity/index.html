@@ -27,7 +27,7 @@
       <section class="stadium-shell" id="dropZone" aria-label="High-fidelity Rocket League replay viewer">
         <div id="viewport" class="viewport"></div>
         <div class="stadium-hud">
-          <div class="top-left-chip"><span class="live-dot"></span> REPLAY REVIEW <span id="cameraLabel">FREE CAM</span></div>
+          <div class="top-left-chip"><span class="live-dot"></span> REPLAY REVIEW <span id="cameraLabel">FREE CAM</span><span class="camera-source" id="cameraSource">VIEWER CONTROL</span></div>
           <div class="top-right-chip" id="playerHud">3D STADIUM</div>
         </div>
         <div class="loading-surface" id="loadingSurface">
@@ -40,6 +40,7 @@
           <p class="load-error" id="loadError" role="alert"></p>
         </div>
       </section>
+      <div class="camera-evidence" id="cameraEvidence" role="status">Camera telemetry will be checked when the replay loads.</div>
       <section class="controls" aria-label="Replay controls">
         <div class="camera-row">
           <div class="camera-mode-group" aria-label="Camera mode">
@@ -78,11 +79,16 @@
           <div class="lower-controls">
             <label for="interpolation">Motion</label>
             <select id="interpolation" disabled><option value="hermite">Velocity-smoothed (Hermite)</option><option value="linear">Linear</option></select>
+            <label for="replayLookToggle" title="Use recorded right-stick camera swivel and rear-view events when replicated"><input id="replayLookToggle" type="checkbox" checked disabled> Recorded free-look (experimental)</label>
+            <label for="qualitySelect">Graphics</label>
+            <select id="qualitySelect" disabled><option value="performance">Performance</option><option value="balanced" selected>Balanced</option><option value="sharp">Sharper textures</option></select>
+            <label for="fxStyle">Trails</label>
+            <select id="fxStyle" disabled><option value="soft" selected>Soft / refined</option><option value="original">Original</option><option value="off">Off</option></select>
             <label for="hitboxToggle"><input id="hitboxToggle" type="checkbox" disabled> Hitboxes</label>
             <label for="trailToggle"><input id="trailToggle" type="checkbox" checked disabled> Pickup effects</label>
             <button id="replaceFileBtn" type="button">Load another replay</button>
           </div>
-          <span class="help-line">Space: play/pause · Left/Right: ±5s · B: Ball Cam · F: fullscreen · Fly: WASD + mouse</span>
+          <span class="help-line">Space: play/pause · Left/Right: ±5s · B: force Ball/Car Cam · R: recorded camera · F: fullscreen · Fly: WASD + mouse</span>
         </div>
       </section>
       <section class="insights-strip">
@@ -90,7 +96,11 @@
           <strong>Match moments</strong>
           <div id="eventList"><span class="muted">Replay events will appear here after loading.</span></div>
         </div>
-        <p>Early integration preview. Actual replay models and effects depend on locally installed source assets; the code's MIT license does not independently establish rights to every bundled vehicle or stadium model. Compare flips, wall driving and chase-camera motion with the game before accepting this renderer.</p>
+        <div class="events-container">
+          <strong>Recorded camera switches</strong>
+          <div id="cameraEventList"><span class="muted">Choose a player to see recorded Ball Cam / rear-look switches.</span></div>
+        </div>
+        <p>Camera toggles and manual look are reconstructed from replay telemetry when present; the game does not record the exact camera world transform. Fly cam is a new viewer-controlled perspective, not footage captured from the player. Model cosmetics and arena artwork may differ from the game.</p>
       </section>
     </main>
   </div>
