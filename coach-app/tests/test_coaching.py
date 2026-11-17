@@ -36,9 +36,27 @@ def test_compact_evidence_is_bounded_and_player_validated():
     text = compact_game_states(r, 'a', max_frames=3)
     assert len(text.splitlines()) <= 7  # 4 header lines (incl. team roster) + 3 samples
     assert 'Players: P1=blue, P2=blue, P3=orange, P4=orange' in text
-    assert 'Focus=a' in text
+    assert 'Focus=P1 (blue)' in text
+    assert 'Focus=a' not in text
     try:
         compact_game_states(r, 'not-there')
         assert False
     except ValueError:
         pass
+
+
+def test_compact_review_never_exposes_platform_ids_including_extra_tracks():
+    r = replay()
+    mapping = {'a': 'account_id_A_private', 'b': 'account_id_B_private',
+               'c': 'account_id_C_private', 'd': 'account_id_D_private'}
+    for p in r['players']:
+        p['id'] = mapping[p['id']]
+    for frame in r['frames']:
+        frame['cars'] = {mapping[pid]: car for pid, car in frame['cars'].items()}
+    r['frames'][0]['cars']['unlisted_platform_ID_999'] = {
+        'x': 0, 'y': 200, 'z': 17, 'boost': 20
+    }
+    summary = compact_game_states(r, mapping['a'], max_frames=3)
+    assert 'Focus=P1 (blue)' in summary
+    assert 'U1:' in summary
+    assert not any(raw in summary for raw in list(mapping.values()) + ['unlisted_platform_ID_999'])
