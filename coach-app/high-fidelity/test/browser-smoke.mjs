@@ -103,6 +103,14 @@ try{
   await page.locator('#replayLookToggle').check();
   await page.locator('#qualitySelect').selectOption('sharp');
   await page.locator('#qualitySelect').selectOption('balanced');
+  const decorState=()=>page.evaluate(()=>
+    window.__rlReplayLabQA?.arenaMeshes()?.find(x=>x.name==='Field_STD_Floor_Hex002')?.visible
+  );
+  assert.equal(await decorState(),false,'Clean field hides only confirmed black/blue decal');
+  await page.locator('#fieldDecorSelect').selectOption('original');
+  assert.equal(await decorState(),true,'Original stadium artwork remains recoverable');
+  await page.locator('#fieldDecorSelect').selectOption('clean');
+  assert.equal(await decorState(),false);
   await page.locator('#fxStyle').selectOption('original');
   await page.locator('#fxStyle').selectOption('soft');
   await page.locator('#speedSelect').selectOption('2');
