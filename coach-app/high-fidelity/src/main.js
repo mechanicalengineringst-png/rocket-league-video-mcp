@@ -24,6 +24,16 @@ const viewer = $('viewport');
 const assetBase = import.meta.env.DEV ? '/' : import.meta.env.BASE_URL;
 setPlayerAssetBase(assetBase);
 
+// Disable the upstream skybox's artificial 2-degree/second rotation, which
+// can read as background camera shake while reviewing stationary gameplay.
+const STILL_HDR={
+  id:'replay-lab-stable-stadium',
+  skyboxUrl:'/skyboxes/PlanetaryEarth4k.hdr',
+  exposure:1.20,
+  rotation:{x:8,y:0,z:28},
+  animation:{enabled:false,speed:0}
+};
+
 let player = null;
 let cameraPlugin = null;
 let cameraPolish = null;
@@ -51,7 +61,7 @@ function enableControls(enabled) {
     'stepBackBtn','backBtn','playBtn','forwardBtn','stepForwardBtn',
     'seek','speedSelect','playerSelect','ballCamSelect',
     'interpolation','hitboxToggle','trailToggle','replayLookToggle',
-    'qualitySelect','fxStyle'
+    'qualitySelect','fxStyle','lightingSelect'
   ]) $(id).disabled = !enabled;
   for (const button of document.querySelectorAll('.cam')) button.disabled = !enabled;
 }
@@ -235,6 +245,7 @@ async function loadFile(file, preferredName = null) {
       loop: false,
       motionInterpolation: 'hermite',
       motionSmoothing: true,
+      environment: $('lightingSelect').value==='neutral'?false:STILL_HDR,
       initialSkipPostGoalTransitionsEnabled: false,
       initialSkipKickoffsEnabled: false,
       assetBase,
@@ -306,6 +317,9 @@ $('ballCamSelect').addEventListener('change', e => applyBallCam(e.target.value))
 $('speedSelect').addEventListener('change', e => player?.setPlaybackRate(Number(e.target.value)));
 $('interpolation').addEventListener('change', e => player?.setMotionInterpolation(e.target.value));
 $('replayLookToggle').addEventListener('change', invalidateCamera);
+$('lightingSelect').addEventListener('change', e=>{
+  player?.setEnvironment(e.target.value==='neutral'?false:STILL_HDR);
+});
 $('qualitySelect').addEventListener('change', e => {
   if(player) applySceneQuality(player,e.target.value);
 });
