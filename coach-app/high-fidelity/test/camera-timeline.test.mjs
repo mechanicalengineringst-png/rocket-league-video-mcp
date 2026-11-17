@@ -99,3 +99,49 @@ test('recorded Ball Cam ON/OFF updates actual plugin at event boundaries and see
   ctx.state.cameraViewMode='free';override='recorded';plugin.onStateChange(ctx);
   assert.deepEqual(applied,[true,false,true],'free camera is never overridden');
 });
+
+test('unsorted native events cannot overwrite a newer recorded camera state',()=>{
+  const scrambled={
+    ...track,
+    cameraEvents:[
+      {frame:5,ballCamActive:true,behindViewActive:false},
+      {frame:2,ballCamActive:false,behindViewActive:false},
+      {frame:4,ballCamActive:null,behindViewActive:true},
+      {frame:0,ballCamActive:true,behindViewActive:null},
+    ],
+  };
+  assert.equal(recordedCameraAt(scrambled,3).ballCam,false);
+  assert.equal(recordedCameraAt(scrambled,4).ballCam,false);
+  assert.equal(recordedCameraAt(scrambled,4).behind,true);
+  assert.equal(recordedCameraAt(scrambled,5).ballCam,true);
+  assert.equal(recordedCameraAt(scrambled,5).behind,false);
+});
+
+test('ambiguous camera tracks are not silently attributed to another player',()=>{
+  const ambiguous={players:[
+    {id:'same',name:'Alpha'},
+    {id:'same',name:'Beta'},
+    {id:'unique1',name:'Dup'},
+    {id:'unique2',name:'Dup'},
+  ]};
+  assert.equal(findCameraTrack(ambiguous,'same'),null);
+  assert.equal(findCameraTrack(ambiguous,'missing','Dup'),null);
+  assert.equal(findCameraTrack(ambiguous,'unique1'),ambiguous.players[2]);
+});
+
+test('recorded camera without known events uses a neutral non-claimed fallback',()=>{
+  let current=true,override='recorded',focus='unknown';
+  const camera={getBallCam:()=>current,setBallCam:v=>{current=v;}};
+  const plugin=createRecordedCameraSwitchPlugin({
+    getCameraPlugin:()=>camera,getFollowId:()=>focus,
+    getCameraOverride:()=>override,
+  });
+  const player={replay,adapter:{playerList:[{id:'unknown',name:'NoData'}]}};
+  plugin.beforeRender({player,time:.5,state:{cameraViewMode:'follow',currentTime:.5}});
+  assert.equal(current,false,'unknown recorded view must not inherit stale Ball Cam ON');
+  assert.equal(displayCameraMode({ballCam:null},'recorded',current),'CAMERA UNKNOWN');
+  override='ball';
+  camera.setBallCam(true);
+  plugin.beforeRender({player,time:0,state:{cameraViewMode:'follow',currentTime:0}});
+  assert.equal(current,true,'explicit forced Ball Cam still works');
+});
