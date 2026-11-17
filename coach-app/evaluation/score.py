@@ -166,20 +166,34 @@ def evaluate(
         abstentions = 0
         citation_failures = 0
         citation_failure_examples = []
+        grounded_ids: set[str] = set()
         comparable = []
         for case_id, output in outputs.items():
             if output["assessment"] == "abstain":
                 abstentions += 1
             known = {e["key"] for e in indexed[case_id]["pre_decision_evidence"]}
             cited = output["cited_evidence"]
-            if output["assessment"] != "abstain" and (
-                not cited or len(cited) != len(set(cited)) or any(k not in known for k in cited)
-            ):
-                citation_failures += 1
-                citation_failure_examples.append(case_id)
+            if output["assessment"] != "abstain":
+                citations_valid = bool(cited) and len(cited) == len(set(cited)) and all(
+                    k in known for k in cited
+                )
+                if citations_valid:
+                    grounded_ids.add(case_id)
+                else:
+                    citation_failures += 1
+                    citation_failure_examples.append(case_id)
             if case_id in consensus and output["assessment"] != "abstain":
                 comparable.append((output["assessment"], consensus[case_id]))
 
+        grounded_comparable = [
+            (outputs[cid]["assessment"], reference)
+            for cid, reference in consensus.items()
+            if cid in grounded_ids
+        ]
+        grounded_agreement = sum(p == g for p, g in grounded_comparable)
+        grounded_risk_attempts = [
+            (p, g) for p, g in grounded_comparable if p == "risk"
+        ]
         risk_attempts = [(p, g) for p, g in comparable if p == "risk"]
         supported_risk = sum(g == "risk" for _, g in risk_attempts)
         refuted_risk = sum(g == "sound" for _, g in risk_attempts)
@@ -216,10 +230,17 @@ def evaluate(
             "invalid_evidence_citation_case_ids": citation_failure_examples,
             "consensus_comparable_cases": len(comparable),
             "consensus_answer_coverage": _ratio(len(comparable), len(consensus)),
+            "grounded_consensus_answer_coverage": _ratio(len(grounded_comparable), len(consensus)),
+            "grounded_consensus_agreement": _ratio(grounded_agreement, len(grounded_comparable)),
+            "grounded_consensus_full_cohort_agreement": _ratio(grounded_agreement, len(consensus)),
             "consensus_agreement": _ratio(agreement, len(comparable)),
             "consensus_full_cohort_agreement": _ratio(agreement, len(consensus)),
             "risk_warnings_on_consensus_cases": len(risk_attempts),
             "risk_warning_precision": _ratio(supported_risk, len(risk_attempts)),
+            "grounded_risk_warning_precision": _ratio(
+                sum(g == "risk" for _, g in grounded_risk_attempts),
+                len(grounded_risk_attempts),
+            ),
             "risk_warning_recall_on_consensus_risks": _ratio(supported_risk, total_consensus_risk),
             "risk_warnings_refuted_by_sound_consensus": refuted_risk,
             "false_blame_rate_on_consensus_sound": _ratio(refuted_risk, total_consensus_sound),
@@ -233,6 +254,10 @@ def evaluate(
         "schema": "replay-lab-blind-benchmark-v1",
         "cases": len(indexed),
         "consensus_cases": len(consensus),
+        "consensus_label_distribution": {
+            label: sum(v == label for v in consensus.values())
+            for label in ("sound", "risk", "tradeoff")
+        },
         "disputed_case_ids": disputed,
         "insufficient_review_case_ids": insufficient,
         "indeterminate_consensus_case_ids": indeterminate,
@@ -241,7 +266,8 @@ def evaluate(
             "Agreement with two reviewers is not tactical optimality. "
             "All systems share the frozen reference cohort; missing predictions and "
             "abstentions are excluded from selective agreement but count against full-cohort coverage. "
-            "Citations validate referenced keys, not the semantic truth of model claims. "
+            "Grounded agreement requires citations referring to eligible pre-decision evidence, "
+            "but cited keys still do not prove the semantic truth of model claims. "
             "Review disagreements, mechanical feasibility and causal provenance."
         ),
     }
