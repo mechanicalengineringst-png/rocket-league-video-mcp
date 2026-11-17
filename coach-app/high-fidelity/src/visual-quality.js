@@ -73,7 +73,21 @@ function getEffectCollections(player) {
 export function createEffectRefiner(getPreference=()=> 'soft') {
   const originals=new WeakMap();
   const applied=new WeakMap();
-  const originalVisibility=new WeakMap();
+  // Only remember visibility while our Off override is active. Source
+  // effects can appear/disappear every frame; a permanently cached initial
+  // false would suppress future legitimate boosts and supersonic trails.
+  const hiddenByUs=new WeakMap();
+  function setVisibility(target,visible) {
+    if(!target) return;
+    if(!visible) {
+      if(!hiddenByUs.has(target)) hiddenByUs.set(target,target.visible);
+      target.visible=false;
+    } else if(hiddenByUs.has(target)) {
+      target.visible=hiddenByUs.get(target);
+      hiddenByUs.delete(target);
+    }
+    // Otherwise preserve the upstream frame's live visibility as-is.
+  }
   const originalRibbonWidth=new WeakMap();
   let changes=0;
   function materialStyle(mat,kind,style) {
@@ -121,9 +135,7 @@ export function createEffectRefiner(getPreference=()=> 'soft') {
     const effect=getEffectCollections(player);
     for (const trail of effect.boost) {
       if (trail?.points) {
-        if(!originalVisibility.has(trail.points))
-          originalVisibility.set(trail.points,trail.points.visible);
-        trail.points.visible=visible && originalVisibility.get(trail.points);
+        setVisibility(trail.points,visible);
         materialStyle(trail.points.material,'boost',style);
       }
     }
@@ -136,11 +148,7 @@ export function createEffectRefiner(getPreference=()=> 'soft') {
           : originalRibbonWidth.get(trail);
       for (const segment of trail?.segments ?? []) {
         for (const ribbon of [segment.leftTrail,segment.rightTrail]) {
-          if(ribbon?.mesh) {
-            if(!originalVisibility.has(ribbon.mesh))
-              originalVisibility.set(ribbon.mesh,ribbon.mesh.visible);
-            ribbon.mesh.visible=visible && originalVisibility.get(ribbon.mesh);
-          }
+          if(ribbon?.mesh) setVisibility(ribbon.mesh,visible);
           if(ribbon?.material) materialStyle(ribbon.material,'supersonic',style);
         }
       }
