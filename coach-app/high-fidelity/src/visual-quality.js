@@ -24,6 +24,12 @@ export function applySceneQuality(player, name='balanced') {
   const max=renderer.capabilities?.getMaxAnisotropy?.() ?? 1;
   const {ratio,anisotropy}=qualitySettings(name,window.devicePixelRatio||1,max);
   if (typeof renderer.setPixelRatio==='function') renderer.setPixelRatio(ratio);
+  // Stadium PBR geometry should RECEIVE shadows, not cast giant, hard-edged
+  // shape shadows across its own floor. Preserve actor/car shadow casting.
+  let disabledArenaCasters=0;
+  for(const mesh of player.arenaManager?.arenaMeshes ?? []){
+    if(mesh?.castShadow){mesh.castShadow=false;disabledArenaCasters++;}
+  }
   const done=new Set();
   let meshes=0;
   player.scene.traverse(obj=>{
@@ -47,7 +53,7 @@ export function applySceneQuality(player, name='balanced') {
       }
     }
   });
-  return {textures:done.size,meshes,ratio,anisotropy};
+  return {textures:done.size,meshes,ratio,anisotropy,disabledArenaCasters};
 }
 
 function getEffectCollections(player) {
@@ -132,11 +138,31 @@ export function createEffectRefiner(getPreference=()=> 'soft') {
   return {update,get shaderUpdates(){return changes;}};
 }
 
+/** The upstream pad renderer draws a giant opaque black multi-arm assembly
+ * under each full boost orb. In the screenshot it looks like a black hole,
+ * not a Rocket League boost pad. The original plugin recreates its visibility
+ * on pickup state changes, so enforce a cleaner art direction after its hook.
+ * Gameplay pickup visibility/timing and emissive lens remain untouched.
+ */
+export function refineBoostPadVisuals(player) {
+  let hidden=0;
+  for(const child of player?.scene?.children ?? []){
+    if(child?.userData?.isBig !== true)continue;
+    const base=child.userData.baseGroup;
+    if(base && base.visible){
+      base.visible=false;
+      hidden++;
+    }
+  }
+  return hidden;
+}
+
 export function createVisualEffectsPlugin(refiner) {
   return {
     id:'replay-lab-effects-polish',
     beforeRender(ctx) {
       refiner?.update(ctx.player);
+      refineBoostPadVisuals(ctx.player);
     },
   };
 }
