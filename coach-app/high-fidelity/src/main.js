@@ -49,6 +49,19 @@ let lastHudUpdate = -Infinity;
 // black field decorations without guessing at material names.
 if(new URLSearchParams(location.search).get('qa')==='1'){
   window.__rlReplayLabQA={
+    effectiveCameraState(){
+      if(!player)return null;
+      const state=player.getState();
+      return {
+        attached:state.attachedPlayerId,
+        viewMode:state.cameraViewMode,
+        useReplayBallCam:state.useReplayBallCam,
+        effectiveBallCamEnabled:state.effectiveBallCamEnabled,
+        pluginBallCam:cameraPlugin?.getBallCam?.(),
+        pluginMode:cameraPlugin?.getMode?.(),
+        time:state.currentTime
+      };
+    },
     hitsAt(clientX,clientY){
       if(!player?.scene||!player?.camera)return [];
       const bounds=viewer.getBoundingClientRect();
