@@ -362,7 +362,22 @@
         ring.rotation.x = -Math.PI / 2;
         ring.position.set(x, 0.03, z);
         this.scene.add(ring);
-        this.boostPadMeshes.push({ mesh, ring, pad, id });
+        // A thin radial cooldown sweep is independent for each pad. The
+        // geometry is allocated once; subsequent scrubs only change drawRange.
+        const sweepGeo = new THREE.RingGeometry(
+          inner + (pad.big ? 0.35 : 0.2),
+          inner + (pad.big ? 0.56 : 0.35), 48
+        );
+        const sweep = new THREE.Mesh(sweepGeo, new THREE.MeshBasicMaterial({
+          color: pad.big ? 0xffdf85 : 0x95f0f6,
+          transparent: true, opacity: 0.95,
+          depthWrite: false, side: THREE.DoubleSide
+        }));
+        sweep.rotation.x = -Math.PI / 2;
+        sweep.position.set(x, 0.055, z);
+        sweep.visible = false;
+        this.scene.add(sweep);
+        this.boostPadMeshes.push({ mesh, ring, sweep, pad, id });
       });
       // Until a native replay is loaded, the pads are map markers, not
       // presumed to be live and available.
@@ -380,11 +395,16 @@
     }
 
     updateBoostPadStates(time) {
-      for (const {mesh, ring, pad, id} of this.boostPadMeshes) {
+      for (const {mesh, ring, sweep, pad, id} of this.boostPadMeshes) {
         const status = boostPadState ? boostPadState.at(this.boostPadModel, id, time) :
           {known:false, available:null, respawnAge:null};
         mesh.visible = this.showBoostPads;
         ring.visible = this.showBoostPads;
+        sweep.visible = this.showBoostPads && status.known && !status.available;
+        if (sweep.visible) {
+          sweep.geometry.setDrawRange(0,
+            Math.max(0,Math.min(48,Math.round(status.progress*48)))*6);
+        }
         if (!status.known) {
           // Unknown data must not look like a confirmed active pad.
           mesh.material.emissiveIntensity = 0.02;
