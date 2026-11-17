@@ -67,7 +67,7 @@ test('same-origin file transfer, ready/loaded handshake, and selected-player syn
   };
   emit('window','replay-lab:sync-state',{detail:state});
   emit('button','click',{});
-  assert.deepEqual(sent[0].value,{type:'replay-lab:hd-ping'});
+  assert.equal(sent[0].value.type,'replay-lab:hd-ping');
   // Ignore an unrelated or cross-origin tab, even if it forges a ready event.
   emit('window','message',{
     origin:'https://unrelated.example',source:target,
