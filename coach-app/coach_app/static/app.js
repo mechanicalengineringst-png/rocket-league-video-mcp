@@ -1,6 +1,6 @@
 'use strict';
 const $ = id => document.getElementById(id);
-const state = { replay: null, findings: [], focusId: null, selectedId: null, time: 0, playing: false, timer: null, overrides: new Map(), view: {facing:true, travel:false, heights:false, trail:false, ballTrail:false, boostPads:true}, speed:1, momentFilter:'shortlist', videoUrl:null, videoOffset:0, videoAligned:false };
+const state = { replay: null, findings: [], focusId: null, selectedId: null, time: 0, playing: false, timer: null, overrides: new Map(), reviewFeedback: new Map(), view: {facing:true, travel:false, heights:false, trail:false, ballTrail:false, boostPads:true}, speed:1, momentFilter:'shortlist', videoUrl:null, videoOffset:0, videoAligned:false };
 let viewer3d = null;
 let currentViewMode = '2d';
 function getViewer3d(){
@@ -46,7 +46,7 @@ function setReplay(replay, opts={}){
   const has=id=>replay.players.some(p=>p.id===id), last=remembered.get();
   state.focusConfirmed=has(replay.primaryPlayerId)||has(last);
   state.focusId=has(replay.primaryPlayerId)?replay.primaryPlayerId:has(last)?last:(replay.players.find(p=>p.team===replay.primaryTeam)?.id||replay.players[0].id);
-  state.selectedId=null;state.overrides.clear();state.time=0;
+  state.selectedId=null;state.overrides.clear();state.reviewFeedback.clear();state.time=0;
   $('replayTitle').textContent=replay.title; $('modeValue').textContent=replay.mode; $('durationValue').textContent=fmt(replay.duration-startTime());
   $('playerSelect').replaceChildren(...replay.players.map(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=`${p.name} — ${p.team.toUpperCase()}`;return o;}));
   $('playerSelect').value=state.focusId;
@@ -161,6 +161,30 @@ function renderDetail(){
     const paragraph=document.createElement('p');paragraph.textContent=val;
     section.append(heading,paragraph);target.append(section);
   }
+  // Explicit player feedback is the only way to learn about unknown intention.
+  // Keep it collapsed and local. Export it with the review JSON for human QA.
+  const details=document.createElement('details');details.className='feedback-panel';
+  const summary=document.createElement('summary');summary.textContent='Rate this insight / explain your intent';
+  details.append(summary);
+  const key=state.focusId+'|'+f.id;
+  const saved=state.reviewFeedback.get(key)||{};
+  const row=document.createElement('div');row.className='feedback-choices';
+  const buttons=[];
+  for(const [value,label] of [['useful','Helpful'],['wrong','Incorrect'],['unclear','Not sure']]){
+    const btn=document.createElement('button');btn.type='button';btn.className='button-mini'+(saved.rating===value?' active':'');
+    btn.textContent=label;
+    btn.onclick=()=>{
+      state.reviewFeedback.set(key,{...state.reviewFeedback.get(key),rating:value});
+      for(const candidate of buttons)candidate.classList.toggle('active',candidate===btn);
+    };
+    buttons.push(btn);row.append(btn);
+  }
+  details.append(row);
+  const note=document.createElement('textarea');note.rows=3;note.maxLength=1500;
+  note.placeholder='What were you trying to do? What did this analysis miss?';
+  note.value=saved.note||'';
+  note.oninput=()=>state.reviewFeedback.set(key,{...state.reviewFeedback.get(key),note:note.value});
+  details.append(note);target.append(details);
 }
 const xyDistance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 function recentPath(kind,focusId,seconds){
@@ -459,7 +483,7 @@ function wireVideo(){
   });
 }
 
-function exportReview(){const body=JSON.stringify({replay:{schema:state.replay.schema,title:state.replay.title,mode:state.replay.mode,source:state.replay.source,duration:state.replay.duration},focus:playerById(state.focusId),findings:state.findings.map(f=>({...f,target:state.overrides.get(f.id)||f.target}))},null,2);const url=URL.createObjectURL(new Blob([body],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download='rocket-league-review.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+function exportReview(){const body=JSON.stringify({replay:{schema:state.replay.schema,title:state.replay.title,mode:state.replay.mode,source:state.replay.source,duration:state.replay.duration},focus:playerById(state.focusId),findings:state.findings.map(f=>({...f,target:state.overrides.get(f.id)||f.target})),feedback:Object.fromEntries(state.reviewFeedback)},null,2);const url=URL.createObjectURL(new Blob([body],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download='rocket-league-review.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 async function loadFile(file){if(!file)return;if(!file.name.toLowerCase().endsWith('.replay'))return show('Select a Rocket League .replay file.');if(file.size>20*1024*1024)return show('File exceeds 20 MB.');$('uploadStatus').textContent='Processing native replay locally…';try{const r=await fetch('/api/replays',{method:'POST',headers:{'Content-Type':'application/octet-stream','X-Replay-Name':encodeURIComponent(file.name)},body:file});const body=await r.json().catch(()=>({}));if(!r.ok)throw new Error(body.detail||'Replay parser could not read file.');setReplay(body.replay);show('Replay loaded. Choose your player to start.');}catch(e){$('uploadStatus').textContent=e.message;show(e.message);}}
 async function aiReview(){
   if(!state.replay)return;
