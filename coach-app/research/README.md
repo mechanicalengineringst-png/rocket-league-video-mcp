@@ -15,7 +15,7 @@ Experimental tactical-intelligence prototypes. **Not imported by the app**, not 
 | `tactical_intel/profile.py` | Empirical-Bayes player profiles for small samples |
 | `tactical_intel/run.py` | One command that runs everything and writes `results/` |
 | `results/` | Outputs from the run described in REPORT.md |
-| `tests/` | 22 tests; synthetic data checks code paths only |
+| `tests/` | 23 tests; synthetic data checks code paths only |
 
 Rules this module keeps: nothing after `t0` reaches a feature, situation or choice label; folds and bootstraps are
 grouped by match; duplicate replays are removed by hash; every skipped replay is listed with a reason; per-moment

@@ -1,0 +1,1539 @@
+{
+  "trait": "challenge share when first defender facing control",
+  "prior": {
+    "mean": 0.592,
+    "strength": 200.0
+  },
+  "players": [
+    {
+      "player": "p_7d4f0c2f49",
+      "successes": 25,
+      "trials": 37,
+      "raw": 0.675676,
+      "estimate": 0.605063,
+      "low90": 0.552427,
+      "high90": 0.656689,
+      "weight_on_player": 0.156118
+    },
+    {
+      "player": "p_9859aa8646",
+      "successes": 12,
+      "trials": 27,
+      "raw": 0.444444,
+      "estimate": 0.574449,
+      "low90": 0.520202,
+      "high90": 0.627949,
+      "weight_on_player": 0.118943
+    },
+    {
+      "player": "p_7b97bf933b",
+      "successes": 13,
+      "trials": 21,
+      "raw": 0.619048,
+      "estimate": 0.59457,
+      "low90": 0.539868,
+      "high90": 0.648297,
+      "weight_on_player": 0.095023
+    },
+    {
+      "player": "p_355a07858c",
+      "successes": 10,
+      "trials": 18,
+      "raw": 0.555556,
+      "estimate": 0.588991,
+      "low90": 0.533824,
+      "high90": 0.643227,
+      "weight_on_player": 0.082569
+    },
+    {
+      "player": "p_d714a73b7e",
+      "successes": 2,
+      "trials": 17,
+      "raw": 0.117647,
+      "estimate": 0.554839,
+      "low90": 0.499168,
+      "high90": 0.609933,
+      "weight_on_player": 0.078341
+    },
+    {
+      "player": "p_0a0a1b7dda",
+      "successes": 8,
+      "trials": 14,
+      "raw": 0.571429,
+      "estimate": 0.590654,
+      "low90": 0.534998,
+      "high90": 0.645345,
+      "weight_on_player": 0.065421
+    },
+    {
+      "player": "p_7297db81c2",
+      "successes": 10,
+      "trials": 14,
+      "raw": 0.714286,
+      "estimate": 0.6,
+      "low90": 0.544498,
+      "high90": 0.654436,
+      "weight_on_player": 0.065421
+    },
+    {
+      "player": "p_315e5188da",
+      "successes": 8,
+      "trials": 13,
+      "raw": 0.615385,
+      "estimate": 0.593427,
+      "low90": 0.537683,
+      "high90": 0.648171,
+      "weight_on_player": 0.061033
+    },
+    {
+      "player": "p_37208356cb",
+      "successes": 6,
+      "trials": 13,
+      "raw": 0.461538,
+      "estimate": 0.584038,
+      "low90": 0.528153,
+      "high90": 0.639023,
+      "weight_on_player": 0.061033
+    },
+    {
+      "player": "p_38a261c14a",
+      "successes": 8,
+      "trials": 13,
+      "raw": 0.615385,
+      "estimate": 0.593427,
+      "low90": 0.537683,
+      "high90": 0.648171,
+      "weight_on_player": 0.061033
+    },
+    {
+      "player": "p_4b05a77b3f",
+      "successes": 6,
+      "trials": 13,
+      "raw": 0.461538,
+      "estimate": 0.584038,
+      "low90": 0.528153,
+      "high90": 0.639023,
+      "weight_on_player": 0.061033
+    },
+    {
+      "player": "p_c654d0058a",
+      "successes": 8,
+      "trials": 13,
+      "raw": 0.615385,
+      "estimate": 0.593427,
+      "low90": 0.537683,
+      "high90": 0.648171,
+      "weight_on_player": 0.061033
+    },
+    {
+      "player": "p_d9947cc204",
+      "successes": 7,
+      "trials": 13,
+      "raw": 0.538462,
+      "estimate": 0.588732,
+      "low90": 0.532915,
+      "high90": 0.6436,
+      "weight_on_player": 0.061033
+    },
+    {
+      "player": "p_991f3cd5c3",
+      "successes": 5,
+      "trials": 12,
+      "raw": 0.416667,
+      "estimate": 0.582075,
+      "low90": 0.526032,
+      "high90": 0.637237,
+      "weight_on_player": 0.056604
+    },
+    {
+      "player": "p_3ccc6531fa",
+      "successes": 8,
+      "trials": 11,
+      "raw": 0.727273,
+      "estimate": 0.599052,
+      "low90": 0.543138,
+      "high90": 0.653896,
+      "weight_on_player": 0.052133
+    },
+    {
+      "player": "p_521e263262",
+      "successes": 6,
+      "trials": 11,
+      "raw": 0.545455,
+      "estimate": 0.589573,
+      "low90": 0.533504,
+      "high90": 0.644675,
+      "weight_on_player": 0.052133
+    },
+    {
+      "player": "p_ebad4686ac",
+      "successes": 7,
+      "trials": 11,
+      "raw": 0.636364,
+      "estimate": 0.594313,
+      "low90": 0.538319,
+      "high90": 0.649288,
+      "weight_on_player": 0.052133
+    },
+    {
+      "player": "p_2ae3915542",
+      "successes": 7,
+      "trials": 10,
+      "raw": 0.7,
+      "estimate": 0.597143,
+      "low90": 0.541062,
+      "high90": 0.652169,
+      "weight_on_player": 0.047619
+    },
+    {
+      "player": "p_34ebc68b11",
+      "successes": 7,
+      "trials": 10,
+      "raw": 0.7,
+      "estimate": 0.597143,
+      "low90": 0.541062,
+      "high90": 0.652169,
+      "weight_on_player": 0.047619
+    },
+    {
+      "player": "p_3a3cdc6b5e",
+      "successes": 6,
+      "trials": 10,
+      "raw": 0.6,
+      "estimate": 0.592381,
+      "low90": 0.536222,
+      "high90": 0.647537,
+      "weight_on_player": 0.047619
+    },
+    {
+      "player": "p_bc294290ee",
+      "successes": 5,
+      "trials": 10,
+      "raw": 0.5,
+      "estimate": 0.587619,
+      "low90": 0.531386,
+      "high90": 0.6429,
+      "weight_on_player": 0.047619
+    },
+    {
+      "player": "p_d80a175cd4",
+      "successes": 6,
+      "trials": 10,
+      "raw": 0.6,
+      "estimate": 0.592381,
+      "low90": 0.536222,
+      "high90": 0.647537,
+      "weight_on_player": 0.047619
+    },
+    {
+      "player": "p_07ab59f473",
+      "successes": 3,
+      "trials": 9,
+      "raw": 0.333333,
+      "estimate": 0.580861,
+      "low90": 0.524399,
+      "high90": 0.636442,
+      "weight_on_player": 0.043062
+    },
+    {
+      "player": "p_2b193aacd4",
+      "successes": 6,
+      "trials": 9,
+      "raw": 0.666667,
+      "estimate": 0.595215,
+      "low90": 0.538967,
+      "high90": 0.650425,
+      "weight_on_player": 0.043062
+    },
+    {
+      "player": "p_325a1e35cf",
+      "successes": 6,
+      "trials": 9,
+      "raw": 0.666667,
+      "estimate": 0.595215,
+      "low90": 0.538967,
+      "high90": 0.650425,
+      "weight_on_player": 0.043062
+    },
+    {
+      "player": "p_665625bdb3",
+      "successes": 7,
+      "trials": 9,
+      "raw": 0.777778,
+      "estimate": 0.6,
+      "low90": 0.543835,
+      "high90": 0.655074,
+      "weight_on_player": 0.043062
+    },
+    {
+      "player": "p_95d17b61ad",
+      "successes": 2,
+      "trials": 9,
+      "raw": 0.222222,
+      "estimate": 0.576077,
+      "low90": 0.519553,
+      "high90": 0.63177,
+      "weight_on_player": 0.043062
+    },
+    {
+      "player": "p_b9952c414b",
+      "successes": 8,
+      "trials": 9,
+      "raw": 0.888889,
+      "estimate": 0.604785,
+      "low90": 0.548707,
+      "high90": 0.659719,
+      "weight_on_player": 0.043062
+    },
+    {
+      "player": "p_cc13137b92",
+      "successes": 7,
+      "trials": 9,
+      "raw": 0.777778,
+      "estimate": 0.6,
+      "low90": 0.543835,
+      "high90": 0.655074,
+      "weight_on_player": 0.043062
+    },
+    {
+      "player": "p_dbced68b90",
+      "successes": 6,
+      "trials": 9,
+      "raw": 0.666667,
+      "estimate": 0.595215,
+      "low90": 0.538967,
+      "high90": 0.650425,
+      "weight_on_player": 0.043062
+    },
+    {
+      "player": "p_f66a32f5bf",
+      "successes": 6,
+      "trials": 9,
+      "raw": 0.666667,
+      "estimate": 0.595215,
+      "low90": 0.538967,
+      "high90": 0.650425,
+      "weight_on_player": 0.043062
+    },
+    {
+      "player": "p_feb077f5bd",
+      "successes": 6,
+      "trials": 9,
+      "raw": 0.666667,
+      "estimate": 0.595215,
+      "low90": 0.538967,
+      "high90": 0.650425,
+      "weight_on_player": 0.043062
+    },
+    {
+      "player": "p_ff8a93585a",
+      "successes": 4,
+      "trials": 9,
+      "raw": 0.444444,
+      "estimate": 0.585646,
+      "low90": 0.52925,
+      "high90": 0.641108,
+      "weight_on_player": 0.043062
+    },
+    {
+      "player": "p_0b3b7e51e4",
+      "successes": 4,
+      "trials": 8,
+      "raw": 0.5,
+      "estimate": 0.588462,
+      "low90": 0.531971,
+      "high90": 0.643983,
+      "weight_on_player": 0.038462
+    },
+    {
+      "player": "p_2bce2982de",
+      "successes": 4,
+      "trials": 8,
+      "raw": 0.5,
+      "estimate": 0.588462,
+      "low90": 0.531971,
+      "high90": 0.643983,
+      "weight_on_player": 0.038462
+    },
+    {
+      "player": "p_35b8f9411c",
+      "successes": 5,
+      "trials": 8,
+      "raw": 0.625,
+      "estimate": 0.593269,
+      "low90": 0.536854,
+      "high90": 0.648663,
+      "weight_on_player": 0.038462
+    },
+    {
+      "player": "p_938b2d7d2b",
+      "successes": 3,
+      "trials": 8,
+      "raw": 0.375,
+      "estimate": 0.583654,
+      "low90": 0.527093,
+      "high90": 0.639297,
+      "weight_on_player": 0.038462
+    },
+    {
+      "player": "p_9893d6bbe9",
+      "successes": 3,
+      "trials": 8,
+      "raw": 0.375,
+      "estimate": 0.583654,
+      "low90": 0.527093,
+      "high90": 0.639297,
+      "weight_on_player": 0.038462
+    },
+    {
+      "player": "p_aeb499a4e8",
+      "successes": 4,
+      "trials": 8,
+      "raw": 0.5,
+      "estimate": 0.588462,
+      "low90": 0.531971,
+      "high90": 0.643983,
+      "weight_on_player": 0.038462
+    },
+    {
+      "player": "p_b4b140c9d0",
+      "successes": 4,
+      "trials": 8,
+      "raw": 0.5,
+      "estimate": 0.588462,
+      "low90": 0.531971,
+      "high90": 0.643983,
+      "weight_on_player": 0.038462
+    },
+    {
+      "player": "p_c4088000e2",
+      "successes": 3,
+      "trials": 8,
+      "raw": 0.375,
+      "estimate": 0.583654,
+      "low90": 0.527093,
+      "high90": 0.639297,
+      "weight_on_player": 0.038462
+    },
+    {
+      "player": "p_cc8ff393db",
+      "successes": 5,
+      "trials": 8,
+      "raw": 0.625,
+      "estimate": 0.593269,
+      "low90": 0.536854,
+      "high90": 0.648663,
+      "weight_on_player": 0.038462
+    },
+    {
+      "player": "p_cf1a3e43e9",
+      "successes": 5,
+      "trials": 8,
+      "raw": 0.625,
+      "estimate": 0.593269,
+      "low90": 0.536854,
+      "high90": 0.648663,
+      "weight_on_player": 0.038462
+    },
+    {
+      "player": "p_d320fbe636",
+      "successes": 6,
+      "trials": 8,
+      "raw": 0.75,
+      "estimate": 0.598077,
+      "low90": 0.541742,
+      "high90": 0.653337,
+      "weight_on_player": 0.038462
+    },
+    {
+      "player": "p_eb6aab15bb",
+      "successes": 5,
+      "trials": 8,
+      "raw": 0.625,
+      "estimate": 0.593269,
+      "low90": 0.536854,
+      "high90": 0.648663,
+      "weight_on_player": 0.038462
+    },
+    {
+      "player": "p_0dbb8f4b56",
+      "successes": 1,
+      "trials": 7,
+      "raw": 0.142857,
+      "estimate": 0.576812,
+      "low90": 0.520024,
+      "high90": 0.632753,
+      "weight_on_player": 0.033816
+    },
+    {
+      "player": "p_18998dd420",
+      "successes": 6,
+      "trials": 7,
+      "raw": 0.857143,
+      "estimate": 0.600966,
+      "low90": 0.544546,
+      "high90": 0.656274,
+      "weight_on_player": 0.033816
+    },
+    {
+      "player": "p_34bf25551f",
+      "successes": 5,
+      "trials": 7,
+      "raw": 0.714286,
+      "estimate": 0.596135,
+      "low90": 0.53963,
+      "high90": 0.651581,
+      "weight_on_player": 0.033816
+    },
+    {
+      "player": "p_491ce21aeb",
+      "successes": 3,
+      "trials": 7,
+      "raw": 0.428571,
+      "estimate": 0.586473,
+      "low90": 0.529816,
+      "high90": 0.642178,
+      "weight_on_player": 0.033816
+    },
+    {
+      "player": "p_62e898dd1f",
+      "successes": 2,
+      "trials": 7,
+      "raw": 0.285714,
+      "estimate": 0.581643,
+      "low90": 0.524917,
+      "high90": 0.637468,
+      "weight_on_player": 0.033816
+    },
+    {
+      "player": "p_69ca3bc12e",
+      "successes": 5,
+      "trials": 7,
+      "raw": 0.714286,
+      "estimate": 0.596135,
+      "low90": 0.53963,
+      "high90": 0.651581,
+      "weight_on_player": 0.033816
+    },
+    {
+      "player": "p_6fdc314288",
+      "successes": 6,
+      "trials": 7,
+      "raw": 0.857143,
+      "estimate": 0.600966,
+      "low90": 0.544546,
+      "high90": 0.656274,
+      "weight_on_player": 0.033816
+    },
+    {
+      "player": "p_75aabb85da",
+      "successes": 6,
+      "trials": 7,
+      "raw": 0.857143,
+      "estimate": 0.600966,
+      "low90": 0.544546,
+      "high90": 0.656274,
+      "weight_on_player": 0.033816
+    },
+    {
+      "player": "p_76f6fb8948",
+      "successes": 2,
+      "trials": 7,
+      "raw": 0.285714,
+      "estimate": 0.581643,
+      "low90": 0.524917,
+      "high90": 0.637468,
+      "weight_on_player": 0.033816
+    },
+    {
+      "player": "p_7780159c2b",
+      "successes": 6,
+      "trials": 7,
+      "raw": 0.857143,
+      "estimate": 0.600966,
+      "low90": 0.544546,
+      "high90": 0.656274,
+      "weight_on_player": 0.033816
+    },
+    {
+      "player": "p_942683630e",
+      "successes": 6,
+      "trials": 7,
+      "raw": 0.857143,
+      "estimate": 0.600966,
+      "low90": 0.544546,
+      "high90": 0.656274,
+      "weight_on_player": 0.033816
+    },
+    {
+      "player": "p_b7def84a50",
+      "successes": 5,
+      "trials": 7,
+      "raw": 0.714286,
+      "estimate": 0.596135,
+      "low90": 0.53963,
+      "high90": 0.651581,
+      "weight_on_player": 0.033816
+    },
+    {
+      "player": "p_b93dc85908",
+      "successes": 4,
+      "trials": 7,
+      "raw": 0.571429,
+      "estimate": 0.591304,
+      "low90": 0.53472,
+      "high90": 0.646883,
+      "weight_on_player": 0.033816
+    },
+    {
+      "player": "p_b97338d420",
+      "successes": 4,
+      "trials": 7,
+      "raw": 0.571429,
+      "estimate": 0.591304,
+      "low90": 0.53472,
+      "high90": 0.646883,
+      "weight_on_player": 0.033816
+    },
+    {
+      "player": "p_bb0016765b",
+      "successes": 3,
+      "trials": 7,
+      "raw": 0.428571,
+      "estimate": 0.586473,
+      "low90": 0.529816,
+      "high90": 0.642178,
+      "weight_on_player": 0.033816
+    },
+    {
+      "player": "p_bcc0ec5077",
+      "successes": 5,
+      "trials": 7,
+      "raw": 0.714286,
+      "estimate": 0.596135,
+      "low90": 0.53963,
+      "high90": 0.651581,
+      "weight_on_player": 0.033816
+    },
+    {
+      "player": "p_cbd29b2f9a",
+      "successes": 5,
+      "trials": 7,
+      "raw": 0.714286,
+      "estimate": 0.596135,
+      "low90": 0.53963,
+      "high90": 0.651581,
+      "weight_on_player": 0.033816
+    },
+    {
+      "player": "p_f3561f0a87",
+      "successes": 5,
+      "trials": 7,
+      "raw": 0.714286,
+      "estimate": 0.596135,
+      "low90": 0.53963,
+      "high90": 0.651581,
+      "weight_on_player": 0.033816
+    },
+    {
+      "player": "p_053bd5c5e8",
+      "successes": 5,
+      "trials": 6,
+      "raw": 0.833333,
+      "estimate": 0.599029,
+      "low90": 0.542437,
+      "high90": 0.654525,
+      "weight_on_player": 0.029126
+    },
+    {
+      "player": "p_225d869b5f",
+      "successes": 3,
+      "trials": 6,
+      "raw": 0.5,
+      "estimate": 0.58932,
+      "low90": 0.532568,
+      "high90": 0.645084,
+      "weight_on_player": 0.029126
+    },
+    {
+      "player": "p_26ba349225",
+      "successes": 5,
+      "trials": 6,
+      "raw": 0.833333,
+      "estimate": 0.599029,
+      "low90": 0.542437,
+      "high90": 0.654525,
+      "weight_on_player": 0.029126
+    },
+    {
+      "player": "p_3f797b42d9",
+      "successes": 3,
+      "trials": 6,
+      "raw": 0.5,
+      "estimate": 0.58932,
+      "low90": 0.532568,
+      "high90": 0.645084,
+      "weight_on_player": 0.029126
+    },
+    {
+      "player": "p_655624c9da",
+      "successes": 4,
+      "trials": 6,
+      "raw": 0.666667,
+      "estimate": 0.594175,
+      "low90": 0.537499,
+      "high90": 0.649808,
+      "weight_on_player": 0.029126
+    },
+    {
+      "player": "p_79dfc870cd",
+      "successes": 4,
+      "trials": 6,
+      "raw": 0.666667,
+      "estimate": 0.594175,
+      "low90": 0.537499,
+      "high90": 0.649808,
+      "weight_on_player": 0.029126
+    },
+    {
+      "player": "p_8501b40fcb",
+      "successes": 5,
+      "trials": 6,
+      "raw": 0.833333,
+      "estimate": 0.599029,
+      "low90": 0.542437,
+      "high90": 0.654525,
+      "weight_on_player": 0.029126
+    },
+    {
+      "player": "p_8eb5ee4f7a",
+      "successes": 1,
+      "trials": 6,
+      "raw": 0.166667,
+      "estimate": 0.579612,
+      "low90": 0.522722,
+      "high90": 0.635621,
+      "weight_on_player": 0.029126
+    },
+    {
+      "player": "p_ba5bf48290",
+      "successes": 5,
+      "trials": 6,
+      "raw": 0.833333,
+      "estimate": 0.599029,
+      "low90": 0.542437,
+      "high90": 0.654525,
+      "weight_on_player": 0.029126
+    },
+    {
+      "player": "p_e58a805814",
+      "successes": 4,
+      "trials": 6,
+      "raw": 0.666667,
+      "estimate": 0.594175,
+      "low90": 0.537499,
+      "high90": 0.649808,
+      "weight_on_player": 0.029126
+    },
+    {
+      "player": "p_eb5c295898",
+      "successes": 5,
+      "trials": 6,
+      "raw": 0.833333,
+      "estimate": 0.599029,
+      "low90": 0.542437,
+      "high90": 0.654525,
+      "weight_on_player": 0.029126
+    },
+    {
+      "player": "p_ef0bab2910",
+      "successes": 2,
+      "trials": 6,
+      "raw": 0.333333,
+      "estimate": 0.584466,
+      "low90": 0.527642,
+      "high90": 0.640355,
+      "weight_on_player": 0.029126
+    },
+    {
+      "player": "p_f0010d7c27",
+      "successes": 3,
+      "trials": 6,
+      "raw": 0.5,
+      "estimate": 0.58932,
+      "low90": 0.532568,
+      "high90": 0.645084,
+      "weight_on_player": 0.029126
+    },
+    {
+      "player": "p_f589070d35",
+      "successes": 3,
+      "trials": 6,
+      "raw": 0.5,
+      "estimate": 0.58932,
+      "low90": 0.532568,
+      "high90": 0.645084,
+      "weight_on_player": 0.029126
+    },
+    {
+      "player": "p_f664eaab87",
+      "successes": 5,
+      "trials": 6,
+      "raw": 0.833333,
+      "estimate": 0.599029,
+      "low90": 0.542437,
+      "high90": 0.654525,
+      "weight_on_player": 0.029126
+    },
+    {
+      "player": "p_16ce08f677",
+      "successes": 3,
+      "trials": 5,
+      "raw": 0.6,
+      "estimate": 0.592195,
+      "low90": 0.535349,
+      "high90": 0.648016,
+      "weight_on_player": 0.02439
+    },
+    {
+      "player": "p_3e9df44491",
+      "successes": 3,
+      "trials": 5,
+      "raw": 0.6,
+      "estimate": 0.592195,
+      "low90": 0.535349,
+      "high90": 0.648016,
+      "weight_on_player": 0.02439
+    },
+    {
+      "player": "p_5e7e44ba4c",
+      "successes": 5,
+      "trials": 5,
+      "raw": 1.0,
+      "estimate": 0.601951,
+      "low90": 0.545273,
+      "high90": 0.657495,
+      "weight_on_player": 0.02439
+    },
+    {
+      "player": "p_6a9318245e",
+      "successes": 4,
+      "trials": 5,
+      "raw": 0.8,
+      "estimate": 0.597073,
+      "low90": 0.540308,
+      "high90": 0.652759,
+      "weight_on_player": 0.02439
+    },
+    {
+      "player": "p_70591dfb11",
+      "successes": 3,
+      "trials": 5,
+      "raw": 0.6,
+      "estimate": 0.592195,
+      "low90": 0.535349,
+      "high90": 0.648016,
+      "weight_on_player": 0.02439
+    },
+    {
+      "player": "p_72b747a922",
+      "successes": 3,
+      "trials": 5,
+      "raw": 0.6,
+      "estimate": 0.592195,
+      "low90": 0.535349,
+      "high90": 0.648016,
+      "weight_on_player": 0.02439
+    },
+    {
+      "player": "p_7389333ee1",
+      "successes": 0,
+      "trials": 5,
+      "raw": 0.0,
+      "estimate": 0.577561,
+      "low90": 0.520506,
+      "high90": 0.633754,
+      "weight_on_player": 0.02439
+    },
+    {
+      "player": "p_8688833489",
+      "successes": 4,
+      "trials": 5,
+      "raw": 0.8,
+      "estimate": 0.597073,
+      "low90": 0.540308,
+      "high90": 0.652759,
+      "weight_on_player": 0.02439
+    },
+    {
+      "player": "p_86d9d2ad22",
+      "successes": 3,
+      "trials": 5,
+      "raw": 0.6,
+      "estimate": 0.592195,
+      "low90": 0.535349,
+      "high90": 0.648016,
+      "weight_on_player": 0.02439
+    },
+    {
+      "player": "p_8df754e649",
+      "successes": 3,
+      "trials": 5,
+      "raw": 0.6,
+      "estimate": 0.592195,
+      "low90": 0.535349,
+      "high90": 0.648016,
+      "weight_on_player": 0.02439
+    },
+    {
+      "player": "p_9a415f3652",
+      "successes": 3,
+      "trials": 5,
+      "raw": 0.6,
+      "estimate": 0.592195,
+      "low90": 0.535349,
+      "high90": 0.648016,
+      "weight_on_player": 0.02439
+    },
+    {
+      "player": "p_bf1aae6e43",
+      "successes": 2,
+      "trials": 5,
+      "raw": 0.4,
+      "estimate": 0.587317,
+      "low90": 0.530395,
+      "high90": 0.643268,
+      "weight_on_player": 0.02439
+    },
+    {
+      "player": "p_bfcc110ba7",
+      "successes": 3,
+      "trials": 5,
+      "raw": 0.6,
+      "estimate": 0.592195,
+      "low90": 0.535349,
+      "high90": 0.648016,
+      "weight_on_player": 0.02439
+    },
+    {
+      "player": "p_d03a8b91ce",
+      "successes": 2,
+      "trials": 5,
+      "raw": 0.4,
+      "estimate": 0.587317,
+      "low90": 0.530395,
+      "high90": 0.643268,
+      "weight_on_player": 0.02439
+    },
+    {
+      "player": "p_d8957bd3cd",
+      "successes": 2,
+      "trials": 5,
+      "raw": 0.4,
+      "estimate": 0.587317,
+      "low90": 0.530395,
+      "high90": 0.643268,
+      "weight_on_player": 0.02439
+    },
+    {
+      "player": "p_d926c30a7d",
+      "successes": 3,
+      "trials": 5,
+      "raw": 0.6,
+      "estimate": 0.592195,
+      "low90": 0.535349,
+      "high90": 0.648016,
+      "weight_on_player": 0.02439
+    },
+    {
+      "player": "p_db605e8f71",
+      "successes": 3,
+      "trials": 5,
+      "raw": 0.6,
+      "estimate": 0.592195,
+      "low90": 0.535349,
+      "high90": 0.648016,
+      "weight_on_player": 0.02439
+    },
+    {
+      "player": "p_e45ab6322d",
+      "successes": 2,
+      "trials": 5,
+      "raw": 0.4,
+      "estimate": 0.587317,
+      "low90": 0.530395,
+      "high90": 0.643268,
+      "weight_on_player": 0.02439
+    },
+    {
+      "player": "p_e544ce050b",
+      "successes": 1,
+      "trials": 5,
+      "raw": 0.2,
+      "estimate": 0.582439,
+      "low90": 0.525448,
+      "high90": 0.638514,
+      "weight_on_player": 0.02439
+    },
+    {
+      "player": "p_e926d4100f",
+      "successes": 4,
+      "trials": 5,
+      "raw": 0.8,
+      "estimate": 0.597073,
+      "low90": 0.540308,
+      "high90": 0.652759,
+      "weight_on_player": 0.02439
+    },
+    {
+      "player": "p_f88edc28cc",
+      "successes": 4,
+      "trials": 5,
+      "raw": 0.8,
+      "estimate": 0.597073,
+      "low90": 0.540308,
+      "high90": 0.652759,
+      "weight_on_player": 0.02439
+    },
+    {
+      "player": "p_1a91651176",
+      "successes": 2,
+      "trials": 4,
+      "raw": 0.5,
+      "estimate": 0.590196,
+      "low90": 0.533178,
+      "high90": 0.646206,
+      "weight_on_player": 0.019608
+    },
+    {
+      "player": "p_1bf153d5c8",
+      "successes": 2,
+      "trials": 4,
+      "raw": 0.5,
+      "estimate": 0.590196,
+      "low90": 0.533178,
+      "high90": 0.646206,
+      "weight_on_player": 0.019608
+    },
+    {
+      "player": "p_1d4eb057d5",
+      "successes": 2,
+      "trials": 4,
+      "raw": 0.5,
+      "estimate": 0.590196,
+      "low90": 0.533178,
+      "high90": 0.646206,
+      "weight_on_player": 0.019608
+    },
+    {
+      "player": "p_2540f1b4e3",
+      "successes": 3,
+      "trials": 4,
+      "raw": 0.75,
+      "estimate": 0.595098,
+      "low90": 0.53816,
+      "high90": 0.650974,
+      "weight_on_player": 0.019608
+    },
+    {
+      "player": "p_300a677da4",
+      "successes": 3,
+      "trials": 4,
+      "raw": 0.75,
+      "estimate": 0.595098,
+      "low90": 0.53816,
+      "high90": 0.650974,
+      "weight_on_player": 0.019608
+    },
+    {
+      "player": "p_4e4e562838",
+      "successes": 2,
+      "trials": 4,
+      "raw": 0.5,
+      "estimate": 0.590196,
+      "low90": 0.533178,
+      "high90": 0.646206,
+      "weight_on_player": 0.019608
+    },
+    {
+      "player": "p_5171ce3048",
+      "successes": 3,
+      "trials": 4,
+      "raw": 0.75,
+      "estimate": 0.595098,
+      "low90": 0.53816,
+      "high90": 0.650974,
+      "weight_on_player": 0.019608
+    },
+    {
+      "player": "p_56b13009d7",
+      "successes": 4,
+      "trials": 4,
+      "raw": 1.0,
+      "estimate": 0.6,
+      "low90": 0.543147,
+      "high90": 0.655736,
+      "weight_on_player": 0.019608
+    },
+    {
+      "player": "p_56d95fc8b4",
+      "successes": 3,
+      "trials": 4,
+      "raw": 0.75,
+      "estimate": 0.595098,
+      "low90": 0.53816,
+      "high90": 0.650974,
+      "weight_on_player": 0.019608
+    },
+    {
+      "player": "p_5ebe397182",
+      "successes": 3,
+      "trials": 4,
+      "raw": 0.75,
+      "estimate": 0.595098,
+      "low90": 0.53816,
+      "high90": 0.650974,
+      "weight_on_player": 0.019608
+    },
+    {
+      "player": "p_8e078e0201",
+      "successes": 2,
+      "trials": 4,
+      "raw": 0.5,
+      "estimate": 0.590196,
+      "low90": 0.533178,
+      "high90": 0.646206,
+      "weight_on_player": 0.019608
+    },
+    {
+      "player": "p_8efeb7661b",
+      "successes": 4,
+      "trials": 4,
+      "raw": 1.0,
+      "estimate": 0.6,
+      "low90": 0.543147,
+      "high90": 0.655736,
+      "weight_on_player": 0.019608
+    },
+    {
+      "player": "p_a53a498761",
+      "successes": 3,
+      "trials": 4,
+      "raw": 0.75,
+      "estimate": 0.595098,
+      "low90": 0.53816,
+      "high90": 0.650974,
+      "weight_on_player": 0.019608
+    },
+    {
+      "player": "p_ae19b667bf",
+      "successes": 2,
+      "trials": 4,
+      "raw": 0.5,
+      "estimate": 0.590196,
+      "low90": 0.533178,
+      "high90": 0.646206,
+      "weight_on_player": 0.019608
+    },
+    {
+      "player": "p_b2c124536d",
+      "successes": 1,
+      "trials": 4,
+      "raw": 0.25,
+      "estimate": 0.585294,
+      "low90": 0.528203,
+      "high90": 0.641432,
+      "weight_on_player": 0.019608
+    },
+    {
+      "player": "p_ba2d7e4aa6",
+      "successes": 2,
+      "trials": 4,
+      "raw": 0.5,
+      "estimate": 0.590196,
+      "low90": 0.533178,
+      "high90": 0.646206,
+      "weight_on_player": 0.019608
+    },
+    {
+      "player": "p_cc70fc7d6b",
+      "successes": 3,
+      "trials": 4,
+      "raw": 0.75,
+      "estimate": 0.595098,
+      "low90": 0.53816,
+      "high90": 0.650974,
+      "weight_on_player": 0.019608
+    },
+    {
+      "player": "p_ce6b007dce",
+      "successes": 3,
+      "trials": 4,
+      "raw": 0.75,
+      "estimate": 0.595098,
+      "low90": 0.53816,
+      "high90": 0.650974,
+      "weight_on_player": 0.019608
+    },
+    {
+      "player": "p_d02571dda0",
+      "successes": 4,
+      "trials": 4,
+      "raw": 1.0,
+      "estimate": 0.6,
+      "low90": 0.543147,
+      "high90": 0.655736,
+      "weight_on_player": 0.019608
+    },
+    {
+      "player": "p_debbb7d1e2",
+      "successes": 2,
+      "trials": 4,
+      "raw": 0.5,
+      "estimate": 0.590196,
+      "low90": 0.533178,
+      "high90": 0.646206,
+      "weight_on_player": 0.019608
+    },
+    {
+      "player": "p_f230ac9db7",
+      "successes": 2,
+      "trials": 4,
+      "raw": 0.5,
+      "estimate": 0.590196,
+      "low90": 0.533178,
+      "high90": 0.646206,
+      "weight_on_player": 0.019608
+    },
+    {
+      "player": "p_2172c9fd45",
+      "successes": 1,
+      "trials": 3,
+      "raw": 0.333333,
+      "estimate": 0.588177,
+      "low90": 0.530988,
+      "high90": 0.644377,
+      "weight_on_player": 0.014778
+    },
+    {
+      "player": "p_2efb104707",
+      "successes": 0,
+      "trials": 3,
+      "raw": 0.0,
+      "estimate": 0.583251,
+      "low90": 0.52599,
+      "high90": 0.639577,
+      "weight_on_player": 0.014778
+    },
+    {
+      "player": "p_51f853b814",
+      "successes": 2,
+      "trials": 3,
+      "raw": 0.666667,
+      "estimate": 0.593103,
+      "low90": 0.535991,
+      "high90": 0.64917,
+      "weight_on_player": 0.014778
+    },
+    {
+      "player": "p_5d413ca4f9",
+      "successes": 2,
+      "trials": 3,
+      "raw": 0.666667,
+      "estimate": 0.593103,
+      "low90": 0.535991,
+      "high90": 0.64917,
+      "weight_on_player": 0.014778
+    },
+    {
+      "player": "p_73d0dbe3c5",
+      "successes": 3,
+      "trials": 3,
+      "raw": 1.0,
+      "estimate": 0.59803,
+      "low90": 0.541001,
+      "high90": 0.653957,
+      "weight_on_player": 0.014778
+    },
+    {
+      "player": "p_7466e2b71d",
+      "successes": 2,
+      "trials": 3,
+      "raw": 0.666667,
+      "estimate": 0.593103,
+      "low90": 0.535991,
+      "high90": 0.64917,
+      "weight_on_player": 0.014778
+    },
+    {
+      "player": "p_86a4db31d5",
+      "successes": 1,
+      "trials": 3,
+      "raw": 0.333333,
+      "estimate": 0.588177,
+      "low90": 0.530988,
+      "high90": 0.644377,
+      "weight_on_player": 0.014778
+    },
+    {
+      "player": "p_927de0c776",
+      "successes": 2,
+      "trials": 3,
+      "raw": 0.666667,
+      "estimate": 0.593103,
+      "low90": 0.535991,
+      "high90": 0.64917,
+      "weight_on_player": 0.014778
+    },
+    {
+      "player": "p_a3693ea8cd",
+      "successes": 3,
+      "trials": 3,
+      "raw": 1.0,
+      "estimate": 0.59803,
+      "low90": 0.541001,
+      "high90": 0.653957,
+      "weight_on_player": 0.014778
+    },
+    {
+      "player": "p_ad5aef006d",
+      "successes": 0,
+      "trials": 3,
+      "raw": 0.0,
+      "estimate": 0.583251,
+      "low90": 0.52599,
+      "high90": 0.639577,
+      "weight_on_player": 0.014778
+    },
+    {
+      "player": "p_add41a0198",
+      "successes": 1,
+      "trials": 3,
+      "raw": 0.333333,
+      "estimate": 0.588177,
+      "low90": 0.530988,
+      "high90": 0.644377,
+      "weight_on_player": 0.014778
+    },
+    {
+      "player": "p_ae004f861b",
+      "successes": 3,
+      "trials": 3,
+      "raw": 1.0,
+      "estimate": 0.59803,
+      "low90": 0.541001,
+      "high90": 0.653957,
+      "weight_on_player": 0.014778
+    },
+    {
+      "player": "p_b6df5584cb",
+      "successes": 3,
+      "trials": 3,
+      "raw": 1.0,
+      "estimate": 0.59803,
+      "low90": 0.541001,
+      "high90": 0.653957,
+      "weight_on_player": 0.014778
+    },
+    {
+      "player": "p_c09203a60d",
+      "successes": 3,
+      "trials": 3,
+      "raw": 1.0,
+      "estimate": 0.59803,
+      "low90": 0.541001,
+      "high90": 0.653957,
+      "weight_on_player": 0.014778
+    },
+    {
+      "player": "p_da3b519020",
+      "successes": 1,
+      "trials": 3,
+      "raw": 0.333333,
+      "estimate": 0.588177,
+      "low90": 0.530988,
+      "high90": 0.644377,
+      "weight_on_player": 0.014778
+    },
+    {
+      "player": "p_e42aa5d12a",
+      "successes": 1,
+      "trials": 3,
+      "raw": 0.333333,
+      "estimate": 0.588177,
+      "low90": 0.530988,
+      "high90": 0.644377,
+      "weight_on_player": 0.014778
+    },
+    {
+      "player": "p_f90b2f1bf7",
+      "successes": 3,
+      "trials": 3,
+      "raw": 1.0,
+      "estimate": 0.59803,
+      "low90": 0.541001,
+      "high90": 0.653957,
+      "weight_on_player": 0.014778
+    },
+    {
+      "player": "p_0fd43c677e",
+      "successes": 2,
+      "trials": 2,
+      "raw": 1.0,
+      "estimate": 0.59604,
+      "low90": 0.538835,
+      "high90": 0.652161,
+      "weight_on_player": 0.009901
+    },
+    {
+      "player": "p_101efd5c65",
+      "successes": 1,
+      "trials": 2,
+      "raw": 0.5,
+      "estimate": 0.591089,
+      "low90": 0.533803,
+      "high90": 0.647348,
+      "weight_on_player": 0.009901
+    },
+    {
+      "player": "p_2ba8a1b606",
+      "successes": 1,
+      "trials": 2,
+      "raw": 0.5,
+      "estimate": 0.591089,
+      "low90": 0.533803,
+      "high90": 0.647348,
+      "weight_on_player": 0.009901
+    },
+    {
+      "player": "p_41a1368045",
+      "successes": 1,
+      "trials": 2,
+      "raw": 0.5,
+      "estimate": 0.591089,
+      "low90": 0.533803,
+      "high90": 0.647348,
+      "weight_on_player": 0.009901
+    },
+    {
+      "player": "p_623e0ef096",
+      "successes": 1,
+      "trials": 2,
+      "raw": 0.5,
+      "estimate": 0.591089,
+      "low90": 0.533803,
+      "high90": 0.647348,
+      "weight_on_player": 0.009901
+    },
+    {
+      "player": "p_6647fed3ac",
+      "successes": 2,
+      "trials": 2,
+      "raw": 1.0,
+      "estimate": 0.59604,
+      "low90": 0.538835,
+      "high90": 0.652161,
+      "weight_on_player": 0.009901
+    },
+    {
+      "player": "p_6c44dd5b4a",
+      "successes": 2,
+      "trials": 2,
+      "raw": 1.0,
+      "estimate": 0.59604,
+      "low90": 0.538835,
+      "high90": 0.652161,
+      "weight_on_player": 0.009901
+    },
+    {
+      "player": "p_84c390678a",
+      "successes": 2,
+      "trials": 2,
+      "raw": 1.0,
+      "estimate": 0.59604,
+      "low90": 0.538835,
+      "high90": 0.652161,
+      "weight_on_player": 0.009901
+    },
+    {
+      "player": "p_8de7e963e1",
+      "successes": 2,
+      "trials": 2,
+      "raw": 1.0,
+      "estimate": 0.59604,
+      "low90": 0.538835,
+      "high90": 0.652161,
+      "weight_on_player": 0.009901
+    },
+    {
+      "player": "p_9cbe86205c",
+      "successes": 1,
+      "trials": 2,
+      "raw": 0.5,
+      "estimate": 0.591089,
+      "low90": 0.533803,
+      "high90": 0.647348,
+      "weight_on_player": 0.009901
+    },
+    {
+      "player": "p_a04c454435",
+      "successes": 0,
+      "trials": 2,
+      "raw": 0.0,
+      "estimate": 0.586139,
+      "low90": 0.528777,
+      "high90": 0.642528,
+      "weight_on_player": 0.009901
+    },
+    {
+      "player": "p_b3cd90b170",
+      "successes": 1,
+      "trials": 2,
+      "raw": 0.5,
+      "estimate": 0.591089,
+      "low90": 0.533803,
+      "high90": 0.647348,
+      "weight_on_player": 0.009901
+    },
+    {
+      "player": "p_383f2feb8b",
+      "successes": 1,
+      "trials": 1,
+      "raw": 1.0,
+      "estimate": 0.59403,
+      "low90": 0.536648,
+      "high90": 0.650345,
+      "weight_on_player": 0.004975
+    },
+    {
+      "player": "p_3a2ffa8aa0",
+      "successes": 1,
+      "trials": 1,
+      "raw": 1.0,
+      "estimate": 0.59403,
+      "low90": 0.536648,
+      "high90": 0.650345,
+      "weight_on_player": 0.004975
+    },
+    {
+      "player": "p_75cfc50fe1",
+      "successes": 0,
+      "trials": 1,
+      "raw": 0.0,
+      "estimate": 0.589055,
+      "low90": 0.531593,
+      "high90": 0.645506,
+      "weight_on_player": 0.004975
+    },
+    {
+      "player": "p_b90d54359c",
+      "successes": 0,
+      "trials": 1,
+      "raw": 0.0,
+      "estimate": 0.589055,
+      "low90": 0.531593,
+      "high90": 0.645506,
+      "weight_on_player": 0.004975
+    }
+  ]
+}

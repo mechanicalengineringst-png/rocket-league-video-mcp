@@ -1,0 +1,188 @@
+{
+  "all_modes": {
+    "decisions": 2066,
+    "queries": 2066,
+    "matches": 36,
+    "k": 15,
+    "choice_distribution": {
+      "challenge": 592,
+      "shadow": 408,
+      "unclear": 1066
+    },
+    "base_rate": {
+      "choice_log_loss": 1.021014,
+      "choice_accuracy": 0.515973
+    },
+    "rule_baseline": {
+      "choice_accuracy": 0.196999,
+      "readable_choice_accuracy": 0.407,
+      "note": "challenge if ttb_adv > -0.3 s, else shadow; never predicts unclear"
+    },
+    "momentum_baseline": {
+      "choice_accuracy": 0.476767,
+      "readable_choice_accuracy": 0.615,
+      "note": "reads the defender's velocity at t0 only"
+    },
+    "readable_majority_baseline_accuracy": 0.592,
+    "representations": {
+      "geometric": {
+        "choice_log_loss": 0.754755,
+        "choice_log_loss_gain_vs_base": 0.26626,
+        "choice_accuracy": 0.677154,
+        "readable_choice_accuracy": 0.796,
+        "value_change_r2_vs_mean": -0.082694,
+        "context_agreement": 0.335173,
+        "choice_log_loss_gain_ci95": [
+          0.242759,
+          0.287934
+        ],
+        "value_change_r2_ci95": [
+          -0.14846,
+          -0.020699
+        ]
+      },
+      "tactical": {
+        "choice_log_loss": 0.899289,
+        "choice_log_loss_gain_vs_base": 0.121726,
+        "choice_accuracy": 0.629719,
+        "readable_choice_accuracy": 0.642,
+        "value_change_r2_vs_mean": -0.062539,
+        "context_agreement": 0.58222,
+        "choice_log_loss_gain_ci95": [
+          0.090811,
+          0.15119
+        ],
+        "value_change_r2_ci95": [
+          -0.138132,
+          0.00635
+        ]
+      },
+      "learned": {
+        "choice_log_loss": 0.842869,
+        "choice_log_loss_gain_vs_base": 0.178146,
+        "choice_accuracy": 0.645692,
+        "readable_choice_accuracy": 0.69,
+        "value_change_r2_vs_mean": -0.214956,
+        "context_agreement": 0.421394,
+        "choice_log_loss_gain_ci95": [
+          0.152516,
+          0.200285
+        ],
+        "value_change_r2_ci95": [
+          -0.320385,
+          -0.134533
+        ]
+      },
+      "velocity": {
+        "choice_log_loss": 0.88522,
+        "choice_log_loss_gain_vs_base": 0.135794,
+        "choice_accuracy": 0.558567,
+        "readable_choice_accuracy": 0.686,
+        "value_change_r2_vs_mean": -0.185847,
+        "context_agreement": 0.218167,
+        "choice_log_loss_gain_ci95": [
+          0.114345,
+          0.155497
+        ],
+        "value_change_r2_ci95": [
+          -0.249105,
+          -0.114688
+        ]
+      }
+    },
+    "context_agreement_if_random": 0.151764
+  },
+  "2v2_only": {
+    "decisions": 784,
+    "queries": 784,
+    "matches": 14,
+    "k": 15,
+    "choice_distribution": {
+      "challenge": 237,
+      "shadow": 141,
+      "unclear": 406
+    },
+    "base_rate": {
+      "choice_log_loss": 1.012727,
+      "choice_accuracy": 0.517857
+    },
+    "rule_baseline": {
+      "choice_accuracy": 0.181122,
+      "readable_choice_accuracy": 0.375661,
+      "note": "challenge if ttb_adv > -0.3 s, else shadow; never predicts unclear"
+    },
+    "momentum_baseline": {
+      "choice_accuracy": 0.46301,
+      "readable_choice_accuracy": 0.563492,
+      "note": "reads the defender's velocity at t0 only"
+    },
+    "readable_majority_baseline_accuracy": 0.626984,
+    "representations": {
+      "geometric": {
+        "choice_log_loss": 0.796632,
+        "choice_log_loss_gain_vs_base": 0.216095,
+        "choice_accuracy": 0.674745,
+        "readable_choice_accuracy": 0.775132,
+        "value_change_r2_vs_mean": 0.024308,
+        "context_agreement": 0.372959,
+        "choice_log_loss_gain_ci95": [
+          0.174371,
+          0.249053
+        ],
+        "value_change_r2_ci95": [
+          -0.033156,
+          0.079272
+        ]
+      },
+      "tactical": {
+        "choice_log_loss": 0.885616,
+        "choice_log_loss_gain_vs_base": 0.127112,
+        "choice_accuracy": 0.630102,
+        "readable_choice_accuracy": 0.640212,
+        "value_change_r2_vs_mean": -0.012566,
+        "context_agreement": 0.576616,
+        "choice_log_loss_gain_ci95": [
+          0.097211,
+          0.159511
+        ],
+        "value_change_r2_ci95": [
+          -0.078406,
+          0.054575
+        ]
+      },
+      "learned": {
+        "choice_log_loss": 0.88526,
+        "choice_log_loss_gain_vs_base": 0.127468,
+        "choice_accuracy": 0.626276,
+        "readable_choice_accuracy": 0.65873,
+        "value_change_r2_vs_mean": -0.010627,
+        "context_agreement": 0.551531,
+        "choice_log_loss_gain_ci95": [
+          0.086017,
+          0.1677
+        ],
+        "value_change_r2_ci95": [
+          -0.065276,
+          0.043917
+        ]
+      },
+      "velocity": {
+        "choice_log_loss": 0.905993,
+        "choice_log_loss_gain_vs_base": 0.106734,
+        "choice_accuracy": 0.566327,
+        "readable_choice_accuracy": 0.642857,
+        "value_change_r2_vs_mean": -0.060237,
+        "context_agreement": 0.242432,
+        "choice_log_loss_gain_ci95": [
+          0.081416,
+          0.133755
+        ],
+        "value_change_r2_ci95": [
+          -0.097514,
+          -0.032901
+        ]
+      }
+    },
+    "context_agreement_if_random": 0.169025
+  }
+}

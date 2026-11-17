@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -42,6 +43,11 @@ def _jsonable(o):
     return o
 
 
+def _scrub(msg: str) -> str:
+    """Decoder errors can quote player account IDs; keep the reason, drop the IDs."""
+    return re.split(r"Expected:", msg)[0].strip()
+
+
 def load_corpus(replay_dir: Path, cache: Path | None) -> tuple[list, dict]:
     inv = {"loaded": [], "failed": [], "duplicates": [], "excluded": []}
     matches = []
@@ -49,7 +55,7 @@ def load_corpus(replay_dir: Path, cache: Path | None) -> tuple[list, dict]:
         try:
             m = load_match(path, cache)
         except Exception as e:  # report every skip; never drop silently
-            inv["failed"].append({"source": path.name, "error": str(e)[:160]})
+            inv["failed"].append({"source": path.name, "error": _scrub(str(e))[:160]})
             continue
         if min(m.team_sizes) == 0:
             inv["excluded"].append({"source": m.source, "reason": f"{m.mode}: a drill, not a match"})
@@ -63,7 +69,7 @@ def load_corpus(replay_dir: Path, cache: Path | None) -> tuple[list, dict]:
     for m in matches:
         inv["loaded"].append({"source": m.source, "mode": m.mode, "frames": m.n_frames,
                               "live_fraction": round(float(m.live.mean()), 3), "goals": len(m.goals),
-                              "builtin_threat_coverage": round(float(np.isfinite(m.builtin_threat).mean()), 3)
+                              "builtin_threat_live_coverage": round(float(np.isfinite(m.builtin_threat[m.live]).mean()), 3)
                               if m.builtin_threat is not None else 0.0})
     return matches, inv
 

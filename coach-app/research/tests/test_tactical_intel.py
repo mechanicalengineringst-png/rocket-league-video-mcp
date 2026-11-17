@@ -245,7 +245,7 @@ def test_real_replays_goals_reconcile_and_threat_is_present():
             continue
         assert not m.notes, f"{path.name}: {m.notes}"
         assert 0.4 < m.live.mean() < 0.98   # short replays with several goal replays sit near 0.6
-        assert np.isfinite(m.builtin_threat).mean() > 0.9
+        assert np.isfinite(m.builtin_threat[m.live]).mean() > 0.95   # absent during stoppages, by design
         assert set(team_features(m, 0).columns) == set(ALL_FEATURES)
         checked += 1
         if checked == 3:

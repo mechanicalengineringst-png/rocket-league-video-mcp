@@ -1,0 +1,167 @@
+{
+  "model": "p_builtin_recal",
+  "missed_goals": [
+    {
+      "source": "replay-format-2025-06-10-v868-32-net10-replicated-boost.replay",
+      "mode": "2v2",
+      "team": 1,
+      "t": 348.77,
+      "pred": 0.0014,
+      "ball_y": -1365.0,
+      "ttb_adv": -0.54,
+      "opp_goalside": 2.0
+    },
+    {
+      "source": "nuttrback-double-tap-goal-7-2026-06-01.replay",
+      "mode": "2v2",
+      "team": 1,
+      "t": 421.02,
+      "pred": 0.0015,
+      "ball_y": -2010.0,
+      "ttb_adv": -1.0,
+      "opp_goalside": 2.0
+    },
+    {
+      "source": "replay-format-2026-03-03-v868-32-net11-dodge-refresh-counter.replay",
+      "mode": "2v2",
+      "team": 1,
+      "t": 313.26,
+      "pred": 0.0017,
+      "ball_y": -2847.0,
+      "ttb_adv": 0.0,
+      "opp_goalside": 2.0
+    },
+    {
+      "source": "wall-aerial-ground-jump-2026-07-03.replay",
+      "mode": "2v2",
+      "team": 0,
+      "t": 144.24,
+      "pred": 0.0023,
+      "ball_y": -1934.0,
+      "ttb_adv": 0.2,
+      "opp_goalside": 2.0
+    },
+    {
+      "source": "nuttrback-double-tap-goal-7-2026-06-01.replay",
+      "mode": "2v2",
+      "team": 0,
+      "t": 211.31,
+      "pred": 0.0031,
+      "ball_y": -2234.0,
+      "ttb_adv": 0.72,
+      "opp_goalside": 2.0
+    },
+    {
+      "source": "calemacar-dribble-flick-sequence-2026-06-22.replay",
+      "mode": "2v2",
+      "team": 1,
+      "t": 362.38,
+      "pred": 0.0038,
+      "ball_y": -1638.0,
+      "ttb_adv": -1.63,
+      "opp_goalside": 1.0
+    },
+    {
+      "source": "replay-format-2025-06-10-v868-32-net10-replicated-boost.replay",
+      "mode": "2v2",
+      "team": 1,
+      "t": 85.26,
+      "pred": 0.0038,
+      "ball_y": -4486.0,
+      "ttb_adv": 0.11,
+      "opp_goalside": 1.0
+    },
+    {
+      "source": "replay-format-2025-06-10-v868-32-net10-replicated-boost.replay",
+      "mode": "2v2",
+      "team": 1,
+      "t": 239.07,
+      "pred": 0.0041,
+      "ball_y": -2701.0,
+      "ttb_adv": 0.68,
+      "opp_goalside": 1.0
+    }
+  ],
+  "false_alarms": [
+    {
+      "source": "calemacar-dribble-flick-sequence-2026-06-22.replay",
+      "mode": "2v2",
+      "team": 1,
+      "t": 176.77,
+      "pred": 0.9456,
+      "ball_y": 4976.0,
+      "ttb_adv": 0.04,
+      "opp_goalside": 0.0
+    },
+    {
+      "source": "calemacar-simultaneous-backboard-double-tap-final-goal-2026-06-26.replay",
+      "mode": "2v2",
+      "team": 1,
+      "t": 394.15,
+      "pred": 0.9168,
+      "ball_y": 4739.0,
+      "ttb_adv": 0.03,
+      "opp_goalside": 1.0
+    },
+    {
+      "source": "wall-aerial-ground-jump-2026-07-03.replay",
+      "mode": "2v2",
+      "team": 1,
+      "t": 321.45,
+      "pred": 0.8913,
+      "ball_y": 3666.0,
+      "ttb_adv": -0.26,
+      "opp_goalside": 0.0
+    },
+    {
+      "source": "calemacar-simultaneous-backboard-double-tap-final-goal-2026-06-26.replay",
+      "mode": "2v2",
+      "team": 0,
+      "t": 93.53,
+      "pred": 0.8868,
+      "ball_y": 5073.0,
+      "ttb_adv": -0.34,
+      "opp_goalside": 1.0
+    },
+    {
+      "source": "wall-aerial-false-positive-2026-06-26.replay",
+      "mode": "2v2",
+      "team": 0,
+      "t": 82.04,
+      "pred": 0.8791,
+      "ball_y": 4148.0,
+      "ttb_adv": 1.71,
+      "opp_goalside": 1.0
+    },
+    {
+      "source": "replay-format-2018-03-15-v868-20-net5-modern-vectors-legacy-rotation.replay",
+      "mode": "2v2",
+      "team": 1,
+      "t": 386.89,
+      "pred": 0.8329,
+      "ball_y": 1947.0,
+      "ttb_adv": 0.31,
+      "opp_goalside": 0.0
+    },
+    {
+      "source": "wall-aerial-ground-jump-2026-07-03.replay",
+      "mode": "2v2",
+      "team": 0,
+      "t": 580.75,
+      "pred": 0.8328,
+      "ball_y": 5132.0,
+      "ttb_adv": -0.1,
+      "opp_goalside": 1.0
+    },
+    {
+      "source": "post-eac-ranked-doubles-2026-04-28.replay",
+      "mode": "2v2",
+      "team": 1,
+      "t": 139.29,
+      "pred": 0.8218,
+      "ball_y": 3976.0,
+      "ttb_adv": -0.05,
+      "opp_goalside": 1.0
+    }
+  ]
+}

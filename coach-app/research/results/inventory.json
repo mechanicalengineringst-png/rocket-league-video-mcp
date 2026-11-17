@@ -1,0 +1,335 @@
+{
+  "loaded": [
+    {
+      "source": "029103f9-4d58-4964-b47a-539b32f6fb33.replay",
+      "mode": "3v3",
+      "frames": 3895,
+      "live_fraction": 0.87,
+      "goals": 3,
+      "builtin_threat_live_coverage": 0.0
+    },
+    {
+      "source": "air-dribble-goal-mouth-2026-05-24.replay",
+      "mode": "2v2",
+      "frames": 4961,
+      "live_fraction": 0.618,
+      "goals": 12,
+      "builtin_threat_live_coverage": 0.996
+    },
+    {
+      "source": "ballchasing-d0a7cdd4-5c9d-42b2-81aa-24ef85da3f8a.replay",
+      "mode": "3v3",
+      "frames": 5097,
+      "live_fraction": 0.835,
+      "goals": 5,
+      "builtin_threat_live_coverage": 0.0
+    },
+    {
+      "source": "boost-into-ball-misclassification-2026-06-11.replay",
+      "mode": "2v2",
+      "frames": 1742,
+      "live_fraction": 0.595,
+      "goals": 5,
+      "builtin_threat_live_coverage": 0.995
+    },
+    {
+      "source": "calemacar-dribble-flick-sequence-2026-06-22.replay",
+      "mode": "2v2",
+      "frames": 4729,
+      "live_fraction": 0.733,
+      "goals": 9,
+      "builtin_threat_live_coverage": 0.997
+    },
+    {
+      "source": "calemacar-flip-reset-goal-9-2026-06-21.replay",
+      "mode": "1v1",
+      "frames": 4210,
+      "live_fraction": 0.729,
+      "goals": 10,
+      "builtin_threat_live_coverage": 0.0
+    },
+    {
+      "source": "calemacar-simultaneous-backboard-double-tap-final-goal-2026-06-26.replay",
+      "mode": "2v2",
+      "frames": 3973,
+      "live_fraction": 0.759,
+      "goals": 8,
+      "builtin_threat_live_coverage": 0.997
+    },
+    {
+      "source": "colonelpanic8-double-tap-third-goal-2026-05-24.replay",
+      "mode": "1v1",
+      "frames": 3793,
+      "live_fraction": 0.798,
+      "goals": 7,
+      "builtin_threat_live_coverage": 0.0
+    },
+    {
+      "source": "nuttrback-double-tap-goal-7-2026-06-01.replay",
+      "mode": "2v2",
+      "frames": 4481,
+      "live_fraction": 0.689,
+      "goals": 9,
+      "builtin_threat_live_coverage": 0.997
+    },
+    {
+      "source": "post-eac-ranked-doubles-2026-04-28.replay",
+      "mode": "2v2",
+      "frames": 4059,
+      "live_fraction": 0.744,
+      "goals": 8,
+      "builtin_threat_live_coverage": 0.997
+    },
+    {
+      "source": "post-eac-ranked-duel-2026-04-28-a.replay",
+      "mode": "1v1",
+      "frames": 1128,
+      "live_fraction": 0.672,
+      "goals": 4,
+      "builtin_threat_live_coverage": 0.0
+    },
+    {
+      "source": "post-eac-ranked-duel-2026-04-28-b.replay",
+      "mode": "1v1",
+      "frames": 3398,
+      "live_fraction": 0.765,
+      "goals": 8,
+      "builtin_threat_live_coverage": 0.0
+    },
+    {
+      "source": "post-eac-ranked-standard-2026-04-28.replay",
+      "mode": "3v3",
+      "frames": 3535,
+      "live_fraction": 0.872,
+      "goals": 3,
+      "builtin_threat_live_coverage": 0.0
+    },
+    {
+      "source": "problematic-private-duel-2026-03-20.replay",
+      "mode": "1v1",
+      "frames": 4168,
+      "live_fraction": 0.732,
+      "goals": 12,
+      "builtin_threat_live_coverage": 0.0
+    },
+    {
+      "source": "ranked-standard-state-name-index-collision-2024-08-25.replay",
+      "mode": "3v3",
+      "frames": 2641,
+      "live_fraction": 0.753,
+      "goals": 5,
+      "builtin_threat_live_coverage": 0.0
+    },
+    {
+      "source": "recent-ranked-doubles-2026-03-10.replay",
+      "mode": "2v2",
+      "frames": 3480,
+      "live_fraction": 0.854,
+      "goals": 5,
+      "builtin_threat_live_coverage": 0.998
+    },
+    {
+      "source": "recent-ranked-standard-2026-03-10-a.replay",
+      "mode": "3v3",
+      "frames": 3286,
+      "live_fraction": 0.941,
+      "goals": 1,
+      "builtin_threat_live_coverage": 0.0
+    },
+    {
+      "source": "recent-ranked-standard-2026-03-10-b.replay",
+      "mode": "3v3",
+      "frames": 3953,
+      "live_fraction": 0.693,
+      "goals": 9,
+      "builtin_threat_live_coverage": 0.0
+    },
+    {
+      "source": "replay-format-2016-07-21-v868-12-net-none-lan.replay",
+      "mode": "3v3",
+      "frames": 4021,
+      "live_fraction": 0.766,
+      "goals": 5,
+      "builtin_threat_live_coverage": 0.0
+    },
+    {
+      "source": "replay-format-2016-11-09-v868-14-net-none-rlcs-lan.replay",
+      "mode": "3v3",
+      "frames": 4227,
+      "live_fraction": 0.728,
+      "goals": 7,
+      "builtin_threat_live_coverage": 0.0
+    },
+    {
+      "source": "replay-format-2018-03-15-v868-20-net5-modern-vectors-legacy-rotation.replay",
+      "mode": "2v2",
+      "frames": 3868,
+      "live_fraction": 0.783,
+      "goals": 5,
+      "builtin_threat_live_coverage": 0.998
+    },
+    {
+      "source": "replay-format-2018-05-17-v868-22-net7-modern-rigidbody.replay",
+      "mode": "3v3",
+      "frames": 3958,
+      "live_fraction": 0.767,
+      "goals": 5,
+      "builtin_threat_live_coverage": 0.0
+    },
+    {
+      "source": "replay-format-2019-04-19-v868-24-net10-modern-rigidbody.replay",
+      "mode": "3v3",
+      "frames": 3896,
+      "live_fraction": 0.777,
+      "goals": 5,
+      "builtin_threat_live_coverage": 0.0
+    },
+    {
+      "source": "replay-format-2020-09-25-v868-29-net10-tournament.replay",
+      "mode": "3v3",
+      "frames": 4234,
+      "live_fraction": 0.758,
+      "goals": 6,
+      "builtin_threat_live_coverage": 0.0
+    },
+    {
+      "source": "replay-format-2022-09-29-v868-32-net10-legacy-boost.replay",
+      "mode": "3v3",
+      "frames": 4406,
+      "live_fraction": 0.695,
+      "goals": 8,
+      "builtin_threat_live_coverage": 0.0
+    },
+    {
+      "source": "replay-format-2025-06-10-v868-32-net10-replicated-boost.replay",
+      "mode": "2v2",
+      "frames": 4070,
+      "live_fraction": 0.742,
+      "goals": 7,
+      "builtin_threat_live_coverage": 0.997
+    },
+    {
+      "source": "replay-format-2026-01-14-v868-32-net10-demolish-extended.replay",
+      "mode": "3v3",
+      "frames": 3817,
+      "live_fraction": 0.802,
+      "goals": 6,
+      "builtin_threat_live_coverage": 0.0
+    },
+    {
+      "source": "replay-format-2026-03-03-v868-32-net11-dodge-refresh-counter.replay",
+      "mode": "2v2",
+      "frames": 3523,
+      "live_fraction": 0.742,
+      "goals": 7,
+      "builtin_threat_live_coverage": 0.997
+    },
+    {
+      "source": "replay-format-2026-06-19-v868-32-net11-dropshot-breakout.replay",
+      "mode": "3v3",
+      "frames": 3446,
+      "live_fraction": 0.882,
+      "goals": 2,
+      "builtin_threat_live_coverage": 0.0
+    },
+    {
+      "source": "replay-format-2026-09-18-v868-34-net12-season24-honor-duel.replay",
+      "mode": "2v2",
+      "frames": 3790,
+      "live_fraction": 0.819,
+      "goals": 5,
+      "builtin_threat_live_coverage": 0.998
+    },
+    {
+      "source": "replay-format-2026-09-18-v868-34-net12-season24-standard.replay",
+      "mode": "3v3",
+      "frames": 4144,
+      "live_fraction": 0.731,
+      "goals": 6,
+      "builtin_threat_live_coverage": 0.0
+    },
+    {
+      "source": "rlcs-2025-worlds-grand-final-flcn-nrg-g5.replay",
+      "mode": "3v3",
+      "frames": 4069,
+      "live_fraction": 0.769,
+      "goals": 5,
+      "builtin_threat_live_coverage": 0.0
+    },
+    {
+      "source": "rocket-sense-019f05c8-goal-5-flip-reset.replay",
+      "mode": "1v1",
+      "frames": 5385,
+      "live_fraction": 0.562,
+      "goals": 15,
+      "builtin_threat_live_coverage": 0.0
+    },
+    {
+      "source": "squishy-ranked-doubles-flip-reset-miss-2026-03-01.replay",
+      "mode": "2v2",
+      "frames": 3467,
+      "live_fraction": 0.78,
+      "goals": 7,
+      "builtin_threat_live_coverage": 0.997
+    },
+    {
+      "source": "wall-aerial-false-positive-2026-06-26.replay",
+      "mode": "2v2",
+      "frames": 3758,
+      "live_fraction": 0.647,
+      "goals": 9,
+      "builtin_threat_live_coverage": 0.996
+    },
+    {
+      "source": "wall-aerial-ground-jump-2026-07-03.replay",
+      "mode": "2v2",
+      "frames": 5947,
+      "live_fraction": 0.838,
+      "goals": 7,
+      "builtin_threat_live_coverage": 0.998
+    }
+  ],
+  "failed": [
+    {
+      "source": "old-ballchasing-midfield-car.replay",
+      "error": "NDArray player columns changed during collection."
+    },
+    {
+      "source": "panzinii-double-flip-reset-2026-07-09.replay",
+      "error": "NDArray player columns changed during collection."
+    },
+    {
+      "source": "replay-format-2017-03-16-v868-17-net-none-online.replay",
+      "error": "NDArray player columns changed during collection."
+    },
+    {
+      "source": "replay-format-2017-11-22-v868-20-net2-legacy-vectors.replay",
+      "error": "NDArray player columns changed during collection."
+    }
+  ],
+  "duplicates": [
+    "replay-format-2026-06-02-v868-32-net11-worldcup-ball.replay"
+  ],
+  "excluded": [
+    {
+      "source": "half-flip-recall-drill-2026-06-20.replay",
+      "reason": "0v1: a drill, not a match"
+    },
+    {
+      "source": "post-eac-private-2026-04-28.replay",
+      "reason": "team0: header score 6 but 8 goal events; team1: header score 4 but 13 goal events"
+    },
+    {
+      "source": "reverse-flick-vs-backflip-2026-06-26.replay",
+      "reason": "1v0: a drill, not a match"
+    },
+    {
+      "source": "speed-flip-confounders-none-2026-06-20.replay",
+      "reason": "1v0: a drill, not a match"
+    },
+    {
+      "source": "speed-flip-recall-drill-2026-06-20.replay",
+      "reason": "0v1: a drill, not a match"
+    }
+  ]
+}
