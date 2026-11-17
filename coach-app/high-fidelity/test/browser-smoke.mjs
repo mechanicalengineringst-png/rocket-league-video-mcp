@@ -63,6 +63,32 @@ try{
   });
   console.log('HD_QA_MATERIAL_RAYCAST',JSON.stringify(materialQA).slice(0,18000));
   await page.screenshot({path:path.join(output,'native-replay-in-browser.png'),fullPage:true});
+  // Same paused frame, same camera, one render layer toggled at a time.
+  // These screenshots let us identify dark decorations without modifying
+  // all stadium materials or relying on guesswork from ray intersections.
+  const qa=page.locator('#viewport');
+  await page.evaluate(()=>window.__rlReplayLabQA?.freezeAt(.2));
+  await page.waitForTimeout(180);
+  await qa.screenshot({path:path.join(output,'diag-original-render.png')});
+  await page.evaluate(()=>window.__rlReplayLabQA?.setBoostMeshesVisible(false));
+  await page.waitForTimeout(120);
+  await qa.screenshot({path:path.join(output,'diag-no-boosts.png')});
+  await page.evaluate(()=>window.__rlReplayLabQA?.setBoostMeshesVisible(true));
+  await page.evaluate(()=>window.__rlReplayLabQA?.setArenaMeshVisible('Field_STD_Floor_Hex',false));
+  await page.waitForTimeout(120);
+  await qa.screenshot({path:path.join(output,'diag-no-floor-hex.png')});
+  await page.evaluate(()=>window.__rlReplayLabQA?.setArenaMeshVisible('Field_STD_Floor_Hex',true));
+  await page.evaluate(()=>window.__rlReplayLabQA?.setArenaMeshVisible('Field_STD_Floor_Thick003',false));
+  await page.waitForTimeout(120);
+  await qa.screenshot({path:path.join(output,'diag-no-blue-floor-lines.png')});
+  await page.evaluate(()=>window.__rlReplayLabQA?.setArenaMeshVisible('Field_STD_Floor_Thick003',true));
+  await page.evaluate(()=>window.__rlReplayLabQA?.setSceneShadows(false));
+  await page.waitForTimeout(120);
+  await qa.screenshot({path:path.join(output,'diag-no-shadows.png')});
+  await page.evaluate(()=>{
+    window.__rlReplayLabQA?.setSceneShadows(true);
+    window.__rlReplayLabQA?.freezeAt(.2);
+  });
   assert.match(status,/High-fidelity stadium loaded/,'The GLTF stadium should load, not a fallback floor');
   const players=await page.locator('#playerSelect option').count();
   console.log('HD_REPLAY_PLAYERS',players);
