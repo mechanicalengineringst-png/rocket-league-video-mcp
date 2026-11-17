@@ -34,7 +34,10 @@ function setup(){
     open(){return target;},
     addEventListener(name,fn){handlers.set('window:'+name,fn);},
   };
-  const crypto={randomUUID(){return 'session-12345678-abcdef';}};
+  let nonce=0;
+  const crypto={randomUUID(){
+    return 'session-12345678-abcdef-'+String(++nonce).padStart(4,'0');
+  }};
   const context=vm.createContext({
     document,window,location:{origin:'http://127.0.0.1:8000'},
     crypto,performance:{now(){return clock;}},console,
@@ -139,4 +142,61 @@ test('synthetic demo never controls a real replay; wrong-origin messages are ign
     data:{type:'replay-lab:hd-loaded',sessionId},
   });
   assert.equal(sent.length,2);
+});
+
+test('duplicate ready does not decode twice, but HD tab reload begins a new session',()=>{
+  const {emit,sent,target}=setup();
+  emit('upload','change',{target:{files:[{name:'real.replay'}]}});
+  emit('button','click',{});
+  const ready=instanceId=>({
+    origin:'http://127.0.0.1:8000',
+    source:target,
+    data:{type:'replay-lab:hd-ready',instanceId},
+  });
+  emit('window','message',ready('page-instance-first'));
+  assert.equal(sent.length,2);
+  const before=sent[1].value.sessionId;
+  emit('window','message',ready('page-instance-first'));
+  assert.equal(sent.length,2);
+  emit('window','message',ready('page-instance-second'));
+  assert.equal(sent.length,3);
+  const after=sent[2].value.sessionId;
+  assert.notEqual(after,before);
+  emit('window','message',{
+    origin:'http://127.0.0.1:8000',source:target,
+    data:{type:'replay-lab:hd-loaded',sessionId:before},
+  });
+  assert.equal(sent.length,3);
+  emit('window','message',{
+    origin:'http://127.0.0.1:8000',source:target,
+    data:{type:'replay-lab:hd-loaded',sessionId:after},
+  });
+  assert.equal(sent.length,3); // no local focus/time state received yet
+});
+
+test('switching replay clears previous focused-player and timeline payload',()=>{
+  const {emit,sent,target}=setup();
+  const first={name:'old.replay'},second={name:'new.replay'};
+  emit('upload','change',{target:{files:[first]}});
+  emit('window','replay-lab:sync-state',{detail:{
+    time:105,playing:true,speed:1,focusName:'Old',
+    focusTeam:'orange',synthetic:false,
+  }});
+  emit('button','click',{});
+  const ready={origin:'http://127.0.0.1:8000',
+    source:target,data:{type:'replay-lab:hd-ready'}};
+  emit('window','message',ready);
+  const sessionId=sent[1].value.sessionId;
+  emit('window','message',{origin:ready.origin,source:target,
+    data:{type:'replay-lab:hd-loaded',sessionId}});
+  assert.equal(sent.length,3);
+  assert.equal(sent[2].value.focusName,'Old');
+  emit('upload','change',{target:{files:[second]}});
+  assert.equal(sent[3].value.type,'replay-lab:hd-load');
+  assert.equal(sent[3].value.file,second);
+  const nextSession=sent[3].value.sessionId;
+  emit('window','message',{origin:ready.origin,source:target,
+    data:{type:'replay-lab:hd-loaded',sessionId:nextSession}});
+  // Old focused-player, time and score must not apply to the new replay.
+  assert.equal(sent.length,4);
 });
