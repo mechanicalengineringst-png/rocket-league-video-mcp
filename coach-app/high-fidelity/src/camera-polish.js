@@ -14,7 +14,8 @@ const prevQuaternion=new THREE.Quaternion();
  * The upstream camera plugin still computes the underlying RL-style view.
  */
 export function createCameraPolishPlugin({getCameraPlugin,getFollowId,getReplayLook}) {
-  let frameAt=null, replayAt=null, lastFocus=null, lastMode=null, reset=true;
+  let frameAt=null, replayAt=null, lastFocus=null, lastMode=null;
+  let lastBallCam=null, lastRearView=null, reset=true;
   let attached=false;
   const api={
     id:'replay-lab-camera-polish',
@@ -28,6 +29,7 @@ export function createCameraPolishPlugin({getCameraPlugin,getFollowId,getReplayL
       const now=performance.now();
       if(mode!=='follow'||!focus){
         attached=false;reset=true;lastMode=mode;lastFocus=focus;
+        lastBallCam=null;lastRearView=null;
         return;
       }
       const cam=ctx.camera;
@@ -65,7 +67,11 @@ export function createCameraPolishPlugin({getCameraPlugin,getFollowId,getReplayL
 
       const dt=frameAt===null?1/60:Math.max(0,Math.min(.10,(now-frameAt)/1000));
       const jumped=replayAt!==null && Math.abs(time-replayAt)>Math.max(0.20,dt*5*Math.max(1,state.speed||1));
-      const needSnap=reset||!attached||jumped||focus!==lastFocus||mode!==lastMode;
+      // Native Ball Cam ON/OFF and rear-view changes are real cuts in the
+      // recorded camera. Never smooth *across* those switches as if the
+      // camera were continuously floating between unrelated viewpoints.
+      const needSnap=reset||!attached||jumped||focus!==lastFocus||
+        mode!==lastMode||isBallCam!==lastBallCam||rearView!==lastRearView;
       if(!needSnap){
         const alpha=1-Math.exp(-32*dt);
         // Moderate stabilization, not enough lag to alter gameplay analysis.
@@ -75,9 +81,11 @@ export function createCameraPolishPlugin({getCameraPlugin,getFollowId,getReplayL
       prevPosition.copy(cam.position);
       prevQuaternion.copy(cam.quaternion);
       frameAt=now;replayAt=time;lastMode=mode;lastFocus=focus;
+      lastBallCam=isBallCam;lastRearView=rearView;
       reset=false;attached=true;
     },
-    teardown(){reset=true;attached=false;frameAt=null;replayAt=null;},
+    teardown(){reset=true;attached=false;frameAt=null;replayAt=null;
+      lastBallCam=null;lastRearView=null;},
   };
   return api;
 }

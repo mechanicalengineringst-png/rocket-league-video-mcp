@@ -1,5 +1,3 @@
-import * as THREE from 'three';
-
 /** Progressive, reversible quality pass on the ACTUAL GLTF scene/materials.
  * Preserve GLTFLoader's baseColor color-space settings, normal maps and decals.
  * Do not fabricate texture files or change stadium geometry.
@@ -14,7 +12,10 @@ const settings = {
 export function qualitySettings(name, dpr=1, maxAniso=16) {
   const profile=settings[name] || settings.balanced;
   return {
-    ratio:Math.max(1,Math.min(profile.ratio,Number(dpr)||1)),
+    // Sharp is an explicit quality override, including on common 1x-DPR
+    // monitors where the old min(profile,dpr) could never supersample.
+    // Other modes respect native screen density to avoid needless GPU work.
+    ratio:name==='sharp' ? 2 : Math.max(1,Math.min(profile.ratio,Number(dpr)||1)),
     anisotropy:Math.max(1,Math.min(profile.anisotropy,Number(maxAniso)||1)),
   };
 }
@@ -22,7 +23,8 @@ export function applySceneQuality(player, name='balanced') {
   const renderer=player?.renderer;
   if (!renderer || !player?.scene) return {textures:0,meshes:0,ratio:1};
   const max=renderer.capabilities?.getMaxAnisotropy?.() ?? 1;
-  const {ratio,anisotropy}=qualitySettings(name,window.devicePixelRatio||1,max);
+  const dpr=typeof window==='undefined'?1:(window.devicePixelRatio||1);
+  const {ratio,anisotropy}=qualitySettings(name,dpr,max);
   if (typeof renderer.setPixelRatio==='function') renderer.setPixelRatio(ratio);
   // Stadium PBR geometry should RECEIVE shadows, not cast giant, hard-edged
   // shape shadows across its own floor. Preserve actor/car shadow casting.
@@ -42,14 +44,14 @@ export function applySceneQuality(player, name='balanced') {
         const t=mat[field];
         if (!t?.isTexture || done.has(t)) continue;
         done.add(t);
-        const sampler=t.minFilter;
-        // Filter near camera and at grazing angles; leave packed color
-        // spaces and alpha/depth behavior chosen by the GLTF author alone.
-        t.magFilter=THREE.LinearFilter;
-        if (sampler===THREE.NearestFilter || sampler===THREE.NearestMipmapNearestFilter)
-          t.minFilter=THREE.LinearMipmapLinearFilter;
-        t.anisotropy=anisotropy;
-        t.needsUpdate=true;
+        // Preserve both filters chosen by the GLTF sampler. Replacing a
+        // nearest/no-mipmap sampler with LinearMipmapLinearFilter can make
+        // textures incomplete in WebGL (black patches), not merely blurry.
+        // Anisotropy is a reversible, runtime quality preference.
+        if(t.anisotropy!==anisotropy) {
+          t.anisotropy=anisotropy;
+          t.needsUpdate=true;
+        }
       }
     }
   });
@@ -70,6 +72,22 @@ function getEffectCollections(player) {
 export function createEffectRefiner(getPreference=()=> 'soft') {
   const originals=new WeakMap();
   const applied=new WeakMap();
+  // Only remember visibility while our Off override is active. Source
+  // effects can appear/disappear every frame; a permanently cached initial
+  // false would suppress future legitimate boosts and supersonic trails.
+  const hiddenByUs=new WeakMap();
+  function setVisibility(target,visible) {
+    if(!target) return;
+    if(!visible) {
+      if(!hiddenByUs.has(target)) hiddenByUs.set(target,target.visible);
+      target.visible=false;
+    } else if(hiddenByUs.has(target)) {
+      target.visible=hiddenByUs.get(target);
+      hiddenByUs.delete(target);
+    }
+    // Otherwise preserve the upstream frame's live visibility as-is.
+  }
+  const originalRibbonWidth=new WeakMap();
   let changes=0;
   function materialStyle(mat,kind,style) {
     if (!mat?.isShaderMaterial) return;
@@ -116,19 +134,20 @@ export function createEffectRefiner(getPreference=()=> 'soft') {
     const effect=getEffectCollections(player);
     for (const trail of effect.boost) {
       if (trail?.points) {
-        trail.points.visible=visible;
+        setVisibility(trail.points,visible);
         materialStyle(trail.points.material,'boost',style);
       }
     }
     for (const trail of effect.supersonic) {
-      if (typeof trail.trailWidth==='number' && preference==='soft') {
-        trail.trailWidth=9; // new segments: less blocky cross-section
-      } else if (typeof trail.trailWidth==='number') {
-        trail.trailWidth=15;
-      }
+      if (typeof trail.trailWidth==='number' && !originalRibbonWidth.has(trail))
+        originalRibbonWidth.set(trail,trail.trailWidth);
+      if (originalRibbonWidth.has(trail))
+        trail.trailWidth=preference==='soft'
+          ? Math.min(9,originalRibbonWidth.get(trail))
+          : originalRibbonWidth.get(trail);
       for (const segment of trail?.segments ?? []) {
         for (const ribbon of [segment.leftTrail,segment.rightTrail]) {
-          if(ribbon?.mesh) ribbon.mesh.visible=visible;
+          if(ribbon?.mesh) setVisibility(ribbon.mesh,visible);
           if(ribbon?.material) materialStyle(ribbon.material,'supersonic',style);
         }
       }
@@ -145,13 +164,25 @@ export function createEffectRefiner(getPreference=()=> 'soft') {
  * gameplay pads and actors. Original restores all these meshes. A final
  * visual replay comparison is still required to confirm the appearance.
  */
+const decalOriginalVisibility=new WeakMap();
 export function setFieldDecorStyle(player,style='clean') {
   let changed=0;
   for(const mesh of player?.arenaManager?.arenaMeshes ?? []){
-    if(typeof mesh.name==='string' && mesh.name.startsWith('Field_STD_Floor_Hex')){
-      const visible=style==='original';
-      if(mesh.visible!==visible){mesh.visible=visible;changed++;}
+    if(typeof mesh?.name!=='string' || !mesh.name.startsWith('Field_STD_Floor_Hex')) continue;
+    if(style==='clean') {
+      // Record the exact source state only when hiding it for the first time.
+      // Some authored GLTF decals start hidden intentionally; restoring every
+      // matching mesh to true previously revealed unintended stadium planes.
+      if(!decalOriginalVisibility.has(mesh))
+        decalOriginalVisibility.set(mesh,mesh.visible);
+      if(mesh.visible){mesh.visible=false;changed++;}
+    } else if(style==='original' && decalOriginalVisibility.has(mesh)) {
+      const original=decalOriginalVisibility.get(mesh);
+      decalOriginalVisibility.delete(mesh);
+      if(mesh.visible!==original){mesh.visible=original;changed++;}
     }
+    // An "original" request without our previous override is a no-op:
+    // do not override runtime/asset visibility with a blanket true.
   }
   return changed;
 }

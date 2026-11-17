@@ -24,12 +24,17 @@ export function createRecordedCameraSwitchPlugin({
       track=findCameraTrack(lastReplay,focusId,p?.name||'');
     }
     const observed=recordedCameraAtTime(track,lastReplay,time);
-    if(typeof observed.ballCam!=='boolean')return;
+    // When the replay has no trustworthy state *at this time*, use a
+    // deterministic neutral Car Cam view. Otherwise a backwards seek or
+    // player change can inherit a stale Ball Cam ON state from the last
+    // player, incorrectly making Ball Cam appear permanently enabled.
+    // The UI still says CAMERA UNKNOWN; this fallback is not replay truth.
+    const ballCam=typeof observed.ballCam==='boolean'?observed.ballCam:false;
     const camera=getCameraPlugin();
-    if(camera && camera.getBallCam()!==observed.ballCam){
+    if(camera && camera.getBallCam()!==ballCam){
       // Set plugin only. Calling player.setBallCamEnabled() would replace
       // the user's "recorded" mode with a forced manual override.
-      camera.setBallCam(observed.ballCam);
+      camera.setBallCam(ballCam);
     }
   }
 

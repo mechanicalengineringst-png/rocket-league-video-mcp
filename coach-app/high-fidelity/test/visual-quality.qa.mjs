@@ -1,12 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import {qualitySettings,createEffectRefiner,setFieldDecorStyle} from '../src/visual-quality.js';
+import {qualitySettings,applySceneQuality,createEffectRefiner,setFieldDecorStyle} from '../src/visual-quality.js';
 
 test('graphics mode respects hardware pixel ratio and anisotropy ceilings',()=>{
   assert.deepEqual(qualitySettings('balanced',1,4),{ratio:1,anisotropy:4});
   assert.deepEqual(qualitySettings('sharp',3,16),{ratio:2,anisotropy:16});
   assert.deepEqual(qualitySettings('performance',2,1),{ratio:1,anisotropy:1});
+  assert.deepEqual(qualitySettings('sharp',1,16),{ratio:2,anisotropy:16});
 });
 test('soft boost particle shader is bounded and can restore the source',()=>{
   const mat=new THREE.ShaderMaterial({
@@ -58,4 +59,87 @@ test('Clean field removes all stacked hex decals but not grass, lines, or boost 
   assert.equal(setFieldDecorStyle(player,'clean'),0);
   assert.equal(setFieldDecorStyle(player,'original'),3);
   assert.ok([hexA,hexB,hexC,grass,lines,boost].every(mesh=>mesh.visible===true));
+});
+
+test('trail settings restore original widths and visibility, including originally hidden effects',()=>{
+  const shader=new THREE.ShaderMaterial({
+    vertexShader:'void main(){}',fragmentShader:'void main(){}'
+  });
+  const originalHidden={visible:false,material:shader};
+  const originalVisible={visible:true,material:shader};
+  const hiddenRibbon={mesh:{visible:false},material:shader};
+  const visibleRibbon={mesh:{visible:true},material:shader};
+  const supersonic={trailWidth:22,segments:[{leftTrail:hiddenRibbon,rightTrail:visibleRibbon}]};
+  const effects={
+    boostTrails:new Map([[1,{points:originalHidden}],[2,{points:originalVisible}]]),
+    supersonicTrails:new Map([[1,supersonic]]),
+  };
+  let selected='soft';
+  const refine=createEffectRefiner(()=>selected);
+  const player={effectsManager:effects};
+  refine.update(player);
+  assert.equal(supersonic.trailWidth,9);
+  assert.equal(originalHidden.visible,false);
+  assert.equal(visibleRibbon.mesh.visible,true);
+  // Native effect manager may turn on a previously absent emitter at the
+  // next replay frame. Soft mode must not freeze its visibility forever.
+  originalHidden.visible=true;
+  refine.update(player);
+  assert.equal(originalHidden.visible,true,'an active native boost is not suppressed by a cached frame-zero state');
+  originalHidden.visible=false;
+  selected='off';refine.update(player);
+  assert.equal(originalVisible.visible,false);
+  assert.equal(visibleRibbon.mesh.visible,false);
+  selected='original';refine.update(player);
+  assert.equal(supersonic.trailWidth,22,'original trail width must not be overwritten with a guessed constant');
+  assert.equal(originalHidden.visible,false,'an effect hidden before refinement must stay hidden');
+  assert.equal(hiddenRibbon.mesh.visible,false);
+  assert.equal(originalVisible.visible,true);
+  assert.equal(visibleRibbon.mesh.visible,true);
+});
+
+test('quality profiles do not replace authored GLTF nearest/no-mipmap sampler',()=>{
+  const tex=new THREE.Texture();
+  tex.minFilter=THREE.NearestFilter;
+  tex.magFilter=THREE.NearestFilter;
+  tex.anisotropy=1;
+  const mat=new THREE.MeshStandardMaterial({map:tex});
+  const mesh=new THREE.Mesh(new THREE.BoxGeometry(),mat);
+  const scene=new THREE.Scene();scene.add(mesh);
+  const calls=[];
+  const fake={
+    scene,renderer:{
+      capabilities:{getMaxAnisotropy:()=>16},
+      setPixelRatio:v=>calls.push(v)
+    },
+    arenaManager:{arenaMeshes:[]},
+  };
+  const result=applySceneQuality(fake,'sharp');
+  assert.equal(result.ratio,2);
+  assert.deepEqual(calls,[2]);
+  assert.equal(tex.magFilter,THREE.NearestFilter,
+    'do not overwrite GLTF sampler magnification mode');
+  assert.equal(tex.minFilter,THREE.NearestFilter,
+    'do not add mipmap sampling to potentially non-mipmapped textures');
+  assert.equal(tex.anisotropy,16);
+});
+
+test('Clean to Original does not reveal source-hidden field decals',()=>{
+  const visible={name:'Field_STD_Floor_Hex',visible:true};
+  const hidden={name:'Field_STD_Floor_Hex001',visible:false};
+  const unrelated={name:'Field_STD_Floor_Thick001',visible:false};
+  const player={arenaManager:{arenaMeshes:[visible,hidden,unrelated]}};
+  assert.equal(setFieldDecorStyle(player,'original'),0,
+    'Original mode before any override should not change GLTF visibility');
+  assert.equal(setFieldDecorStyle(player,'clean'),1);
+  assert.equal(visible.visible,false);
+  assert.equal(hidden.visible,false);
+  assert.equal(setFieldDecorStyle(player,'original'),1);
+  assert.equal(visible.visible,true);
+  assert.equal(hidden.visible,false);
+  assert.equal(unrelated.visible,false);
+  assert.equal(setFieldDecorStyle(player,'original'),0);
+  assert.equal(setFieldDecorStyle(player,'clean'),1);
+  assert.equal(setFieldDecorStyle(player,'original'),1);
+  assert.equal(hidden.visible,false,'original hidden artwork stays hidden across toggles');
 });
