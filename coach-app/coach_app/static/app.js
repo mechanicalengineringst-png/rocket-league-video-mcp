@@ -22,7 +22,18 @@ const playerById = id => state.replay?.players.find(p => p.id === id);
 const startTime = () => state.replay?.frames[0]?.t ?? 0;
 const remembered = { get(){try{return localStorage.getItem('rl-coach:lastPlayerId');}catch(_){return null;}}, set(id){try{localStorage.setItem('rl-coach:lastPlayerId',id);}catch(_){}} };
 const nearestIndex = time => { const fs=state.replay?.frames||[]; if(!fs.length)return -1; let lo=0, hi=fs.length-1; while(lo<hi){let mid=(lo+hi)>>1;if(fs[mid].t<time)lo=mid+1;else hi=mid;}return lo>0&&Math.abs(fs[lo-1].t-time)<Math.abs(fs[lo].t-time)?lo-1:lo; };
-const currentFrame = () => state.replay ? (globalThis.ReplayLabViewMath?.sampleReplayState(state.replay.frames, state.time) || state.replay.frames[nearestIndex(state.time)]) : null;
+// A render pass needs this frame in the HUD, map, camera and overlays.
+ // Avoid recomputing multiple Hermite/SLERP interpolations at the same time.
+let frameCache={replay:null,time:NaN,value:null};
+const currentFrame=()=>{
+  if(!state.replay)return null;
+  if(frameCache.replay===state.replay && frameCache.time===state.time)return frameCache.value;
+  const value=globalThis.ReplayLabViewMath?.sampleReplayState(state.replay.frames,state.time) ||
+    state.replay.frames[nearestIndex(state.time)];
+  frameCache={replay:state.replay,time:state.time,value};
+  return value;
+};
+let lastMapPaint=0,lastInspectPaint=0;
 const show = (message) => { $('toast').textContent=message; $('toast').classList.add('show'); clearTimeout(show.timer); show.timer=setTimeout(()=>$('toast').classList.remove('show'),3600); };
 function el(tag, attrs={}, text) { const n=document.createElementNS(SVG_NS,tag); for(const [k,v] of Object.entries(attrs))n.setAttribute(k,String(v)); if(text!==undefined)n.textContent=text; return n; }
 function chooseTime(time){
@@ -33,9 +44,19 @@ function chooseTime(time){
   const frame=currentFrame();
   const fc=frame?.cars?.[state.focusId];
   $('boostValue').textContent='BOOST '+(fc&&!fc.demolished&&Number.isFinite(fc.boost)?Math.round(fc.boost):'—');
-  renderPitch();
-  renderSceneInspector();
-  if(state.replay.boostPadTimeline) renderBoostPads();
+  // Preserve native 60/144Hz THREE motion, while capping DOM-heavy
+  // SVG reconstruction: the tactical map doesn't need 144 repaints/second.
+  const now=performance.now();
+  const mapInterval=currentViewMode==='split'?1000/30:1000/60;
+  if(!state.playing || now-lastMapPaint>=mapInterval){
+    renderPitch();
+    if(state.replay.boostPadTimeline) renderBoostPads();
+    lastMapPaint=now;
+  }
+  if(!state.playing || now-lastInspectPaint>=100){
+    renderSceneInspector();
+    lastInspectPaint=now;
+  }
   if(viewer3d) {
     viewer3d.update(frame, state.focusId, state.replay.players);
     if(state.replay.boostPadTimeline) {
@@ -47,6 +68,8 @@ function chooseTime(time){
 function setReplay(replay, opts={}){
   if(!replay || !Array.isArray(replay.players) || !Array.isArray(replay.frames) || !replay.frames.length)throw new Error('Invalid replay timeline.');
   stopPlay();removeVideo();state.replay=replay;state.findings=[];
+  frameCache={replay:null,time:NaN,value:null};
+  lastMapPaint=0;lastInspectPaint=0;
   const boostPadModel = typeof ReplayLabBoostPadState !== 'undefined'
     ? ReplayLabBoostPadState.compile(replay.boostPadTimeline) : null;
   state.boostPadModel=boostPadModel;
