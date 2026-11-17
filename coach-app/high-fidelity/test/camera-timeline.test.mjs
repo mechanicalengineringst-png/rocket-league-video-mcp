@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {createRecordedCameraSwitchPlugin} from '../src/recorded-camera-switch.js';
 import {
   findCameraTrack,recordedCameraAt,cameraEvidence,
   cameraSwitchMoments,displayCameraMode,
@@ -61,4 +62,26 @@ test('replicated swivel and switching events are counted accurately',()=>{
   assert.deepEqual(cameraEvidence(track),{
     events:4,ballOff:1,ballOn:2,rear:1,lookSamples:4,hasSwivel:true
   });
+});
+
+test('recorded Ball Cam ON/OFF updates camera renderer, including backward seek',()=>{
+  let current=false,override='recorded',focus='epic:1';
+  const applied=[];
+  const cam={getBallCam:()=>current,setBallCam:next=>{current=next;applied.push(next);}};
+  const plugin=createRecordedCameraSwitchPlugin({
+    getCameraPlugin:()=>cam,getFollowId:()=>focus,getCameraOverride:()=>override,
+  });
+  const ctx={player:{replay,adapter:{playerList:[{id:'epic:1',name:'Quarts'}]}},
+    state:{cameraViewMode:'follow'},frameIndex:0};
+  plugin.beforeRender(ctx);
+  assert.equal(current,true,'frame-zero recorded ON cannot inherit false fallback');
+  ctx.frameIndex=2;plugin.beforeRender(ctx);
+  assert.equal(current,false,'native Car Cam OFF must actually update plugin');
+  ctx.frameIndex=5;plugin.beforeRender(ctx);
+  assert.equal(current,true,'backward/forward scrubbing must restore native ON state');
+  assert.deepEqual(applied,[true,false,true]);
+  override='car';ctx.frameIndex=2;plugin.beforeRender(ctx);
+  assert.deepEqual(applied,[true,false,true],'forced mode should be respected');
+  ctx.state.cameraViewMode='free';override='recorded';plugin.beforeRender(ctx);
+  assert.deepEqual(applied,[true,false,true],'free camera must not be overridden');
 });
