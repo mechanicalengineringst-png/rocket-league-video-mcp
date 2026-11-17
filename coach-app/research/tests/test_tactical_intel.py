@@ -61,6 +61,16 @@ def test_labels_horizon_and_censoring():
     assert not valid0[t > m.t[-1] - 5.0 + 1e-9].any()   # no goal can resolve the window
 
 
+def test_step_hold_does_not_carry_values_across_a_stoppage():
+    from research.tactical_intel.frames import _step_hold
+    src_t = np.array([0.0, 0.2, 0.4, 10.0])
+    src_v = np.array([0.1, 0.5, 0.99, 0.02])
+    out = _step_hold(src_t, src_v, np.array([0.3, 0.8, 5.0, 10.1]))
+    assert out[0] == 0.5 and out[1] == 0.99
+    assert np.isnan(out[2])          # a pre-goal value must not reach the next kickoff
+    assert out[3] == 0.02
+
+
 # ---------- data hygiene ----------
 
 def test_dedupe_drops_identical_replays():
@@ -162,7 +172,7 @@ def test_retrieval_never_returns_the_query_match():
 
 def test_retrieval_evaluation_reports_all_representations():
     out = evaluate_retrieval(_corpus(), k=3, n_boot=0)
-    assert set(out["representations"]) == {"geometric", "tactical", "learned"}
+    assert set(out["representations"]) == {"geometric", "tactical", "learned", "velocity"}
     assert out["queries"] == 12
 
 

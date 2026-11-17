@@ -5,6 +5,8 @@ Three representations of a decision point are compared under leave-one-match-out
 - ``tactical``: arrival times, boost, teammate cover, score, clock.
 - ``learned``: Neighbourhood Components Analysis on both, supervised by the choice
   humans made, fitted on training matches only.
+- ``velocity``: a diagnostic, the defender's motion at t0 only. If it predicts the
+  choice as well as geometry, the choice was largely made before t0.
 
 Three questions per representation, all answered on held-out matches:
 1. Choice: do neighbours' choices predict the query's choice (log loss vs base rate)?
@@ -31,6 +33,10 @@ SEED = 7
 
 
 def _design(points: list[DecisionPoint], rep: str) -> np.ndarray:
+    if rep == "velocity":
+        # Diagnostic only: the defender's motion at t0 and nothing else.
+        return np.array([[p.geometric["focal_vx"], p.geometric["focal_vy"],
+                          p.tactical["focal_closing_speed"]] for p in points], dtype=float)
     if rep == "geometric":
         return as_matrix(points, GEOMETRIC_KEYS, "geometric")
     tac = as_matrix(points, TACTICAL_KEYS, "tactical")
@@ -95,7 +101,7 @@ def momentum_choice(p: DecisionPoint) -> str:
 def evaluate_retrieval(points: list[DecisionPoint], k: int = K, n_boot: int = 500) -> dict:
     """Leave-one-match-out evaluation. Neighbours always come from other matches."""
     matches = sorted({p.match_id for p in points})
-    reps = ("geometric", "tactical", "learned")
+    reps = ("geometric", "tactical", "learned", "velocity")
     rows = {r: {"ll": [], "acc": [], "dv_pred": [], "ctx": []} for r in reps}
     base = {"ll": [], "acc": [], "dv_pred": []}
     rule_acc, mom_acc, truth_dv, truth_choice, groups, query_ids = [], [], [], [], [], []

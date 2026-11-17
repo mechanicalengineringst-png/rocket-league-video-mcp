@@ -89,8 +89,16 @@ def dedupe(matches: list[Match]) -> tuple[list[Match], list[str]]:
     return kept, dropped
 
 
-def _step_hold(src_t: np.ndarray, src_v: np.ndarray, dst_t: np.ndarray) -> np.ndarray:
-    """Value of the most recent source sample at or before each destination time."""
+MAX_HOLD_S = 0.5
+
+
+def _step_hold(src_t: np.ndarray, src_v: np.ndarray, dst_t: np.ndarray,
+               max_age: float = MAX_HOLD_S) -> np.ndarray:
+    """Value of the most recent source sample at or before each destination time.
+
+    Samples older than ``max_age`` are not carried forward. Without this cap the
+    last threat value before a goal (often near 1.0) leaks into the next kickoff.
+    """
     out = np.full(dst_t.shape, np.nan)
     if src_t.size == 0:
         return out
@@ -98,6 +106,7 @@ def _step_hold(src_t: np.ndarray, src_v: np.ndarray, dst_t: np.ndarray) -> np.nd
     st, sv = src_t[order], src_v[order]
     idx = np.searchsorted(st, dst_t, side="right") - 1
     ok = idx >= 0
+    ok[ok] = (dst_t[ok] - st[idx[ok]]) <= max_age
     out[ok] = sv[idx[ok]]
     return out
 
