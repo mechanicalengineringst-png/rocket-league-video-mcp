@@ -6,17 +6,18 @@ import os
 import tempfile
 import uuid
 from pathlib import Path
+from typing import Any, Dict, Optional
 from urllib.parse import unquote, urlsplit
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .coaching import compact_game_states, find_review_candidates
-from .companion import RocketLeagueCompanion, CompanionConnectionError
+from .companion import RocketLeagueCompanion, CompanionConnectionError, CompanionProtocolError
 from .replays import ReplayParseError, parse_replay_file
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
@@ -166,8 +167,17 @@ async def ai_review(request: Request):
 
 
 class CompanionCommand(BaseModel):
-    action: str
-    params: dict = {}
+    model_config = ConfigDict(populate_by_name=True, extra="allow")
+
+    Command: Optional[str] = None
+    command: Optional[str] = None
+    action: Optional[str] = None
+    Data: Optional[Dict[str, Any]] = None
+    data: Optional[Dict[str, Any]] = None
+    params: Optional[Dict[str, Any]] = None
+
+
+CompanionCommand.model_rebuild()
 
 
 companion_client = RocketLeagueCompanion()
@@ -181,30 +191,38 @@ def get_companion_status():
 
 @app.post('/api/companion/command')
 def execute_companion_command(payload: CompanionCommand):
-    """Execute playback or replay command on the native Rocket League client."""
-    action = payload.action.strip().lower()
-    params = payload.params or {}
+    """Execute playback or replay command conforming to Rocket League official Stats API."""
+    cmd_name = (payload.Command or payload.command or payload.action or '').strip()
+    data = payload.Data if payload.Data is not None else (payload.data if payload.data is not None else (payload.params or {}))
+    if not cmd_name:
+        raise HTTPException(400, 'Command name is required.')
+
+    # Normalize command to official PascalCase
+    cmd_lower = cmd_name.lower().replace('_', '')
     try:
-        if action == 'load_replay':
-            replay = str(params.get('replay', ''))
-            return companion_client.load_replay(replay)
-        elif action == 'seek_replay':
-            t = float(params.get('time_seconds', 0.0))
+        if cmd_lower in ('seekreplay', 'seek'):
+            t = float(data.get('TimeSeconds') or data.get('time_seconds') or data.get('seconds') or 0.0)
             return companion_client.seek_replay(t)
-        elif action == 'change_pov':
-            target = str(params.get('target', ''))
+        elif cmd_lower in ('loadreplay', 'load'):
+            replay = str(data.get('Replay') or data.get('replay') or '')
+            return companion_client.load_replay(replay)
+        elif cmd_lower in ('changepov', 'pov'):
+            target = str(data.get('Target') or data.get('target') or '')
             return companion_client.change_pov(target)
-        elif action == 'set_game_speed':
-            speed = float(params.get('speed', 1.0))
+        elif cmd_lower in ('setgamespeed', 'speed'):
+            speed = float(data.get('Speed') or data.get('speed') or 1.0)
             return companion_client.set_game_speed(speed)
-        elif action == 'set_match_paused':
-            paused = bool(params.get('paused', True))
+        elif cmd_lower in ('setmatchpaused', 'pause'):
+            paused = bool(data.get('Paused') if data.get('Paused') is not None else data.get('paused', True))
             return companion_client.set_match_paused(paused)
-        elif action == 'set_hud_visibility':
-            visible = bool(params.get('visible', True))
+        elif cmd_lower in ('sethudvisibility', 'hud'):
+            visible = bool(data.get('Visible') if data.get('Visible') is not None else data.get('visible', True))
             return companion_client.set_hud_visibility(visible)
         else:
-            return companion_client.send_json_command(action, params)
+            return companion_client.send_command(cmd_name, data)
+    except CompanionProtocolError as exc:
+        raise HTTPException(400, str(exc)) from exc
     except CompanionConnectionError as exc:
         raise HTTPException(503, str(exc)) from exc
+
 

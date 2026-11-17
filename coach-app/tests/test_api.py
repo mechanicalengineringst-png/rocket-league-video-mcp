@@ -61,10 +61,17 @@ def test_companion_api_endpoints():
     data = res.json()
     assert data['connected'] is False
     assert data['status'] == 'offline'
+    assert data['real_game_verified'] is False
+    assert data['live_replay_verified'] is False
     assert 'TAStatsAPI' in data['message']
 
-    # 2. Command endpoint when offline returns 503
-    cmd_res = client.post('/api/companion/command', json={'action': 'seek_replay', 'params': {'time_seconds': 10.0}})
+    # 2. Missing command returns 400
+    empty_res = client.post('/api/companion/command', json={})
+    assert empty_res.status_code == 400
+
+    # 3. Official command endpoint when offline returns 503
+    cmd_res = client.post('/api/companion/command', json={'Command': 'SeekReplay', 'Data': {'TimeSeconds': 10.0}})
     assert cmd_res.status_code == 503
     assert 'Cannot connect to Rocket League' in cmd_res.json()['detail']
+
 
