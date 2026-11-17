@@ -65,6 +65,11 @@ def test_scores_risk_precision_without_treating_disagreement_as_truth():
     assert old["abstentions"] == 1
     assert old["missing_case_predictions"] == 1
     assert old["risk_warning_precision"] == 0.5
+    assert old["consensus_answer_coverage"] == 1.0
+    assert old["full_cohort_submission_rate"] == 0.75
+    assert old["false_blame_rate_on_consensus_sound"] == 1.0
+    assert old["risk_warning_recall_on_consensus_risks"] == 1.0
+    assert old["per_situation"]["first_man_challenge"]["false_blame_of_sound"] == 1
     assert old["risk_warnings_refuted_by_sound_consensus"] == 1
     assert old["human_reported_unsupported_claims"] == 1
     assert old["human_usefulness_fraction"] == 0
@@ -120,3 +125,40 @@ def test_source_only_claims_must_be_complete_and_causally_bounded():
     with pytest.raises(ValueError, match="post-decision-derived"):
         evaluate([incomplete], [], [])
     assert evaluate([example], [], [])["cases"] == 1
+
+def test_selective_model_cannot_hide_missing_hard_cases_with_perfect_precision():
+    cohort = [case("risky"), case("safe"), case("tradeoff")]
+    labels = (
+        reviews("risky", "risk", "risk")
+        + reviews("safe", "sound", "sound")
+        + reviews("tradeoff", "tradeoff", "tradeoff")
+    )
+    # Model answers only the one event it is confident about.
+    res = evaluate(cohort, [pred("risky", "cherry-picker", "risk")], labels)
+    model = res["systems"]["cherry-picker"]
+    assert model["risk_warning_precision"] == 1.0
+    assert model["consensus_agreement"] == 1.0
+    assert model["consensus_answer_coverage"] == 0.3333
+    assert model["consensus_full_cohort_agreement"] == 0.3333
+    assert model["missing_case_predictions"] == 2
+
+
+def test_abstention_is_distinct_from_missing_prediction_and_refuted_risk():
+    cohort = [case("risk-a"), case("sound-b"), case("sound-c")]
+    labels = (
+        reviews("risk-a", "risk", "risk")
+        + reviews("sound-b", "sound", "sound")
+        + reviews("sound-c", "sound", "sound")
+    )
+    predictions = [
+        pred("risk-a", "careful", "abstain", []),
+        pred("sound-b", "careful", "risk"),
+        # sound-c missing entirely; both fail full-cohort agreement
+    ]
+    res = evaluate(cohort, predictions, labels)["systems"]["careful"]
+    assert res["missing_case_predictions"] == 1
+    assert res["abstentions"] == 1
+    assert res["consensus_answer_coverage"] == 0.3333
+    assert res["risk_warning_precision"] == 0.0
+    assert res["risk_warning_recall_on_consensus_risks"] == 0.0
+    assert res["false_blame_rate_on_consensus_sound"] == 0.5
