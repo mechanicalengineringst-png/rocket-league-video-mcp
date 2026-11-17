@@ -128,3 +128,28 @@ def test_opt_in_decision_cases_endpoint():
     assert case['situation_type'] == 'kickoff_support'
     assert 'evaluation' in case
     assert case['evaluation']['assessment'] == 'tactical_hypothesis'
+
+
+def test_decision_cases_endpoint_input_validations():
+    """Verify that /api/decision-cases rejects malformed, oversized, or missing frame replays."""
+    # 1. Missing frames
+    resp = client.post('/api/decision-cases', json={'replay': {'players': [{'id': 'p1'}]}})
+    assert resp.status_code == 422
+
+    # 2. Oversized frames
+    huge_replay = {
+        'players': [{'id': 'p1'}],
+        'frames': [{'t': i * 0.03, 'cars': {}, 'ball': {}} for i in range(30_005)],
+    }
+    resp = client.post('/api/decision-cases', json={'replay': huge_replay})
+    assert resp.status_code == 422
+
+    # 3. Excessive duration (>1800s)
+    long_replay = {
+        'duration': 2500.0,
+        'players': [{'id': 'p1'}],
+        'frames': [{'t': 1.0, 'cars': {}, 'ball': {}}],
+    }
+    resp = client.post('/api/decision-cases', json={'replay': long_replay})
+    assert resp.status_code == 422
+

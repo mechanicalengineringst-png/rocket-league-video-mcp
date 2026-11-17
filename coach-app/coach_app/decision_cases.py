@@ -34,6 +34,7 @@ PRE_DECISION_CONTEXT_ALLOWLIST: dict[str, set[str]] = {
         "kickoff_index",
         "spawn_position",
         "start_boost",
+        "start_boost_pct",
         "observed_motion_at_t0",
     },
     "first_man_challenge": {
@@ -41,6 +42,11 @@ PRE_DECISION_CONTEXT_ALLOWLIST: dict[str, set[str]] = {
         "mate_relative_depth",
         "defensive_coverage_verified",
         "boost_at_t0",
+        "boost_at_t0_pct",
+        "commitment_window_s",
+        "primary_constraint",
+        "stopping_distance_cm",
+        "closing_speed_cms",
         "valid_pre_decision_metric",
     },
     "last_man_defense": {
@@ -49,7 +55,11 @@ PRE_DECISION_CONTEXT_ALLOWLIST: dict[str, set[str]] = {
         "ball_dist",
         "ball_goal_dist",
         "boost_at_t0",
+        "boost_at_t0_pct",
         "is_constrained_boost",
+        "ball_approach_speed_cms",
+        "is_ball_approaching_goal",
+        "time_to_goal_s",
     },
 }
 
@@ -373,6 +383,7 @@ def extract_kickoff_decision_cases(
                     "kickoff_index": idx,
                     "spawn_position": spawn_pos,
                     "start_boost": start_boost,
+                    "start_boost_pct": start_boost,
                     "observed_motion_at_t0": motion_desc,
                 },
                 feasible_alternatives=(
@@ -459,7 +470,9 @@ def extract_first_man_challenge_cases(
             pinfo = players[pid]
             pname = pinfo.get("name", pid)
 
-            t0 = round(max(0.0, start_time - 0.4), 3)
+            from .commitment_detector import detect_commitment_window
+            cw = detect_commitment_window(frames, pid, start_time)
+            t0 = cw.t_recommended_t0
 
             car_t0 = _find_car_at_time(frames, t0, pid)
             boost_t0 = car_t0.get("boost") if car_t0 else None
@@ -481,7 +494,7 @@ def extract_first_man_challenge_cases(
             ev_items: list[Evidence] = [
                 Evidence(
                     key="challenge_approach",
-                    claim=f"{pname} approached a 50/50 challenge as first man.",
+                    claim=f"{pname} executed tactical commitment to challenge ({cw.primary_constraint}, window: {cw.t_earliest:.2f}s–{cw.t_latest:.2f}s).",
                     event_time_s=t0,
                     finalized_through_s=t0,
                     kind="decision_context",
@@ -494,7 +507,7 @@ def extract_first_man_challenge_cases(
                 ev_items.append(
                     Evidence(
                         key="challenge_boost",
-                        claim=f"{pname} had {boost_t0:.1f} boost at commitment.",
+                        claim=f"{pname} had {boost_t0:.1f}% boost at commitment.",
                         event_time_s=t0,
                         finalized_through_s=t0,
                         kind="decision_context",
@@ -543,6 +556,11 @@ def extract_first_man_challenge_cases(
                     "mate_relative_depth": "behind" if mate_is_back else "ahead",
                     "defensive_coverage_verified": False,
                     "boost_at_t0": boost_t0,
+                    "boost_at_t0_pct": boost_t0,
+                    "commitment_window_s": round(max(0.0, cw.t_latest - cw.t_earliest), 3),
+                    "primary_constraint": cw.primary_constraint,
+                    "stopping_distance_cm": cw.stopping_distance_at_t0,
+                    "closing_speed_cms": cw.closing_speed_at_t0,
                 },
                 feasible_alternatives=(
                     "commit_to_50_50_block",
@@ -554,7 +572,13 @@ def extract_first_man_challenge_cases(
                     "Opponent flip timing and direction.",
                     "Whether teammate called for a challenge or advised shadow.",
                 ),
-                provenance={"source": "subtr-actor-native-fifty_fifty", "native_event_id": fev.get("meta", {}).get("id") or fev.get("nativeFrame")},
+                provenance={
+                    "source": "physics-commitment-detector-v1",
+                    "native_event_id": fev.get("meta", {}).get("id") or fev.get("nativeFrame"),
+                    "native_stream": "fifty_fifty",
+                    "contest_time_s": round(start_time, 3),
+                    "commitment_window": cw.to_dict(),
+                },
             )
             cases.append(case)
 
@@ -621,6 +645,19 @@ def extract_last_man_defense_cases(
         if ball_goal_dist > 3500:
             continue
 
+        # Physical trajectory verification of ball toward goal mouth
+        ball_v = ball.get("velocity", [0.0, 0.0, 0.0])
+        to_goal_x = 0.0 - ball.get("x", 0.0)
+        to_goal_y = goal_y - ball.get("y", 0.0)
+        to_goal_dist = math.hypot(to_goal_x, to_goal_y)
+        if to_goal_dist > 1.0 and isinstance(ball_v, (list, tuple)) and len(ball_v) >= 2:
+            approach_speed = (to_goal_x * ball_v[0] + to_goal_y * ball_v[1]) / to_goal_dist
+        else:
+            approach_speed = 0.0
+
+        is_approaching = approach_speed > 100.0
+        time_to_goal = (to_goal_dist / approach_speed) if approach_speed > 100.0 else None
+
         boost = car.get("boost")
 
         ev_items: list[Evidence] = [
@@ -639,7 +676,7 @@ def extract_last_man_defense_cases(
             ev_items.append(
                 Evidence(
                     key="last_man_boost",
-                    claim=f"{pname} has {boost:.1f} boost in net defense.",
+                    claim=f"{pname} has {boost:.1f}% boost in net defense.",
                     event_time_s=t0,
                     finalized_through_s=t0,
                     kind="decision_context",
@@ -648,10 +685,21 @@ def extract_last_man_defense_cases(
                 )
             )
 
+        if is_approaching:
+            threat_claim = (
+                f"Ball actively closing on goal area ({approach_speed:.0f} cm/s convergence, "
+                f"approx {time_to_goal:.1f}s to net line)."
+            )
+        else:
+            threat_claim = (
+                f"Ball is in defensive half ({ball_dist:.0f} cm from net protector) "
+                f"with lateral/clearing trajectory ({approach_speed:.0f} cm/s convergence)."
+            )
+
         ev_items.append(
             Evidence(
                 key="ball_threat",
-                claim=f"Ball is {ball_dist:.0f} units away from {pname} and approaching goal area.",
+                claim=threat_claim,
                 event_time_s=t0,
                 finalized_through_s=t0,
                 kind="decision_context",
@@ -675,7 +723,11 @@ def extract_last_man_defense_cases(
                 "dist_to_ball": round(ball_dist, 1),
                 "ball_goal_dist": round(ball_goal_dist, 1),
                 "boost_at_t0": round(boost, 1) if boost is not None else None,
+                "boost_at_t0_pct": round(boost, 1) if boost is not None else None,
                 "is_constrained_boost": (boost < 20.0) if boost is not None else False,
+                "ball_approach_speed_cms": round(approach_speed, 1),
+                "is_ball_approaching_goal": is_approaching,
+                "time_to_goal_s": round(time_to_goal, 2) if time_to_goal is not None else None,
             },
             feasible_alternatives=(
                 "shadow_across_goal_mouth",

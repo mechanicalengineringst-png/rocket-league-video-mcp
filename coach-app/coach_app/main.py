@@ -7,13 +7,14 @@ import os
 import tempfile
 import uuid
 from pathlib import Path
+from typing import Any
 from urllib.parse import unquote, urlsplit
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .coaching import compact_game_states, find_review_candidates
@@ -145,10 +146,36 @@ async def review_candidates(request: ReviewRequest):
         raise HTTPException(422, 'Invalid replay or player selection.') from e
 
 
+MAX_CASE_FRAMES = 30_000
+MAX_CASE_DURATION = 1800.0  # 30 minutes
+MAX_CASE_PLAYERS = 8
+
+
 class DecisionCaseRequest(BaseModel):
-    replay: dict
+    replay: dict[str, Any]
     player_id: str | None = None
     evaluate: bool = False
+
+    @field_validator('replay')
+    @classmethod
+    def validate_replay_structure(cls, v: Any) -> dict[str, Any]:
+        if not isinstance(v, dict):
+            raise ValueError('Replay payload must be a JSON object.')
+        frames = v.get('frames')
+        if not isinstance(frames, list):
+            raise ValueError("Replay payload missing 'frames' list.")
+        if len(frames) > MAX_CASE_FRAMES:
+            raise ValueError(f'Replay frames ({len(frames)}) exceed maximum allowed limit of {MAX_CASE_FRAMES}.')
+        dur = v.get('duration')
+        if dur is not None and isinstance(dur, (int, float)) and dur > MAX_CASE_DURATION:
+            raise ValueError(f'Replay duration ({dur}s) exceeds maximum allowed limit of {MAX_CASE_DURATION}s.')
+        players = v.get('players')
+        if not isinstance(players, list) or len(players) < 1 or len(players) > MAX_CASE_PLAYERS:
+            raise ValueError(f'Replay must contain between 1 and {MAX_CASE_PLAYERS} players.')
+        return v
+
+
+DecisionCaseRequest.model_rebuild()
 
 
 @app.post('/api/decision-cases')

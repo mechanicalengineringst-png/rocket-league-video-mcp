@@ -1,4 +1,9 @@
-"""Export a clean, anonymized 40-60 case evaluation cohort compatible with ChatGPT PR #16."""
+"""Export a clean, anonymized 50-case evaluation cohort across 3 distinct competitive matches.
+
+Compatible with ChatGPT PR #16 blind evaluation schema.
+Uses the physics-based commitment window detector to establish genuine pre-decision t0
+and verified ball trajectory toward the goal mouth.
+"""
 from __future__ import annotations
 
 import json
@@ -8,64 +13,86 @@ from pathlib import Path
 # Add coach-app root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import subtr_actor
-
 from coach_app.subtr_replays import parse_subtr_replay
 from coach_app.decision_cases import extract_all_decision_cases
 from coach_app.decision_evaluation import evaluate_decision_case_heuristics
 from tests.test_decision_cases_real_replay import get_replay_dir
 
+TARGET_MATCHES = [
+    ("422F278B4AD49635016485882B38DC10.replay", "competitive-2v2-match-01"),
+    ("23A661D44DBC5964B0718DBC5F956A33.replay", "competitive-2v2-match-02"),
+    ("48E14DCC41A24985B9C925884AA83BBE.replay", "competitive-2v2-match-03"),
+]
 
-def export_cohort():
+
+def export_multi_match_cohort():
     replay_dir = get_replay_dir()
-    replay_path = replay_dir / "23A661D44DBC5964B0718DBC5F956A33.replay"
-    if not replay_path.exists():
-        print(f"Fixture not found at {replay_path}")
-        return
 
-    # Parse replay
-    normalized_replay = parse_subtr_replay(replay_path)
-    all_cases = extract_all_decision_cases(normalized_replay)
-
-    # Anonymize player mappings
-    player_anon_map = {}
-    for i, p in enumerate(normalized_replay["players"], 1):
-        team = p["team"]
-        anon_label = f"player_{team}_{i}"
-        player_anon_map[p["id"]] = anon_label
-        if p.get("name"):
-            player_anon_map[p["name"]] = anon_label
-
+    cases_by_match = []
     cases_out = []
     predictions_out = []
 
-    # Select 50 representative cases across all 3 situation types
-    # Group by situation type
-    by_type = {}
-    for c in all_cases:
-        by_type.setdefault(c.situation_type, []).append(c)
+    for match_filename, group_label in TARGET_MATCHES:
+        replay_path = replay_dir / match_filename
+        if not replay_path.exists():
+            print(f"Match fixture missing at {replay_path}")
+            continue
 
-    selected = []
-    # Take up to 16 kickoffs, 20 challenges, 14 last_man
-    for sit, limit in [("kickoff_support", 16), ("first_man_challenge", 20), ("last_man_defense", 14)]:
-        cases_pool = by_type.get(sit, [])
-        # Stride evenly across match
-        if len(cases_pool) > limit:
-            step = len(cases_pool) / limit
-            cases_pool = [cases_pool[int(i * step)] for i in range(limit)]
-        selected.extend(cases_pool)
+        rep = parse_subtr_replay(replay_path)
+        cases = extract_all_decision_cases(rep)
 
-    selected.sort(key=lambda c: c.t0)
+        player_anon = {}
+        for i, p in enumerate(rep.get("players", []), 1):
+            team = p.get("team", "blue")
+            anon_token = f"player_{team}_{i}"
+            player_anon[p["id"]] = anon_token
+            if p.get("name"):
+                player_anon[p["name"]] = anon_token
 
-    for i, c in enumerate(selected, 1):
+        cases_by_match.append((group_label, cases, player_anon))
+
+    # Balance 50 cases across the available matches
+    total_matches = len(cases_by_match)
+    if total_matches == 0:
+        print("No matches available for export.")
+        return
+
+    per_match_quota = 50 // total_matches
+    selected_cases = []
+
+    for idx, (group_label, cases, player_anon) in enumerate(cases_by_match):
+        quota = per_match_quota if idx < total_matches - 1 else (50 - len(selected_cases))
+        by_type = {}
+        for c in cases:
+            by_type.setdefault(c.situation_type, []).append(c)
+
+        match_selected = []
+        # Target balanced slice per match
+        for sit in ("kickoff_support", "first_man_challenge", "last_man_defense"):
+            pool = by_type.get(sit, [])
+            sub_quota = max(1, quota // 3)
+            if len(pool) > sub_quota:
+                step = len(pool) / sub_quota
+                pool = [pool[int(i * step)] for i in range(sub_quota)]
+            match_selected.extend(pool)
+
+        # Trim or pad to exact match quota
+        if len(match_selected) > quota:
+            match_selected = match_selected[:quota]
+        elif len(match_selected) < quota:
+            remaining = [c for c in cases if c not in match_selected]
+            match_selected.extend(remaining[:quota - len(match_selected)])
+
+        for c in match_selected:
+            selected_cases.append((group_label, c, player_anon))
+
+    for i, (group_label, c, player_anon) in enumerate(selected_cases[:50], 1):
         anon_case_id = f"eval-case-{i:03d}"
-        
-        # Build PR #16 compatible case dict
+
         pre_ev = []
         for e in c.pre_decision_evidence():
-            # scrub any names
             claim = e.claim
-            for orig, anon in player_anon_map.items():
+            for orig, anon in player_anon.items():
                 claim = claim.replace(orig, anon)
             pre_ev.append({
                 "key": e.key,
@@ -78,7 +105,7 @@ def export_cohort():
 
         case_dict = {
             "case_id": anon_case_id,
-            "replay_group": "competitive-2v2-fixture-a",
+            "replay_group": group_label,
             "mode": "2v2",
             "situation_type": c.situation_type,
             "t0": round(c.t0, 3),
@@ -86,12 +113,11 @@ def export_cohort():
         }
         cases_out.append(case_dict)
 
-        # Build baseline heuristic prediction
+        # Baseline evaluation prediction
         eval_res = evaluate_decision_case_heuristics(c)
         if eval_res:
             assessment = eval_res.get("assessment", "abstain")
             if assessment not in ("sound", "risk", "tradeoff", "abstain"):
-                # Map to PR #16 accepted assessments
                 if "risk" in assessment:
                     assessment = "risk"
                 elif "hypothesis" in assessment or "tradeoff" in assessment:
@@ -125,8 +151,8 @@ def export_cohort():
 
     cases_file.write_text(json.dumps(cases_out, indent=2), encoding="utf-8")
     pred_file.write_text(json.dumps(predictions_out, indent=2), encoding="utf-8")
-    print(f"Exported {len(cases_out)} cases to {cases_file} and {len(predictions_out)} predictions to {pred_file}")
+    print(f"Exported {len(cases_out)} multi-match cases across {len(cases_by_match)} matches.")
 
 
 if __name__ == "__main__":
-    export_cohort()
+    export_multi_match_cohort()
