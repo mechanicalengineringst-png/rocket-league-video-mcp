@@ -37,7 +37,7 @@ page.on('response',response=>{
   }
 });
 try{
-  const nav=await page.goto(base,{waitUntil:'domcontentloaded',timeout:45000});
+  const nav=await page.goto(base+'?qa=1',{waitUntil:'domcontentloaded',timeout:45000});
   assert.equal(nav?.status(),200,'HD player page must load');
   await page.locator('#fileInput').setInputFiles(path.resolve(fixture));
   await page.locator('#viewport canvas').waitFor({state:'attached',timeout:120000});
@@ -47,6 +47,21 @@ try{
   },{},{timeout:150000});
   const status=await page.locator('#statusText').textContent();
   console.log('HD_REPLAY_STATUS',status);
+  const materialQA=await page.evaluate(()=>{
+    const qa=window.__rlReplayLabQA;
+    if(!qa)return {missing:true};
+    // Coordinates are viewport-relative. This scene has a conspicuous dark
+    // angular region around the large midfield boost pad.
+    const rect=document.getElementById('viewport').getBoundingClientRect();
+    return {
+      black:qa.hitsAt(rect.left+690,rect.top+278),
+      blackEdge:qa.hitsAt(rect.left+735,rect.top+262),
+      normalField:qa.hitsAt(rect.left+460,rect.top+278),
+      pad:qa.hitsAt(rect.left+591,rect.top+236),
+      arenaNames:qa.arenaMeshes().slice(0,15),
+    };
+  });
+  console.log('HD_QA_MATERIAL_RAYCAST',JSON.stringify(materialQA).slice(0,18000));
   await page.screenshot({path:path.join(output,'native-replay-in-browser.png'),fullPage:true});
   assert.match(status,/High-fidelity stadium loaded/,'The GLTF stadium should load, not a fallback floor');
   const players=await page.locator('#playerSelect option').count();
