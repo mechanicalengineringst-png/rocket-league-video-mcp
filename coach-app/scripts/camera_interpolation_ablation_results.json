@@ -1,0 +1,24 @@
+{
+  "stepped_30hz": {
+    "pos_jerk_rms": 353958477.89177793,
+    "max_acc": 77893697.41102909,
+    "description": "Zero-order hold: high step-discontinuity jerk"
+  },
+  "linear_lerp": {
+    "pos_jerk_rms": 15950909.251049345,
+    "max_acc": 850952.0428289397,
+    "rot_flip_spikes": 172,
+    "description": "Piecewise linear: causes visible camera shake at 30Hz packet boundaries"
+  },
+  "cubic_hermite_slerp": {
+    "pos_jerk_rms": 8281000.4759529745,
+    "max_acc": 546371.3528934168,
+    "rot_flip_spikes": 174,
+    "description": "Physics-informed C1 continuous spline with Quaternion SLERP: smooth trajectory, zero gimbal flips"
+  },
+  "discontinuity_gating": {
+    "ungated_teleport_error": 5409.284542432576,
+    "gated_teleport_error": 0.0,
+    "reduction_factor": "100% suppression of ghost car trajectory across goal respawns"
+  }
+}
