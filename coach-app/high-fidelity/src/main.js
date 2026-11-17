@@ -100,6 +100,30 @@ if(new URLSearchParams(location.search).get('qa')==='1'){
         visible:mesh.visible,castShadow:mesh.castShadow,
       }));
     },
+    setArenaMeshVisible(name,visible){
+      let count=0;
+      for(const mesh of player?.arenaManager?.arenaMeshes||[]){
+        if(mesh.name===name){mesh.visible=!!visible;count++;}
+      }
+      return count;
+    },
+    setBoostMeshesVisible(visible){
+      let count=0;
+      for(const child of player?.scene?.children||[]){
+        if(Number.isInteger(child.userData?.padId)){
+          child.visible=!!visible;count++;
+        }
+      }
+      return count;
+    },
+    setSceneShadows(enabled){
+      const renderer=player?.renderer;
+      if(renderer?.shadowMap)renderer.shadowMap.enabled=!!enabled;
+      return renderer?.shadowMap?.enabled??null;
+    },
+    freezeAt(t){
+      player?.pause();player?.seek(t);
+    },
   };
 }
 
