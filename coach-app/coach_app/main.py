@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import math
 import os
 import tempfile
 import uuid
@@ -104,6 +105,7 @@ async def upload_replay(request: Request):
 class ReviewRequest(BaseModel):
     replay: dict
     player_id: str
+    selected_time: float | None = None
 
 
 @app.post('/api/review-candidates')
@@ -129,20 +131,35 @@ async def ai_review(request: Request):
         raise HTTPException(413, 'Replay JSON too large for AI review.')
     try:
         payload = ReviewRequest.model_validate_json(raw)
-        compact = compact_game_states(payload.replay, payload.player_id)
+        selected_time = payload.selected_time
+        if selected_time is not None:
+            if not math.isfinite(selected_time) or selected_time < 0 or selected_time > float(payload.replay['duration']):
+                raise ValueError('Selected time is outside replay range.')
+        compact = compact_game_states(payload.replay, payload.player_id, max_frames=90)
     except (KeyError, ValueError, TypeError) as e:
         raise HTTPException(422, 'Invalid replay or player selection.') from e
 
+    scope = (
+        f'This is a user-selected replay moment at {selected_time:.2f}s, with only '
+        'approximately three seconds of observations on either side. '
+        if selected_time is not None else 'This is sparse match telemetry. '
+    )
     instruction = (
-        'You are a Rocket League replay analyst, not a narrator. Analyze the following sparse '
-        'time-sampled numerical replay states. Without video or inputs, you CANNOT '
-        'know exact intent, camera perception, hits between samples, or hypothetical outcomes. '
-        'Provide up to three specific, time-coded game-sense REVIEW HYPOTHESES about the focus '
-        'player, each with observed evidence, alternatives and uncertainties. Be conservative. '
-        'Do not claim a different path would guarantee a goal or save. No fabricated event details. '
-        'Return ONLY JSON with this shape: {"findings": [{"t": 12.5, "title": "...", '
-        '"evidence": "...", "advice": "...", "uncertainty": "..."}]}.'
-        '\n\n' + compact
+        'You are a skeptical Rocket League replay coach. ' + scope +
+        'Analyze ONLY the supplied numerical replay positions and velocities. '
+        'This is NOT rendered footage; you cannot see button inputs, player camera, '
+        'intent, exact car hitboxes, mechanic execution, or hypothetical future outcomes. '
+        'Only if specific observed conditions create a genuinely actionable question, '
+        'return at most ONE short, time-coded review hypothesis about the focus player. '
+        'Explicitly quote the observed numbers or teammate/opponent locations, '
+        'say what alternative to inspect and explain what cannot be established. '
+        'Do not label ordinary 50/50s, nearby teammates, low boost or goals as mistakes. '
+        'A deliberate soft 50/50, fake challenge, pass support or kickoff cheat may be correct. '
+        'If the evidence is not sufficient for a meaningful insight, return an empty list. '
+        'Do not invent a goal, touch, mechanical mistake, intent, or probable success rate. '
+        'Return ONLY JSON: {"findings": [{"t": 12.5, "title": "...", '
+        '"evidence": "...", "advice": "...", "uncertainty": "..."}]}. '
+        'The findings array MAY BE EMPTY.\n\n' + compact
     )
     try:
         import httpx
@@ -163,11 +180,13 @@ async def ai_review(request: Request):
         batch = uuid.uuid4().hex[:8]  # ids must stay unique across repeated requests
         # Keep only bounded safe fields; never trust model-defined coordinates or markup.
         clean = []
-        for item in findings[:3]:
+        for item in findings[:1]:
             if not isinstance(item, dict):
                 continue
             t = float(item['t'])
-            if t < 0 or t > float(payload.replay['duration']):
+            if not math.isfinite(t) or t < 0 or t > float(payload.replay['duration']):
+                continue
+            if selected_time is not None and abs(t - selected_time) > 3.5:
                 continue
             clean.append({
                 'id': f'ai-{batch}-{len(clean)}', 't': round(t, 2), 'type': 'ai',
@@ -178,7 +197,7 @@ async def ai_review(request: Request):
                 'uncertainty': str(item.get('uncertainty', ''))[:600],
                 'target': None,
             })
-        return {'findings': clean, 'mode': 'sparse-position-analysis',
+        return {'findings': clean, 'mode': 'selected-moment-telemetry-review',
                 'warning': 'AI suggestions are hypotheses, not verified mistakes.'}
     except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError) as e:
         # Never echo a secret or raw upstream error payload to the browser.
