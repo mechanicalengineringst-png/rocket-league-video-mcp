@@ -89,3 +89,12 @@
 .ai-experimental summary{font-size:12px;font-weight:600;cursor:pointer;color:#bfd7de}
 .ai-experimental .button{margin-top:13px}
 @media(max-width:850px){.view-controls{gap:10px}.timeline-row{flex-wrap:wrap}.timeline-row input{order:-1;flex-basis:100%;min-width:100%}.speed-label{margin-left:auto}.scene-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Keep the coaching sidebar stable while playback events arrive. */
+.scene-inspector{min-height:34px;margin-top:8px;gap:0}
+.recent-actions-panel{margin-top:10px;border:1px solid #31505a;border-radius:8px;overflow:hidden}
+.recent-actions-panel summary{cursor:pointer;padding:11px 12px;color:#bfd9de;font-size:11px;font-weight:600}
+.recent-actions-panel .touch-list{height:116px;max-height:116px;overflow-y:auto;overscroll-behavior:contain;padding:0 9px 9px}
+.recent-actions-panel .touch-link{flex-shrink:0}
+.recent-actions-panel:not([open]) .touch-list{display:none}
+.left-panel .upload-area{margin-top:12px}

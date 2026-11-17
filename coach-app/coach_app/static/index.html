@@ -15,16 +15,13 @@
   <main class="workspace">
     <aside class="panel left-panel">
       <div class="eyebrow">01 / IMPORT</div>
-      <h1>Review smarter.<br /><em>Rank up.</em></h1>
-      <p class="muted">Upload a native replay, inspect the match state, and question your decisions.</p>
       <div class="upload-area" id="uploadZone" role="button" tabindex="0" aria-label="Upload Rocket League replay">
         <div class="upload-symbol">⇧</div>
         <strong>Drop your replay here</strong><span>or click to browse files</span>
         <small>ROCKET LEAGUE .REPLAY · MAX 20MB</small>
         <input id="fileInput" type="file" accept=".replay" hidden />
       </div>
-      <button class="button button-outline" id="demoBtn" type="button">Try interactive demo <span>↗</span></button>
-      <p class="status" id="uploadStatus" role="status">No replay loaded. Demo data stays in your browser.</p>
+      <p class="status" id="uploadStatus" role="status">No replay loaded.</p>
       <div class="section-line"></div>
       <div class="eyebrow">02 / PLAYER</div>
       <label class="select-label" for="playerSelect">Who are we coaching?</label>
@@ -32,7 +29,7 @@
       <div class="match-stats">
         <div><span>MODE</span><strong id="modeValue">—</strong></div>
         <div><span>LENGTH</span><strong id="durationValue">—</strong></div>
-        <div><span>REVIEW FLAGS</span><strong id="flagsValue">—</strong></div>
+        <div><span>REVIEW LEADS</span><strong id="flagsValue">—</strong></div>
       </div>
       <div class="section-line"></div>
       <div class="eyebrow">03 / REVIEW</div>
@@ -46,19 +43,16 @@
     </aside>
     <section class="main-stage">
       <div class="stage-top">
-        <div><div class="eyebrow">TACTICAL BOARD & 3D RECONSTRUCTION</div><h2 id="replayTitle">Your next decision starts here.</h2></div>
+        <div><div class="eyebrow">REPLAY VIEWER</div><h2 id="replayTitle">Load a replay to begin</h2></div>
         <div class="view-tabs" role="tablist" aria-label="Replay visualization mode">
           <button id="viewTab2d" class="tab-btn active" type="button" role="tab" aria-selected="true">2D Map</button>
           <button id="viewTab3d" class="tab-btn" type="button" role="tab" aria-selected="false">3D Arena</button>
           <button id="viewTabSplit" class="tab-btn" type="button" role="tab" aria-selected="false">Split View</button>
         </div>
-        <div class="legend"><span><i class="blue"></i> Blue</span><span><i class="orange"></i> Orange</span><span><i class="focus-ring"></i> Selected player</span></div>
       </div>
       <div class="view-controls panel" aria-label="Replay field display controls">
         <span class="control-title">VIEW OPTIONS</span>
         <label class="view-toggle"><input type="checkbox" id="showFacing" checked /> Car facing (nose)</label>
-        <label class="view-toggle"><input type="checkbox" id="showTravel" /> Travel arrows</label>
-        <label class="view-toggle"><input type="checkbox" id="showHeights" checked /> Height labels</label>
         <label class="view-toggle"><input type="checkbox" id="showTrail" /> My recent path (2s)</label>
         <label class="view-toggle"><input type="checkbox" id="showBallTrail" /> Ball path (1.5s)</label>
         <label class="view-toggle"><input type="checkbox" id="showBoostPads" checked /> Boost pads</label>
@@ -92,7 +86,6 @@
           <g id="boostPadsLayer"></g>
           <g id="dynamicLayers"></g>
         </svg>
-        <div class="pitch-note" id="pitchNote">White tips = where cars face; travel arrows = actual horizontal velocity. 3D view shows accurate aerial height and spatial depth.</div>
       </div>
       <div class="playback panel">
         <div class="playback-head"><div><strong id="timeValue">00:00</strong><span id="timelineHelp">Replay time (including stoppages)</span></div><span id="boostValue">BOOST —</span></div>
@@ -124,25 +117,26 @@
       </details>
     </section>
     <aside class="panel right-panel">
-      <div class="eyebrow">COACHING DESK</div>
-      <h2>Moments to review<span class="hint-count" id="issueCount">0</span></h2>
-      <p class="muted">Potential decisions worth investigating—not automatically proven mistakes.</p>
+      <div class="eyebrow">REVIEW & MATCH EVENTS</div>
+      <h2>Review shortlist<span class="hint-count" id="issueCount">0</span></h2>
+      <p class="muted">Saved notes and optional AI hypotheses go here. Ordinary goals and 50/50s are accessible below as match events, not coaching verdicts.</p>
       <label class="filter-label" for="momentFilter">Show</label>
       <select id="momentFilter" aria-label="Filter review moments">
-        <option value="all">All moments</option>
-        <option value="goals">Goals</option>
-        <option value="challenges">50/50 challenges</option>
-        <option value="flags">Positional observations</option>
-        <option value="manual">My markers / AI</option>
+        <option value="shortlist" selected>Review shortlist</option>
+        <option value="goals">Goals (event browser)</option>
+        <option value="challenges">50/50s (event browser)</option>
+        <option value="flags">Unverified position checks</option>
+        <option value="all">All events and checks</option>
       </select>
       <div id="findingsList" class="findings-list"><div class="empty"><div class="empty-graphic">◎</div>Load a replay to see review candidates.</div></div>
       <div class="section-line"></div>
       <div class="eyebrow">SELECTED MOMENT</div>
       <div id="selectedDetail"><p class="muted">Select a moment to inspect its evidence and uncertainty.</p></div>
       <div class="section-line"></div>
-      <div class="eyebrow">AT THE PLAYHEAD</div>
-      <div id="sceneInspector" aria-live="off" class="scene-inspector"><p class="muted">Load a replay to see ball height, selected-car height, nearest opponent, and recent touches.</p></div>
-      <div class="disclaimer"><strong>Evidence before confidence.</strong> Top-down motion alone cannot prove a flick, missed demo, player's intent, or a correct challenge. Use car/ball height and a separate POV recording when available.</div>
+      <div class="eyebrow">GAME CLOCK</div>
+      <div id="sceneInspector" aria-live="off" class="scene-inspector"><p class="muted">Load a replay to see the match clock.</p></div>
+      <details id="recentActionsPanel" class="recent-actions-panel"><summary>Recent touches</summary><div id="recentActionsList" class="touch-list"><p class="muted">Open a replay to inspect touches.</p></div></details>
+      <div class="disclaimer"><strong>Evidence before confidence.</strong> Top-down motion alone cannot prove a flick, missed demo, player's intent, or a correct challenge. Inspect the replay view or a matching gameplay recording when available.</div>
     </aside>
   </main>
   <div class="toast" id="toast" role="alert" aria-live="polite"></div>
