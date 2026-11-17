@@ -4,6 +4,7 @@ import {
   createBoostPickupAnimationPlugin,
   fromReplayPlayerPlugin, setPlayerAssetBase,
 } from '@rlrml/player';
+import * as THREE from 'three';
 import { formatTime, clampTime, timelineMarkers } from './time.js';
 import {
   findCameraTrack, recordedCameraAt, cameraEvidence,
@@ -43,6 +44,42 @@ let loading = false;
 let scrubbing = false;
 let resumeAfterScrub = false;
 let lastHudUpdate = -Infinity;
+// Optional QA-only mesh probe, only enabled by ?qa=1 on this same-origin page.
+// It reports what the renderer really draws under a pixel, to locate oversized
+// black field decorations without guessing at material names.
+if(new URLSearchParams(location.search).get('qa')==='1'){
+  window.__rlReplayLabQA={
+    hitsAt(clientX,clientY){
+      if(!player?.scene||!player?.camera)return [];
+      const bounds=viewer.getBoundingClientRect();
+      const mouse=new THREE.Vector2(
+        ((clientX-bounds.left)/bounds.width)*2-1,
+        -((clientY-bounds.top)/bounds.height)*2+1
+      );
+      const ray=new THREE.Raycaster();
+      ray.setFromCamera(mouse,player.camera);
+      return ray.intersectObjects(player.scene.children,true).slice(0,18).map(hit=>({
+        name:hit.object.name||'(unnamed)',
+        parent:hit.object.parent?.name||'(unnamed)',
+        material:Array.isArray(hit.object.material)?
+          hit.object.material.map(x=>x?.name||'').join(','):
+          hit.object.material?.name||'(unnamed)',
+        point:hit.point.toArray().map(x=>Math.round(x)),
+        distance:Math.round(hit.distance),
+        pad:hit.object.userData?.padId??null,
+        visible:hit.object.visible,
+        opacity:hit.object.material?.opacity??null,
+      }));
+    },
+    arenaMeshes(){
+      return (player?.arenaManager?.arenaMeshes||[]).map(mesh=>({
+        name:mesh.name,material:mesh.material?.name||'',
+        visible:mesh.visible,castShadow:mesh.castShadow,
+      }));
+    },
+  };
+}
+
 
 function setStatus(message, isError = false) {
   $('statusText').textContent = message;
