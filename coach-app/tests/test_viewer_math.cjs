@@ -60,7 +60,7 @@ test('Ball Cam is car-anchored and cannot sit inside the ball',()=>{
   const car={x:100,y:0,z:17,rotation:[0,0,0]};
   const center=M.replayPosition(car);
   // Ball at camera's natural position is a real dribble / bounce edge case.
-  const ball={x:840,y:0,z:327};
+  const ball={x:-540,y:0,z:327};
   const p=M.planCamera('ball',car,ball);
   const b=M.replayPosition(ball);
   assert.ok(p);
