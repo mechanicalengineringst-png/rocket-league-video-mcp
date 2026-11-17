@@ -26,7 +26,11 @@ def candidate(group, situation, origin, idx):
     return case, {"case_id": cid, "origin": origin}
 
 
-def pool(groups=("m1", "m2", "m3", "m4"), each=5):
+def pool(groups=("m1", "m2", "m3", "m4"), each=12):
+    # Each detector moment is only 3 seconds from the nearest independent
+    # candidate, and neighboring moments can be 4 seconds apart. A real
+    # selector must have enough candidates *after* exclusion windows, not
+    # merely enough raw rows to fill its quotas.
     cases, origins = [], []
     for group in groups:
         for situation in DEFAULT_SITUATIONS:
