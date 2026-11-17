@@ -1,6 +1,6 @@
 'use strict';
 const $ = id => document.getElementById(id);
-const state = { replay: null, findings: [], focusId: null, selectedId: null, time: 0, playing: false, timer: null, overrides: new Map(), view: {facing:true, travel:false, heights:true, trail:false, ballTrail:false, boostPads:true}, speed:1, momentFilter:'all', videoUrl:null, videoOffset:0, videoAligned:false };
+const state = { replay: null, findings: [], focusId: null, selectedId: null, time: 0, playing: false, timer: null, overrides: new Map(), view: {facing:true, travel:false, heights:false, trail:false, ballTrail:false, boostPads:true}, speed:1, momentFilter:'shortlist', videoUrl:null, videoOffset:0, videoAligned:false };
 let viewer3d = null;
 let currentViewMode = '2d';
 function getViewer3d(){
@@ -40,6 +40,7 @@ function chooseTime(time){
 function setReplay(replay, opts={}){
   if(!replay || !Array.isArray(replay.players) || !Array.isArray(replay.frames) || !replay.frames.length)throw new Error('Invalid replay timeline.');
   stopPlay();removeVideo();state.replay=replay;state.findings=[];
+  if($('recentActionsList'))$('recentActionsList').dataset.signature='';
   // Preference: the replay's recording player, then the player chosen last time, then a
   // player on the recording team. Anything weaker is a guess and is labelled as one.
   const has=id=>replay.players.some(p=>p.id===id), last=remembered.get();
@@ -94,12 +95,17 @@ function refreshFindings(demo=false){if(!state.replay)return;
     }
   }
   findings.sort((a,b)=>a.t-b.t);
-  const keepSelected=findings.some(f=>f.id===state.selectedId);state.findings=findings;if(!keepSelected)state.selectedId=findings[0]?.id||null;
-  $('flagsValue').textContent=findings.length;renderFindings();renderDetail();
+  state.findings=findings;
+  const shortlist=visibleFindings();
+  if(!shortlist.some(f=>f.id===state.selectedId))state.selectedId=shortlist[0]?.id||null;
+  // All native events are retained for navigation, not counted as coaching leads.
+  $('flagsValue').textContent=findings.filter(f=>f.type==='manual'||f.type==='ai').length;
+  renderFindings();renderDetail();
 }
 function visibleFindings(){
   const filter=state.momentFilter;
   return state.findings.filter(f=>{
+    if(filter==='shortlist')return f.type==='manual'||f.type==='ai';
     if(filter==='goals')return f.eventType==='goal_context';
     if(filter==='challenges')return f.eventType==='fifty_fifty';
     if(filter==='flags')return f.type==='boost'||f.type==='overlap';
@@ -110,10 +116,12 @@ function visibleFindings(){
 function renderFindings(){
   const list=$('findingsList'), items=visibleFindings();
   list.replaceChildren();
-  $('issueCount').textContent=items.length===state.findings.length?String(items.length):(items.length+' / '+state.findings.length);
+  $('issueCount').textContent=String(items.length);
   if(!items.length){
     const d=document.createElement('div');d.className='empty';
-    d.textContent='No moments in this category. This is not a judgment of gameplay quality.';
+    d.textContent=state.momentFilter==='shortlist'
+      ? 'No saved review leads yet. Goals and 50/50s are still available in the event filters, but ordinary events are not coaching advice.'
+      : 'No events in this category. This is not a judgment of gameplay quality.';
     list.append(d);return;
   }
   for(const f of items){
@@ -309,57 +317,48 @@ function renderPitch(){
   }
 }
 function renderSceneInspector(){
-  const holder=$('sceneInspector');holder.replaceChildren();
-  const f=currentFrame();
-  if(!f){const p=document.createElement('p');p.className='muted';p.textContent='No replay data at the current time.';holder.append(p);return;}
-  const focus=f.cars[state.focusId],player=playerById(state.focusId);
-  const time=document.createElement('div');time.className='scene-time';
-  time.textContent='Replay '+fmt(state.time)+' · '+(Number.isFinite(f.secondsRemaining)?(f.overtime?'Overtime +'+fmt(f.secondsRemaining):'Clock '+fmt(f.secondsRemaining)):'game clock unavailable');
-  holder.append(time);
-  const grid=document.createElement('div');grid.className='scene-grid';
-  const addStat=(label,value,note)=>{
-    const d=document.createElement('div');d.className='scene-stat';
-    const a=document.createElement('span');a.textContent=label;
-    const b=document.createElement('strong');b.textContent=value;
-    const c=document.createElement('small');c.textContent=note;
-    d.append(a,b,c);grid.append(d);
-  };
-  const round=n=>Number.isFinite(n)?Math.round(n)+'u':'—';
-  addStat('Ball center Z',round(f.ball.z),'Top-down view hides height');
-  if(focus&&!focus.demolished){
-    addStat('Selected car Z',round(focus.z),'Boost '+(Number.isFinite(focus.boost)?Math.round(focus.boost)+'%':'unknown')+(focus.jumpActive===true?' · jump flag active':''));
-    addStat('Ball separation',round(Math.hypot(f.ball.x-focus.x,f.ball.y-focus.y,f.ball.z-focus.z)),
-      '3D distance, not just map spacing');
-    const opponent=state.replay.players.filter(p=>p.team!==player?.team&&f.cars[p.id]&&!f.cars[p.id].demolished)
-      .map(p=>({p,car:f.cars[p.id],distance:xyDistance(focus,f.cars[p.id])}))
-      .sort((a,b)=>a.distance-b.distance)[0];
-    if(opponent)addStat('Nearest opponent',round(opponent.distance),
-      opponent.p.name.slice(0,25)+' · car Z '+round(opponent.car.z));
-  } else addStat('Selected player',focus?.demolished?'Demolished':'No car','Destroyed, respawning, or between a goal and the kickoff');
-  holder.append(grid);
-  const heading=document.createElement('div');heading.className='touch-heading';heading.textContent='Recent actions (last 3 seconds)';
-  holder.append(heading);
-  const touches=(state.replay.events||[]).filter(e=>['touch','bump','whiff'].includes(e.type)&&e.t<=state.time+0.03&&e.t>=state.time-3).slice(-5).reverse();
-  if(!touches.length){
-    const hint=document.createElement('p');hint.className='touch-empty';hint.textContent='No detected touch, collision, or missed-touch candidate in this interval.';holder.append(hint);return;
+  // Stable one-line clock. Rebuilding large dynamic cards 30 times per second
+  // previously expanded the sidebar and caused page-scroll jitter.
+  const holder=$('sceneInspector'),f=currentFrame();
+  const message=!f?'No replay loaded.':
+    'Replay '+fmt(state.time)+' · '+
+    (Number.isFinite(f.secondsRemaining)
+      ? (f.overtime?'Overtime +'+fmt(f.secondsRemaining):'Match clock '+fmt(f.secondsRemaining))
+      : 'Game clock unavailable');
+  let line=holder.firstElementChild;
+  if(!line||!line.classList.contains('scene-time')){
+    line=document.createElement('div');line.className='scene-time';
+    holder.replaceChildren(line);
   }
-  const list=document.createElement('div');list.className='touch-list';
-  for(const touch of touches){
-    const who=playerById(touch.playerId),btn=document.createElement('button');btn.className='touch-link';btn.type='button';
-    const label=document.createElement('span');
-    const actor=who?.name||'Unidentified player';
-    let action='Ball touch'+(touch.touchKind?' · '+String(touch.touchKind).replace(/_/g,' '):'');
-    if(touch.type==='bump')action='Collision/bump detected';
-    if(touch.type==='whiff')action='Possible missed touch'+(touch.classification?' · '+String(touch.classification).replace(/_/g,' '):'');
-    label.textContent=actor+' · '+action;
-    const ago=document.createElement('small');ago.textContent=Math.max(0,state.time-touch.t).toFixed(2)+'s ago';
-    btn.append(label,ago);btn.onclick=()=>{stopPlay();chooseTime(touch.t);};
-    // This list is rebuilt on every playback tick, so a normal click (press and release on the
-    // same element) rarely completes while playing. Act on the press itself.
+  if(line.textContent!==message)line.textContent=message;
+  renderRecentActions();
+}
+function renderRecentActions(){
+  const panel=$('recentActionsPanel'),list=$('recentActionsList');
+  if(!panel||!list||!panel.open)return; // No DOM churn for a closed panel.
+  const actions=(state.replay?.events||[])
+    .filter(e=>['touch','bump','whiff'].includes(e.type)
+      && e.t<=state.time+0.03&&e.t>=state.time-3)
+    .slice(-5).reverse();
+  const signature=actions.map(e=>[e.t,e.type,e.playerId,e.touchKind,e.classification].join(':')).join('|');
+  if(list.dataset.signature===signature)return;
+  list.dataset.signature=signature;
+  list.replaceChildren();
+  if(!actions.length){
+    const note=document.createElement('p');note.className='touch-empty';
+    note.textContent='No recent detected touches.';list.append(note);return;
+  }
+  for(const e of actions){
+    const player=playerById(e.playerId);
+    const btn=document.createElement('button');btn.className='touch-link';btn.type='button';
+    const action=e.type==='bump'?'Collision':e.type==='whiff'?'Possible missed touch':'Ball touch';
+    const label=document.createElement('span');label.textContent=(player?.name||'Unknown player')+' · '+action;
+    const stamp=document.createElement('small');stamp.textContent=fmt(e.t);
+    btn.append(label,stamp);
+    btn.onclick=()=>{stopPlay();chooseTime(e.t);};
     btn.onpointerdown=btn.onclick;
     list.append(btn);
   }
-  holder.append(list);
 }
 function stopPlay(){
   if(state.timer)clearInterval(state.timer);
@@ -458,8 +457,8 @@ function wireVideo(){
 function exportReview(){const body=JSON.stringify({replay:{schema:state.replay.schema,title:state.replay.title,mode:state.replay.mode,source:state.replay.source,duration:state.replay.duration},focus:playerById(state.focusId),findings:state.findings.map(f=>({...f,target:state.overrides.get(f.id)||f.target}))},null,2);const url=URL.createObjectURL(new Blob([body],{type:'application/json'}));const link=document.createElement('a');link.href=url;link.download='rocket-league-review.json';link.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 async function loadFile(file){if(!file)return;if(!file.name.toLowerCase().endsWith('.replay'))return show('Select a Rocket League .replay file.');if(file.size>20*1024*1024)return show('File exceeds 20 MB.');$('uploadStatus').textContent='Processing native replay locally…';try{const r=await fetch('/api/replays',{method:'POST',headers:{'Content-Type':'application/octet-stream','X-Replay-Name':encodeURIComponent(file.name)},body:file});const body=await r.json().catch(()=>({}));if(!r.ok)throw new Error(body.detail||'Replay parser could not read file.');setReplay(body.replay);show('Replay loaded. Choose your player to start.');}catch(e){$('uploadStatus').textContent=e.message;show(e.message);}}
 async function aiReview(){if(!state.replay)return;if(!window.confirm('Send time-sampled car and ball positions (including player IDs/names) to Gemini? This uses your API quota; the raw .replay file is not sent.'))return;
-$('aiBtn').disabled=true;$('aiBtn').textContent='Analyzing positions…';try{const r=await fetch('/api/ai-review',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({replay:{schema:state.replay.schema,title:state.replay.title,mode:state.replay.mode,duration:state.replay.duration,players:state.replay.players,frames:state.replay.frames.filter((_,i)=>i%Math.max(1,Math.ceil(state.replay.frames.length/240))===0).slice(0,240)},player_id:state.focusId})});const body=await r.json();if(!r.ok)throw new Error(body.detail||'AI analysis failed.');for(const f of body.findings||[])state.findings.push({...f,focusId:state.focusId});state.findings.sort((a,b)=>a.t-b.t);state.selectedId=body.findings?.[0]?.id||state.selectedId;$('flagsValue').textContent=state.findings.length;renderFindings();renderDetail();if(body.findings?.length)chooseTime(body.findings[0].t);show('Gemini findings received. Verify each observation before trusting it.');}catch(e){show(e.message);}finally{$('aiBtn').textContent='✦ Ask Gemini for coaching';$('aiBtn').disabled=false;}}
-function addManualMarker(){if(!state.replay)return;const f=currentFrame();const id='manual-'+Date.now();const finding={id,t:f.t,type:'manual',title:'Review this decision',confidence:'unverified',evidence:'Manual marker at the current replay timestamp.',advice:'Inspect the opponent, ball height, timing and recent touches. A marker records a question, not a mistaken decision.',target:null};state.findings.push(finding);state.findings.sort((a,b)=>a.t-b.t);state.selectedId=id;$('flagsValue').textContent=state.findings.length;renderFindings();renderDetail();renderPitch();}
+$('aiBtn').disabled=true;$('aiBtn').textContent='Analyzing positions…';try{const r=await fetch('/api/ai-review',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({replay:{schema:state.replay.schema,title:state.replay.title,mode:state.replay.mode,duration:state.replay.duration,players:state.replay.players,frames:state.replay.frames.filter((_,i)=>i%Math.max(1,Math.ceil(state.replay.frames.length/240))===0).slice(0,240)},player_id:state.focusId})});const body=await r.json();if(!r.ok)throw new Error(body.detail||'AI analysis failed.');for(const f of body.findings||[])state.findings.push({...f,focusId:state.focusId});state.findings.sort((a,b)=>a.t-b.t);state.selectedId=body.findings?.[0]?.id||state.selectedId;$('flagsValue').textContent=state.findings.filter(f=>f.type==='manual'||f.type==='ai').length;renderFindings();renderDetail();if(body.findings?.length)chooseTime(body.findings[0].t);show('Gemini findings received. Verify each observation before trusting it.');}catch(e){show(e.message);}finally{$('aiBtn').textContent='✦ Ask Gemini for coaching';$('aiBtn').disabled=false;}}
+function addManualMarker(){if(!state.replay)return;const f=currentFrame();const id='manual-'+Date.now();const finding={id,t:f.t,type:'manual',title:'Review this decision',confidence:'unverified',evidence:'Manual marker at the current replay timestamp.',advice:'Inspect the opponent, ball height, timing and recent touches. A marker records a question, not a mistaken decision.',target:null};state.findings.push(finding);state.findings.sort((a,b)=>a.t-b.t);state.selectedId=id;$('flagsValue').textContent=state.findings.filter(f=>f.type==='manual'||f.type==='ai').length;renderFindings();renderDetail();renderPitch();}
 function wire(){
   const zone=$('uploadZone'),input=$('fileInput');
   zone.onclick=()=>input.click();
@@ -469,7 +468,6 @@ function wire(){
   zone.ondragover=e=>{e.preventDefault();zone.classList.add('dragging');};
   zone.ondragleave=()=>zone.classList.remove('dragging');
   zone.ondrop=e=>{e.preventDefault();zone.classList.remove('dragging');loadFile(e.dataTransfer.files[0]);};
-  $('demoBtn').onclick=()=>{setReplay(demoReplay(),{demo:true});show('Synthetic example loaded; real replays provide measured physics.');};
   $('playerSelect').onchange=e=>{state.focusId=e.target.value;state.focusConfirmed=true;if(state.replay?.source!=='synthetic')remembered.set(state.focusId);state.overrides.clear();refreshFindings();chooseTime(state.time);};
   $('timeRange').oninput=e=>{stopPlay();chooseTime(Number(e.target.value));};
   $('playBtn').onclick=togglePlay;
@@ -480,10 +478,11 @@ function wire(){
     if(state.videoUrl&&state.videoAligned)$('gameVideo').playbackRate=state.speed;
     if(state.playing){stopPlay();togglePlay();}
   };
-  for(const [id,key] of [['showFacing','facing'],['showTravel','travel'],['showHeights','heights'],['showTrail','trail'],['showBallTrail','ballTrail']]){
+  for(const [id,key] of [['showFacing','facing'],['showTrail','trail'],['showBallTrail','ballTrail']]){
     $(id).onchange=e=>{state.view[key]=e.target.checked;renderPitch();};
   }
   $('showBoostPads').onchange=e=>{state.view.boostPads=e.target.checked;renderBoostPads();};
+  $('recentActionsPanel').ontoggle=renderRecentActions;
   $('viewTab2d').onclick=()=>setViewMode('2d');
   $('viewTab3d').onclick=()=>setViewMode('3d');
   $('viewTabSplit').onclick=()=>setViewMode('split');
