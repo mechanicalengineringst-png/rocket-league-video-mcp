@@ -1,0 +1,234 @@
+[
+  {
+    "category_label": "1. Correct Observation (Neutral Tradeoff Hypothesis)",
+    "description": "Examines a kickoff support decision without jumping to a double-commit verdict.",
+    "decision_case": {
+      "decision_case_id": "case-kickoff-0-player_blue_2",
+      "decision_time_s": 9.311,
+      "focus_player": {
+        "id": "player_blue_2",
+        "name": "Player Blue 2",
+        "team": "blue"
+      },
+      "situation_type": "kickoff_support",
+      "pre_decision_facts": [
+        {
+          "key": "kickoff_spawn",
+          "fact": "Player Blue 2 spawned at center with 85.0 boost.",
+          "event_time_s": 7.311,
+          "source": "replay"
+        },
+        {
+          "key": "kickoff_role",
+          "fact": "Player Blue 2 is second man on kickoff, observing teammate approach.",
+          "event_time_s": 7.311,
+          "source": "derived"
+        },
+        {
+          "key": "kickoff_approach_motion",
+          "fact": "Player Blue 2 observed at t0 moving forward toward midfield.",
+          "event_time_s": 9.311,
+          "source": "replay"
+        }
+      ],
+      "tactical_context": {
+        "kickoff_index": 0,
+        "spawn_position": "center",
+        "start_boost": 85.0,
+        "observed_motion_at_t0": "moving forward toward midfield"
+      },
+      "hypothetical_alternatives_to_inspect": [
+        "cheat_up_for_dead_ball",
+        "route_to_corner_boost",
+        "hold_defensive_net"
+      ],
+      "epistemic_uncertainties": [
+        "Pre-match teammate kickoff communication (e.g. 'I got it!', 'Need boost!').",
+        "Opponent non-taker cheat speed and angle.",
+        "Whether kicker intended a dead ball or a controlled corner spill."
+      ]
+    },
+    "heuristic_evaluation": {
+      "case_id": "case-kickoff-0-player_blue_2",
+      "t": 9.311,
+      "type": "tradeoff_consideration",
+      "title": "Kickoff cheat support hypothesis",
+      "assessment": "tactical_hypothesis",
+      "evidence": "Player Blue 2 advanced toward midfield from center spawn (85.0 boost). Cheating up gains secondary possession if the kickoff stalls or spills neutral, but carries risk of an open net if the kickoff pinches high or is lost cleanly over the car.",
+      "advice": "Inspect whether cheating up matched kicker communication and speed. If the kicker frequently loses kickoffs high, consider holding net or taking a wider arc.",
+      "cited_evidence": [
+        "kickoff_spawn",
+        "kickoff_role",
+        "kickoff_approach_motion"
+      ]
+    }
+  },
+  {
+    "category_label": "2. Nuanced Observation (Depth is Not Verified Coverage)",
+    "description": "Identifies that a teammate being behind the ball provides geometric depth, but cannot prove defensive orientation or momentum without visual inspection.",
+    "decision_case": {
+      "decision_case_id": "case-challenge-2-player_blue_2",
+      "decision_time_s": 35.881,
+      "focus_player": {
+        "id": "player_blue_2",
+        "name": "Player Blue 2",
+        "team": "blue"
+      },
+      "situation_type": "first_man_challenge",
+      "pre_decision_facts": [
+        {
+          "key": "challenge_approach",
+          "fact": "Player Blue 2 approached a 50/50 challenge as first man.",
+          "event_time_s": 35.881,
+          "source": "derived"
+        },
+        {
+          "key": "challenge_boost",
+          "fact": "Player Blue 2 had 78.2 boost at commitment.",
+          "event_time_s": 35.881,
+          "source": "replay"
+        },
+        {
+          "key": "second_man_depth",
+          "fact": "Teammate was 1815 units away at defensive depth (behind Player Blue 2).",
+          "event_time_s": 35.881,
+          "source": "replay"
+        }
+      ],
+      "tactical_context": {
+        "mate_distance": 1814.9,
+        "mate_relative_depth": "behind",
+        "defensive_coverage_verified": false
+      },
+      "hypothetical_alternatives_to_inspect": [
+        "commit_to_50_50_block",
+        "fake_challenge_and_rotate_out",
+        "shadow_and_delay"
+      ],
+      "epistemic_uncertainties": [
+        "Teammate car orientation, angular velocity, and defensive readiness cannot be verified from depth alone.",
+        "Opponent flip timing and direction.",
+        "Whether teammate called for a challenge or advised shadow."
+      ]
+    },
+    "heuristic_evaluation": {
+      "case_id": "case-challenge-2-player_blue_2",
+      "t": 35.881,
+      "type": "depth_observation",
+      "title": "First-man challenge with teammate at defensive depth",
+      "assessment": "unverified_coverage_hypothesis",
+      "evidence": "Player Blue 2 committed to a challenge with teammate positioned 1815 units behind. Telemetry confirms relative depth, but car orientation, momentum toward net, and recovery readiness cannot be verified from depth coordinates alone.",
+      "advice": "Review teammate's perspective and camera in the 3D replay. Verify whether they were turned toward the goal and ready to contest a spilled ball.",
+      "cited_evidence": [
+        "challenge_approach",
+        "challenge_boost",
+        "second_man_depth"
+      ]
+    }
+  },
+  {
+    "category_label": "3. Missing Evidence (Camera and Opponent Flick Ambiguity)",
+    "description": "Defines explicit boundaries of what telemetry cannot establish (opponent camera, visual perspective, micro-touch flicks).",
+    "decision_case": {
+      "decision_case_id": "case-lastman-19-player_blue_2",
+      "decision_time_s": 33.681,
+      "focus_player": {
+        "id": "player_blue_2",
+        "name": "Player Blue 2",
+        "team": "blue"
+      },
+      "situation_type": "last_man_defense",
+      "pre_decision_facts": [
+        {
+          "key": "last_man_role",
+          "fact": "Player Blue 2 is last man defending own net at 1541 units from goal line.",
+          "event_time_s": 33.681,
+          "source": "derived"
+        },
+        {
+          "key": "last_man_boost",
+          "fact": "Player Blue 2 has 86.3 boost in net defense.",
+          "event_time_s": 33.681,
+          "source": "replay"
+        },
+        {
+          "key": "ball_threat",
+          "fact": "Ball is 138 units away from Player Blue 2 and approaching goal area.",
+          "event_time_s": 33.681,
+          "source": "replay"
+        }
+      ],
+      "tactical_context": {
+        "dist_to_goal": 1541.0,
+        "ball_dist": 138.1,
+        "boost_at_t0": 86.3,
+        "is_constrained_boost": false
+      },
+      "hypothetical_alternatives_to_inspect": [
+        "shadow_across_goal_mouth",
+        "challenge_early_before_shot",
+        "hold_back_post_position"
+      ],
+      "epistemic_uncertainties": [
+        "Opponent strike vector and visual perspective.",
+        "Teammate recovery speed off screen."
+      ]
+    },
+    "heuristic_evaluation": {
+      "case_id": "case-lastman-19-player_blue_2",
+      "t": 33.681,
+      "type": "tactical_positioning",
+      "title": "Last-man goal defense posture",
+      "assessment": "tactical_hypothesis",
+      "evidence": "Player Blue 2 is positioned 1541 units from goal line with 86.3 boost.",
+      "advice": "Inspect whether back-post alignment covered the full net width and allowed reacting to both a direct ground shot and an aerial backboard bounce.",
+      "cited_evidence": [
+        "last_man_role",
+        "last_man_boost",
+        "ball_threat"
+      ]
+    }
+  },
+  {
+    "category_label": "4. Abstention (Failsafe for Ambiguous / Missing Telemetry)",
+    "description": "System abstains from asserting tactical mistakes when telemetry lacks requisite orientational or recovery context.",
+    "decision_case": {
+      "decision_case_id": "case-abstain-demo",
+      "decision_time_s": 142.5,
+      "focus_player": {
+        "id": "player_blue_1",
+        "name": "Player Blue 1",
+        "team": "blue"
+      },
+      "situation_type": "first_man_challenge",
+      "pre_decision_facts": [
+        {
+          "key": "challenge_approach",
+          "fact": "Player Blue 1 challenged ball at midfield",
+          "event_time_s": 142.5,
+          "source": "derived"
+        }
+      ],
+      "tactical_context": {
+        "mate_distance": null,
+        "defensive_coverage_verified": false
+      },
+      "hypothetical_alternatives_to_inspect": [
+        "shadow_defense",
+        "challenge"
+      ],
+      "epistemic_uncertainties": [
+        "Teammate position missing from tracking frame",
+        "Camera angle unknown"
+      ]
+    },
+    "heuristic_evaluation": {
+      "assessment": "abstain",
+      "title": "Insufficient telemetry for tactical assessment",
+      "advice": "Review this moment in full 3D playback or player POV to determine tactical validity.",
+      "cited_evidence": [
+        "challenge_approach"
+      ]
+    }
+  }
+]

@@ -20,7 +20,7 @@ GLOBAL_FEATURES = ['BallRigidBody', 'CurrentTime', 'SecondsRemaining']
 PLAYER_FEATURES = ['PlayerRigidBody', 'PlayerBoost', 'PlayerAnyJump']
 TRACKED_EVENTS = {'touch', 'goal_context', 'kickoff', 'fifty_fifty',
                   'boost_pickups', 'whiff', 'bump', 'speed_flip', 'shadow_defense',
-                  'demolition'}
+                  'demolition', 'depth_role'}
 # subtr-actor writes an all-zero rigid body when a car does not exist (before a
 # late spawn, between a goal and the next kickoff, at the respawn instant). A live
 # car can never be at the exact field origin with z == 0, so treat it as "absent".
@@ -216,8 +216,71 @@ def _events(event_data: dict, players: list[dict], times: list[float]) -> tuple[
             winner = content.get('winning_team_is_team_0')
             if isinstance(winner, bool):
                 item['winningTeam'] = 'blue' if winner else 'orange'
+            item['isKickoff'] = bool(content.get('is_kickoff'))
+            st = _finite(content.get('start_time'))
+            if st is not None:
+                item['startTime'] = round(st, 3)
+            rt = _finite(content.get('resolve_time'))
+            if rt is not None:
+                item['resolveTime'] = round(rt, 3)
+            p0 = _player_key(content.get('team_zero_player'))
+            p1 = _player_key(content.get('team_one_player'))
+            if p0 in known:
+                item['teamZeroPlayerId'] = p0
+            if p1 in known:
+                item['teamOnePlayerId'] = p1
         elif kind == 'kickoff':
             item['outcome'] = str(content.get('outcome', 'unknown'))[:50]
+            first_touch_t = _finite(content.get('first_touch_time'))
+            if first_touch_t is not None:
+                item['firstTouchTime'] = round(first_touch_t, 3)
+            spawn_t = _finite(content.get('movement_start_time') or content.get('start_time'))
+            if spawn_t is not None:
+                item['spawnTime'] = round(spawn_t, 3)
+            win_team_0 = content.get('winning_team_is_team_0')
+            if isinstance(win_team_0, bool):
+                item['winningTeam'] = 'blue' if win_team_0 else 'orange'
+            win_str = content.get('win_strength_band') or content.get('win_strength')
+            if isinstance(win_str, str):
+                item['winStrength'] = win_str[:32]
+
+            def _clean_non_takers(raw_list):
+                if not isinstance(raw_list, list):
+                    return []
+                cleaned = []
+                for entry in raw_list:
+                    if not isinstance(entry, dict):
+                        continue
+                    p_id = _player_key(entry.get('player'))
+                    if p_id not in known:
+                        continue
+                    raw_b = _finite(entry.get('start_boost'))
+                    boost_pct = round(min(100.0, max(0.0, (raw_b / 255.0) * 100.0)), 1) if raw_b is not None else None
+                    cleaned.append({
+                        'playerId': p_id,
+                        'spawnPosition': str(entry.get('spawn_position', 'unknown'))[:40],
+                        'supportBehavior': str(entry.get('support_behavior', 'unknown'))[:40],
+                        'startBoost': boost_pct,
+                    })
+                return cleaned
+
+            item['teamZeroNonTakers'] = _clean_non_takers(content.get('team_zero_non_takers'))
+            item['teamOneNonTakers'] = _clean_non_takers(content.get('team_one_non_takers'))
+
+            t0_taker = content.get('team_zero_taker')
+            if isinstance(t0_taker, dict):
+                p0_id = _player_key(t0_taker.get('player'))
+                if p0_id in known:
+                    item['teamZeroTakerId'] = p0_id
+            t1_taker = content.get('team_one_taker')
+            if isinstance(t1_taker, dict):
+                p1_id = _player_key(t1_taker.get('player'))
+                if p1_id in known:
+                    item['teamOneTakerId'] = p1_id
+        elif kind == 'depth_role':
+            state = content.get('state')
+            if isinstance(state, str):
+                item['state'] = state[:40]
         elif kind == 'whiff':
             item['classification'] = str(content.get('kind', 'unclassified'))[:50]
         elif kind == 'demolition':

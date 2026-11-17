@@ -91,3 +91,65 @@ def test_native_replay_upload_populates_bounded_contextual_reviews(monkeypatch):
     assert reviews['a'][0]['type'] == 'contextual'
     assert all(len(notes) <= 4 for notes in reviews.values())
     assert response.json()['replay']['title'] == 'test'
+
+
+def test_opt_in_decision_cases_endpoint():
+    """Verify that /api/decision-cases operates as an opt-in non-breaking endpoint."""
+    fake_replay = {
+        'title': 'demo', 'duration': 10.0,
+        'players': [
+            {'id': 'p1', 'name': 'Player 1', 'team': 'blue'},
+            {'id': 'p2', 'name': 'Player 2', 'team': 'orange'},
+        ],
+        'frames': [
+            {'t': 5.0, 'cars': {'p1': {'x': 0, 'y': -4000, 'z': 17, 'boost': 33, 'velocity': [0, 500, 0]}}, 'ball': {'x': 0, 'y': 0, 'z': 90}},
+        ],
+        'events': [
+            {
+                'type': 'kickoff', 't': 5.5,
+                'payload': {
+                    'payload': {
+                        'first_touch_time': 5.5,
+                        'team_zero_non_takers': [
+                            {'player': {'Steam': 'p1'}, 'spawn_position': 'center', 'support_behavior': 'cheat', 'start_boost': 33.0}
+                        ]
+                    }
+                }
+            }
+        ],
+    }
+
+    resp = client.post('/api/decision-cases', json={'replay': fake_replay, 'player_id': 'p1', 'evaluate': True})
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body['mode'] == 'opt_in_decision_engine'
+    assert body['count'] >= 1
+    case = body['cases'][0]
+    assert case['situation_type'] == 'kickoff_support'
+    assert 'evaluation' in case
+    assert case['evaluation']['assessment'] == 'tactical_hypothesis'
+
+
+def test_decision_cases_endpoint_input_validations():
+    """Verify that /api/decision-cases rejects malformed, oversized, or missing frame replays."""
+    # 1. Missing frames
+    resp = client.post('/api/decision-cases', json={'replay': {'players': [{'id': 'p1'}]}})
+    assert resp.status_code == 422
+
+    # 2. Oversized frames
+    huge_replay = {
+        'players': [{'id': 'p1'}],
+        'frames': [{'t': i * 0.03, 'cars': {}, 'ball': {}} for i in range(30_005)],
+    }
+    resp = client.post('/api/decision-cases', json={'replay': huge_replay})
+    assert resp.status_code == 422
+
+    # 3. Excessive duration (>1800s)
+    long_replay = {
+        'duration': 2500.0,
+        'players': [{'id': 'p1'}],
+        'frames': [{'t': 1.0, 'cars': {}, 'ball': {}}],
+    }
+    resp = client.post('/api/decision-cases', json={'replay': long_replay})
+    assert resp.status_code == 422
+

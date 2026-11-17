@@ -1,0 +1,281 @@
+[
+  {
+    "filename": "23A661D44DBC5964B0718DBC5F956A33.replay",
+    "file_size_kb": 1159.39,
+    "duration_seconds": 405.86,
+    "total_frames_30hz": 12071,
+    "player_count": 4,
+    "players": [
+      {
+        "id": "player_blue_1",
+        "name": "Player Blue 1",
+        "team": "blue"
+      },
+      {
+        "id": "player_blue_2",
+        "name": "Player Blue 2",
+        "team": "blue"
+      },
+      {
+        "id": "player_orange_1",
+        "name": "Player Orange 1",
+        "team": "orange"
+      },
+      {
+        "id": "player_orange_2",
+        "name": "Player Orange 2",
+        "team": "orange"
+      }
+    ],
+    "native_decode_time_s": 2.3674,
+    "native_python_heap_mb": 27.8,
+    "total_process_rss_mb": 315.11,
+    "native_total_events": 6788,
+    "native_event_types_count": 45,
+    "native_event_distribution": {
+      "movement": 1503,
+      "rotation_role": 714,
+      "ball_depth": 700,
+      "ball_proximity": 568,
+      "powerslide": 520,
+      "depth_role": 461,
+      "boost_pickups": 330,
+      "field_third": 268,
+      "dodge": 199,
+      "field_half": 196,
+      "touch": 181,
+      "core_player": 166,
+      "shadow_defense": 116,
+      "first_man_change": 99,
+      "possession": 87,
+      "ball_half": 80,
+      "ball_third": 73,
+      "loose_possession": 71,
+      "speed_flip": 43,
+      "player_activity": 37
+    },
+    "app_load_time_s": 9.1102,
+    "app_python_heap_mb": 79.05,
+    "app_retained_events": 751,
+    "app_retained_ratio": 0.1106,
+    "decision_cases_count": 76,
+    "decision_cases_time_s": 0.1584,
+    "decision_cases_by_category": {
+      "kickoff_support": 16,
+      "last_man_defense": 32,
+      "first_man_challenge": 28
+    },
+    "decision_cases_evaluations": {
+      "tactical_hypothesis": 42,
+      "unverified_coverage_hypothesis": 13,
+      "tactical_risk": 15,
+      "constrained_situation": 6
+    },
+    "legacy_contextual_reviews_time_s": 0.0243,
+    "legacy_contextual_reviews_count": {
+      "player_blue_1": 2,
+      "player_blue_2": 2,
+      "player_orange_1": 1,
+      "player_orange_2": 1
+    },
+    "legacy_candidates_time_s": 0.1616,
+    "legacy_candidates_count": {
+      "player_blue_1": 14,
+      "player_blue_2": 15,
+      "player_orange_1": 13,
+      "player_orange_2": 14
+    },
+    "legacy_candidates_categories": {
+      "overlap": 38,
+      "boost": 18
+    },
+    "legacy_llm_prompt_chars": 14403,
+    "legacy_llm_prompt_estimated_tokens": 3600
+  },
+  {
+    "filename": "03F49B8045D8B49A8C69A2A2EB011C95.replay",
+    "file_size_kb": 1151.37,
+    "duration_seconds": 368.9,
+    "total_frames_30hz": 10962,
+    "player_count": 4,
+    "players": [
+      {
+        "id": "player_blue_1",
+        "name": "Player Blue 1",
+        "team": "blue"
+      },
+      {
+        "id": "player_blue_2",
+        "name": "Player Blue 2",
+        "team": "blue"
+      },
+      {
+        "id": "player_orange_1",
+        "name": "Player Orange 1",
+        "team": "orange"
+      },
+      {
+        "id": "player_orange_2",
+        "name": "Player Orange 2",
+        "team": "orange"
+      }
+    ],
+    "native_decode_time_s": 2.5613,
+    "native_python_heap_mb": 28.5,
+    "total_process_rss_mb": 308.41,
+    "native_total_events": 6924,
+    "native_event_types_count": 46,
+    "native_event_distribution": {
+      "movement": 1572,
+      "rotation_role": 790,
+      "ball_depth": 698,
+      "ball_proximity": 614,
+      "powerslide": 520,
+      "depth_role": 430,
+      "boost_pickups": 338,
+      "field_third": 269,
+      "dodge": 235,
+      "field_half": 184,
+      "touch": 171,
+      "core_player": 162,
+      "first_man_change": 99,
+      "speed_flip": 81,
+      "ball_half": 79,
+      "possession": 76,
+      "shadow_defense": 72,
+      "ball_third": 71,
+      "loose_possession": 69,
+      "boost_respawn": 36
+    },
+    "app_load_time_s": 8.9434,
+    "app_python_heap_mb": 72.16,
+    "app_retained_events": 741,
+    "app_retained_ratio": 0.107,
+    "decision_cases_count": 69,
+    "decision_cases_time_s": 0.1215,
+    "decision_cases_by_category": {
+      "kickoff_support": 16,
+      "last_man_defense": 27,
+      "first_man_challenge": 26
+    },
+    "decision_cases_evaluations": {
+      "tactical_hypothesis": 37,
+      "constrained_situation": 6,
+      "unverified_coverage_hypothesis": 12,
+      "tactical_risk": 14
+    },
+    "legacy_contextual_reviews_time_s": 0.0137,
+    "legacy_contextual_reviews_count": {
+      "player_blue_1": 3,
+      "player_blue_2": 1,
+      "player_orange_1": 2,
+      "player_orange_2": 3
+    },
+    "legacy_candidates_time_s": 0.1187,
+    "legacy_candidates_count": {
+      "player_blue_1": 20,
+      "player_blue_2": 21,
+      "player_orange_1": 14,
+      "player_orange_2": 14
+    },
+    "legacy_candidates_categories": {
+      "overlap": 50,
+      "boost": 19
+    },
+    "legacy_llm_prompt_chars": 16272,
+    "legacy_llm_prompt_estimated_tokens": 4068
+  },
+  {
+    "filename": "022B278F4EA6E1C6B9E7C8BDC7256FE9.replay",
+    "file_size_kb": 1112.99,
+    "duration_seconds": 353.25,
+    "total_frames_30hz": 10491,
+    "player_count": 4,
+    "players": [
+      {
+        "id": "player_blue_1",
+        "name": "Player Blue 1",
+        "team": "blue"
+      },
+      {
+        "id": "player_blue_2",
+        "name": "Player Blue 2",
+        "team": "blue"
+      },
+      {
+        "id": "player_orange_1",
+        "name": "Player Orange 1",
+        "team": "orange"
+      },
+      {
+        "id": "player_orange_2",
+        "name": "Player Orange 2",
+        "team": "orange"
+      }
+    ],
+    "native_decode_time_s": 2.7125,
+    "native_python_heap_mb": 31.07,
+    "total_process_rss_mb": 310.36,
+    "native_total_events": 6751,
+    "native_event_types_count": 45,
+    "native_event_distribution": {
+      "movement": 1530,
+      "rotation_role": 756,
+      "ball_depth": 651,
+      "ball_proximity": 606,
+      "powerslide": 493,
+      "depth_role": 418,
+      "boost_pickups": 345,
+      "field_third": 285,
+      "dodge": 236,
+      "touch": 171,
+      "field_half": 167,
+      "core_player": 167,
+      "shadow_defense": 137,
+      "first_man_change": 106,
+      "ball_half": 76,
+      "possession": 75,
+      "ball_third": 72,
+      "loose_possession": 68,
+      "speed_flip": 35,
+      "wavedash": 33
+    },
+    "app_load_time_s": 9.7064,
+    "app_python_heap_mb": 72.54,
+    "app_retained_events": 754,
+    "app_retained_ratio": 0.1117,
+    "decision_cases_count": 68,
+    "decision_cases_time_s": 0.1275,
+    "decision_cases_by_category": {
+      "kickoff_support": 8,
+      "first_man_challenge": 34,
+      "last_man_defense": 26
+    },
+    "decision_cases_evaluations": {
+      "tactical_hypothesis": 25,
+      "unverified_coverage_hypothesis": 14,
+      "tactical_risk": 20,
+      "constrained_situation": 9
+    },
+    "legacy_contextual_reviews_time_s": 0.0145,
+    "legacy_contextual_reviews_count": {
+      "player_blue_1": 0,
+      "player_blue_2": 3,
+      "player_orange_1": 2,
+      "player_orange_2": 0
+    },
+    "legacy_candidates_time_s": 0.1299,
+    "legacy_candidates_count": {
+      "player_blue_1": 15,
+      "player_blue_2": 17,
+      "player_orange_1": 11,
+      "player_orange_2": 10
+    },
+    "legacy_candidates_categories": {
+      "overlap": 32,
+      "boost": 21
+    },
+    "legacy_llm_prompt_chars": 15361,
+    "legacy_llm_prompt_estimated_tokens": 3840
+  }
+]
