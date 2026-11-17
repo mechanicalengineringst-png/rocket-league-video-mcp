@@ -46,6 +46,7 @@ test('camera status distinguishes native, forced and unavailable',()=>{
   assert.equal(displayCameraMode(recordedCameraAt(track,2),'recorded',true),'CAR CAM');
   assert.equal(displayCameraMode(recordedCameraAt(track,2),'ball',false),'BALL CAM');
   assert.equal(displayCameraMode(recordedCameraAt(track,4),'recorded',false),'REAR LOOK');
+  assert.equal(displayCameraMode(recordedCameraAt(track,4),'recorded',false,true,false),'CAR CAM');
   assert.equal(displayCameraMode(recordedCameraAt(track,3),'recorded',null,false),'FREE / ORBIT');
   assert.equal(displayCameraMode(recordedCameraAt(null,0),'recorded',null),'CAMERA UNKNOWN');
   assert.equal(displayCameraMode(recordedCameraAt(null,0),'recorded',true),'CAMERA UNKNOWN');
