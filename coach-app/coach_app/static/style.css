@@ -98,3 +98,11 @@
 .recent-actions-panel .touch-link{flex-shrink:0}
 .recent-actions-panel:not([open]) .touch-list{display:none}
 .left-panel .upload-area{margin-top:12px}
+
+/* Optional feedback stays collapsed until the player wants to correct the model. */
+.feedback-panel{border-top:1px solid #31505a;margin-top:14px;padding:12px 0 0}
+.feedback-panel summary{font-size:11px;color:#a7ded9;cursor:pointer;font-weight:650}
+.feedback-choices{display:flex;gap:6px;flex-wrap:wrap;margin:12px 0 8px}
+.feedback-choices .button-mini{font-size:10px;padding:7px}
+.feedback-choices .button-mini.active{background:#184252;border-color:#7de2d7;color:#7de2d7}
+.feedback-panel textarea{width:100%;background:#0c2530;color:#eaf6f7;border:1px solid #31505a;border-radius:7px;padding:9px;resize:vertical;font-size:11px;line-height:1.5}
