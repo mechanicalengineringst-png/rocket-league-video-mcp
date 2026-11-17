@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import {qualitySettings,createEffectRefiner,refineBoostPadVisuals} from '../src/visual-quality.js';
+import {qualitySettings,createEffectRefiner,setFieldDecorStyle} from '../src/visual-quality.js';
 
 test('graphics mode respects hardware pixel ratio and anisotropy ceilings',()=>{
   assert.deepEqual(qualitySettings('balanced',1,4),{ratio:1,anisotropy:4});
@@ -43,19 +43,17 @@ test('soft ribbon shader updates actual supersonic trail material',()=>{
   assert.equal(mat.fragmentShader,fragment);
 });
 
-test('hide upstream giant black large-pad geometry without removing actual lens or pickup',()=>{
-  const baseGroup={visible:true};
-  const lens={visible:true};
-  const big={userData:{isBig:true,baseGroup},visible:true};
-  const small={userData:{isBig:false,baseGroup:{visible:true}},visible:true};
-  const scene={children:[big,small]};
-  assert.equal(refineBoostPadVisuals({scene}),1);
-  assert.equal(baseGroup.visible,false);
-  assert.equal(big.visible,true);
-  assert.equal(lens.visible,true);
-  assert.equal(small.userData.baseGroup.visible,true);
-  assert.equal(refineBoostPadVisuals({scene}),0);
-  // The upstream boost plugin may reenable its base group after cooldown.
-  baseGroup.visible=true;
-  assert.equal(refineBoostPadVisuals({scene}),1);
+
+test('field decoration toggle hides only raycast-identified dark decal',()=>{
+  const decor={name:'Field_STD_Floor_Hex002',visible:true};
+  const grass={name:'Field_STD_Floor_Thick001',visible:true};
+  const boost={name:'BigPadArt',visible:true};
+  const player={arenaManager:{arenaMeshes:[decor,grass,boost]}};
+  assert.equal(setFieldDecorStyle(player,'clean'),1);
+  assert.equal(decor.visible,false);
+  assert.equal(grass.visible,true);
+  assert.equal(boost.visible,true);
+  assert.equal(setFieldDecorStyle(player,'clean'),0);
+  assert.equal(setFieldDecorStyle(player,'original'),1);
+  assert.equal(decor.visible,true);
 });
