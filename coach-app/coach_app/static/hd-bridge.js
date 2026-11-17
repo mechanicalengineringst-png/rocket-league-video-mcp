@@ -20,6 +20,7 @@
   let hdInstanceId = null;
   let seq = 0;
   let lastState = null;
+  let awaitingReplayReady = false;
   let lastPost = null;
   let lastPostAt = 0;
 
@@ -86,6 +87,7 @@
     // The old replay's focus/time must never be applied to this new file
     // before its own upload and player mapping have completed.
     lastState = null;
+    awaitingReplayReady = true;
     loaded = false;
     loadInFlight = false;
     if (linked()) sendLoad();
@@ -101,7 +103,13 @@
     // Ready is sent both on page creation and when pinging an existing tab.
     hdWindow.postMessage({type:'replay-lab:hd-ping'},location.origin);
   });
+  window.addEventListener('replay-lab:replay-ready',e=>{
+    // Only trust state created AFTER current upload was fully parsed.
+    awaitingReplayReady = !!e.detail?.synthetic;
+    if (awaitingReplayReady) lastState = null;
+  });
   window.addEventListener('replay-lab:sync-state',e=>{
+    if (awaitingReplayReady) return;
     lastState = e.detail;
     forward();
   });
