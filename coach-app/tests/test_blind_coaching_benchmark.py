@@ -162,3 +162,13 @@ def test_abstention_is_distinct_from_missing_prediction_and_refuted_risk():
     assert res["risk_warning_precision"] == 0.0
     assert res["risk_warning_recall_on_consensus_risks"] == 0.0
     assert res["false_blame_rate_on_consensus_sound"] == 0.5
+
+def test_explicit_retrospective_source_or_missing_provenance_fails_closed():
+    retrospective = case("retro")
+    retrospective["pre_decision_evidence"][0]["source"] = "future_derived"
+    with pytest.raises(ValueError, match="retrospective source"):
+        evaluate([retrospective], [], [])
+    incomplete = case("no-quality")
+    incomplete["pre_decision_evidence"][0].pop("source_quality")
+    with pytest.raises(ValueError, match="source_quality is required"):
+        evaluate([incomplete], [], [])
