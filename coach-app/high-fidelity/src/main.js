@@ -210,7 +210,10 @@ function updateCameraEvidence(){
 function refreshCameraEvents() {
   const list=$('cameraEventList');
   list.replaceChildren();
-  const moments=cameraSwitchMoments(player?.replay,currentCameraTrack(),60);
+  // Native 2v2 camera tracks can contain hundreds of toggles; limiting the
+  // strip to the first 60 prevented seeking to legitimate later Car Cam OFF
+  // moments. The list has a fixed-height scroll container in style.css.
+  const moments=cameraSwitchMoments(player?.replay,currentCameraTrack(),500);
   if(!moments.length){
     const span=document.createElement('span');
     span.className='muted';
