@@ -170,8 +170,8 @@
     const $ = id => document.getElementById(id);
     const state = {
       decisions: [], quality: [], decisionAnswers: Object.create(null),
-      qualityAnswers: Object.create(null), decisionFrozen: false,
-      stage: "decision", index: 0, lastExported: false
+      qualityAnswers: Object.create(null), decisionFrozen: false, qualityFrozen: false,
+      stage: "decision", index: 0
     };
     const verdictButtons = [...document.querySelectorAll("[data-verdict]")];
     function showMessage(text, error) {
@@ -225,10 +225,10 @@
       $("resumeDecisions").disabled = !d || state.decisionFrozen;
       $("saveDecisionsDraft").disabled = !d || dc === 0 || state.decisionFrozen;
       $("freezeDecisions").disabled = !d || dc !== d || state.decisionFrozen;
-      $("loadQuality").disabled = !state.decisionFrozen;
-      $("resumeQuality").disabled = !q;
-      $("saveQualityDraft").disabled = !q || qc === 0;
-      $("exportQuality").disabled = !q || qc !== q;
+      $("loadQuality").disabled = !state.decisionFrozen || state.qualityFrozen;
+      $("resumeQuality").disabled = !q || state.qualityFrozen;
+      $("saveQualityDraft").disabled = !q || qc === 0 || state.qualityFrozen;
+      $("exportQuality").disabled = !q || qc !== q || state.qualityFrozen;
       $("rater").disabled = state.decisionFrozen;
       $("previous").disabled = state.index === 0;
       $("next").disabled = state.index >= currentList().length - 1;
@@ -289,6 +289,10 @@
         $("usefulYes").setAttribute("aria-pressed", String(answer.useful === true));
         $("usefulNo").setAttribute("aria-pressed", String(answer.useful === false));
         $("qualityNote").value = answer.note || "";
+        for (const id of ["factualErrors","unsupportedClaims","usefulYes",
+                          "usefulNo","qualityNote","saveQualityAnswer"]) {
+          $(id).disabled = state.qualityFrozen;
+        }
       }
     }
     function saveDecisionNote() {
@@ -318,6 +322,7 @@
     $("usefulNo").addEventListener("click", () => selectUseful(false));
     function saveQualityAnswer() {
       try {
+        if (state.qualityFrozen) throw new Error("The quality ratings have been finalized");
         reviewerCode();
         const rawF = $("factualErrors").value.trim();
         const rawU = $("unsupportedClaims").value.trim();
@@ -356,7 +361,8 @@
         const records = core.validatePackets("decision", await readJSON(event.target.files[0]));
         state.decisions = records; state.decisionAnswers = Object.create(null);
         state.quality = []; state.qualityAnswers = Object.create(null);
-        state.decisionFrozen = false; state.stage = "decision"; state.index = 0;
+        state.decisionFrozen = false; state.qualityFrozen = false;
+        state.stage = "decision"; state.index = 0;
         usefulSelection = null; hideMessage(); renderCase();
         showMessage(records.length + " anonymized decisions loaded. Review before viewing any model outputs.", false);
       } catch (err) { showMessage(err.message, true); }
@@ -376,6 +382,7 @@
         const records = core.validatePackets("quality", await readJSON(event.target.files[0]));
         core.validatePairing(state.decisions, records);
         state.quality = records; state.qualityAnswers = Object.create(null);
+        state.qualityFrozen = false;
         state.stage = "quality"; state.index = 0; usefulSelection = null;
         hideMessage(); renderCase();
         showMessage(records.length + " anonymous coaching outputs loaded. Model identities remain hidden.", false);
@@ -404,6 +411,10 @@
           state.decisionFrozen = true;
           renderCase();
           showMessage("Stage 1 exported and frozen. You may now load Stage 2 quality packets.", false);
+        } else if (stage === "quality" && complete) {
+          state.qualityFrozen = true;
+          renderCase();
+          showMessage("Stage 2 exported and frozen. Send both reviewer files privately to the coordinator.", false);
         } else showMessage(tag + " review exported locally. Keep the file private.", false);
       } catch (err) { showMessage(err.message, true); }
     }
