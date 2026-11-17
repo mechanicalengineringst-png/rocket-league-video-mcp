@@ -63,32 +63,6 @@ try{
   });
   console.log('HD_QA_MATERIAL_RAYCAST',JSON.stringify(materialQA).slice(0,18000));
   await page.screenshot({path:path.join(output,'native-replay-in-browser.png'),fullPage:true});
-  // Same paused frame, same camera, one render layer toggled at a time.
-  // These screenshots let us identify dark decorations without modifying
-  // all stadium materials or relying on guesswork from ray intersections.
-  const qa=page.locator('#viewport');
-  await page.evaluate(()=>window.__rlReplayLabQA?.freezeAt(.2));
-  await page.waitForTimeout(180);
-  await qa.screenshot({path:path.join(output,'diag-original-render.png')});
-  await page.evaluate(()=>window.__rlReplayLabQA?.setBoostMeshesVisible(false));
-  await page.waitForTimeout(120);
-  await qa.screenshot({path:path.join(output,'diag-no-boosts.png')});
-  await page.evaluate(()=>window.__rlReplayLabQA?.setBoostMeshesVisible(true));
-  await page.evaluate(()=>window.__rlReplayLabQA?.setArenaMeshVisible('Field_STD_Floor_Hex',false));
-  await page.waitForTimeout(120);
-  await qa.screenshot({path:path.join(output,'diag-no-floor-hex.png')});
-  await page.evaluate(()=>window.__rlReplayLabQA?.setArenaMeshVisible('Field_STD_Floor_Hex',true));
-  await page.evaluate(()=>window.__rlReplayLabQA?.setArenaMeshVisible('Field_STD_Floor_Thick003',false));
-  await page.waitForTimeout(120);
-  await qa.screenshot({path:path.join(output,'diag-no-blue-floor-lines.png')});
-  await page.evaluate(()=>window.__rlReplayLabQA?.setArenaMeshVisible('Field_STD_Floor_Thick003',true));
-  await page.evaluate(()=>window.__rlReplayLabQA?.setSceneShadows(false));
-  await page.waitForTimeout(120);
-  await qa.screenshot({path:path.join(output,'diag-no-shadows.png')});
-  await page.evaluate(()=>{
-    window.__rlReplayLabQA?.setSceneShadows(true);
-    window.__rlReplayLabQA?.freezeAt(.2);
-  });
   assert.match(status,/High-fidelity stadium loaded/,'The GLTF stadium should load, not a fallback floor');
   const players=await page.locator('#playerSelect option').count();
   console.log('HD_REPLAY_PLAYERS',players);
@@ -129,14 +103,19 @@ try{
   await page.locator('#replayLookToggle').check();
   await page.locator('#qualitySelect').selectOption('sharp');
   await page.locator('#qualitySelect').selectOption('balanced');
-  const decorState=()=>page.evaluate(()=>
-    window.__rlReplayLabQA?.arenaMeshes()?.find(x=>x.name==='Field_STD_Floor_Hex002')?.visible
-  );
-  assert.equal(await decorState(),false,'Clean field hides only confirmed black/blue decal');
+  const decorState=()=>page.evaluate(()=>(
+    window.__rlReplayLabQA?.arenaMeshes()?.filter(x=>
+      x.name.startsWith('Field_STD_Floor_Hex')).map(x=>x.visible) ?? []
+  ));
+  const clean=await decorState();
+  assert.ok(clean.length>=2,'GLTF has multiple stacked field-hex decals');
+  assert.ok(clean.every(v=>v===false),'Clean mode hides all stacked hex decorations');
   await page.locator('#fieldDecorSelect').selectOption('original');
-  assert.equal(await decorState(),true,'Original stadium artwork remains recoverable');
+  assert.ok((await decorState()).every(v=>v===true),
+    'Original artwork must restore all field hex layers');
   await page.locator('#fieldDecorSelect').selectOption('clean');
-  assert.equal(await decorState(),false);
+  assert.ok((await decorState()).every(v=>v===false),
+    'Returning to Clean must hide all hex decorations again');
   await page.locator('#fxStyle').selectOption('original');
   await page.locator('#fxStyle').selectOption('soft');
   await page.locator('#speedSelect').selectOption('2');
