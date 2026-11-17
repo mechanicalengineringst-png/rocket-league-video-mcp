@@ -123,3 +123,15 @@ def test_malformed_predictions_and_hidden_platform_identifiers_are_rejected():
     bad_cases[0]["pre_decision_evidence"][0]["claim"] += " Steam:76561198000000000"
     with pytest.raises(ValueError, match="platform identifier"):
         build_packets(bad_cases, predictions())
+
+
+def test_blind_quality_packet_rejects_self_identifying_model_text():
+    agents = predictions()
+    agents[0]["title"] = "Gemini recommends rotating"
+    with pytest.raises(ValueError, match="self-identifies the model"):
+        build_packets(cases(), agents)
+
+    agents = predictions()
+    agents[0]["advice"] = "The small-value-model rates this as a bad play"
+    with pytest.raises(ValueError, match="self-identifies the model"):
+        build_packets(cases(), agents)
