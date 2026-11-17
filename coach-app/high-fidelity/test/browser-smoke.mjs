@@ -84,6 +84,21 @@ try{
   await page.locator('#ballCamSelect').selectOption('recorded');
   assert.equal(await page.locator('#cameraSource').textContent(),
     /Native camera events/i.test(evidence)?'REPLAY TELEMETRY':'NO RECORDED SWITCH');
+  // Camera label alone could be UI theater: assert the actual replay engine
+  // switched its CameraManager state using decoded native toggle events.
+  const firstOff=page.locator('#cameraEventList button.off').first();
+  if(await firstOff.count()) {
+    await firstOff.click(); await page.waitForTimeout(320);
+    const off=await page.evaluate(()=>window.__rlReplayLabQA?.effectiveCameraState());
+    console.log('HD_REAL_CAMERA_OFF_STATE',JSON.stringify(off));
+    assert.equal(off.viewMode,'follow');
+    assert.equal(off.pluginBallCam,false,'Native Ball Cam OFF should reach real camera plugin');
+    const firstOn=page.locator('#cameraEventList button').filter({hasText:'Ball Cam on'}).first();
+    await firstOn.click(); await page.waitForTimeout(320);
+    const on=await page.evaluate(()=>window.__rlReplayLabQA?.effectiveCameraState());
+    console.log('HD_REAL_CAMERA_ON_STATE',JSON.stringify(on));
+    assert.equal(on.pluginBallCam,true,'Native Ball Cam ON should reach real camera plugin');
+  }
   await page.locator('#replayLookToggle').uncheck();
   await page.locator('#replayLookToggle').check();
   await page.locator('#qualitySelect').selectOption('sharp');
