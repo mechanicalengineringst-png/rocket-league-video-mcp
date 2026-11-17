@@ -44,16 +44,18 @@ test('soft ribbon shader updates actual supersonic trail material',()=>{
 });
 
 
-test('field decoration toggle hides only raycast-identified dark decal',()=>{
-  const decor={name:'Field_STD_Floor_Hex002',visible:true};
+test('Clean field removes all stacked hex decals but not grass, lines, or boost pads',()=>{
+  const hexA={name:'Field_STD_Floor_Hex',visible:true};
+  const hexB={name:'Field_STD_Floor_Hex001',visible:true};
+  const hexC={name:'Field_STD_Floor_Hex002',visible:true};
   const grass={name:'Field_STD_Floor_Thick001',visible:true};
+  const lines={name:'Field_STD_Floor_Thick003',visible:true};
   const boost={name:'BigPadArt',visible:true};
-  const player={arenaManager:{arenaMeshes:[decor,grass,boost]}};
-  assert.equal(setFieldDecorStyle(player,'clean'),1);
-  assert.equal(decor.visible,false);
-  assert.equal(grass.visible,true);
-  assert.equal(boost.visible,true);
+  const player={arenaManager:{arenaMeshes:[hexA,hexB,hexC,grass,lines,boost]}};
+  assert.equal(setFieldDecorStyle(player,'clean'),3);
+  assert.ok([hexA,hexB,hexC].every(mesh=>mesh.visible===false));
+  assert.ok([grass,lines,boost].every(mesh=>mesh.visible===true));
   assert.equal(setFieldDecorStyle(player,'clean'),0);
-  assert.equal(setFieldDecorStyle(player,'original'),1);
-  assert.equal(decor.visible,true);
+  assert.equal(setFieldDecorStyle(player,'original'),3);
+  assert.ok([hexA,hexB,hexC,grass,lines,boost].every(mesh=>mesh.visible===true));
 });
