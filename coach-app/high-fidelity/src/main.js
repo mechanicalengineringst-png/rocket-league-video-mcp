@@ -11,6 +11,7 @@ import {
   cameraSwitchMoments, displayCameraMode,
 } from './camera-timeline.js';
 import { createCameraPolishPlugin } from './camera-polish.js';
+import { createRecordedCameraSwitchPlugin } from './recorded-camera-switch.js';
 import {
   applySceneQuality, setFieldDecorStyle, createEffectRefiner, createVisualEffectsPlugin,
 } from './visual-quality.js';
@@ -297,6 +298,11 @@ async function loadFile(file, preferredName = null) {
       getFollowId:()=>currentPlayer()?.id,
       getReplayLook:()=>$('replayLookToggle').checked,
     });
+    const cameraStateSource=createRecordedCameraSwitchPlugin({
+      getCameraPlugin:()=>cameraPlugin,
+      getFollowId:()=>currentPlayer()?.id,
+      getCameraOverride:()=>$('ballCamSelect').value,
+    });
     effectRefiner=createEffectRefiner(()=>$('fxStyle').value);
     setStatus('Building stadium, cars and replay timeline…');
     const next = await createPlayer(viewer, bytes, {
@@ -313,6 +319,7 @@ async function loadFile(file, preferredName = null) {
         createBoostPadsPlugin(),
         createScoredTextPlugin(),
         fromReplayPlayerPlugin(createBoostPickupAnimationPlugin()),
+        cameraStateSource, // native source overrides stale adapter BEFORE camera renders
         cameraPlugin,
         cameraPolish, // must run AFTER native camera plugin
         createVisualEffectsPlugin(effectRefiner),
