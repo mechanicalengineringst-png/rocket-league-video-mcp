@@ -102,7 +102,7 @@ def test_opt_in_decision_cases_endpoint():
             {'id': 'p2', 'name': 'Player 2', 'team': 'orange'},
         ],
         'frames': [
-            {'t': 5.0, 'cars': {'p1': {'x': 0, 'y': -4000, 'z': 17, 'boost': 33}}, 'ball': {'x': 0, 'y': 0, 'z': 90}},
+            {'t': 5.0, 'cars': {'p1': {'x': 0, 'y': -4000, 'z': 17, 'boost': 33, 'velocity': [0, 500, 0]}}, 'ball': {'x': 0, 'y': 0, 'z': 90}},
         ],
         'events': [
             {

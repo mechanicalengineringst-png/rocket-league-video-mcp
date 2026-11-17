@@ -33,7 +33,25 @@ def evaluate_decision_case_heuristics(case: DecisionCase) -> dict[str, Any] | No
         pre_keys = ["kickoff_spawn", "kickoff_role", "kickoff_approach_motion"]
         case.validate_admissibility(pre_keys)
 
-        if "midfield" in motion.lower() or "forward" in motion.lower():
+        boost_str = f"{boost:.1f}%" if boost is not None else "unrecorded"
+
+        if motion.lower() in ("unknown", "", "none"):
+            return {
+                "case_id": case.case_id,
+                "t": case.t0,
+                "type": "abstain",
+                "title": "Kickoff approach unrecorded",
+                "assessment": "abstain",
+                "evidence": (
+                    f"{case.focus_player_name} spawned at {spawn} ({boost_str} boost). "
+                    "Car motion at t0 was unrecorded or ambiguous in replay samples."
+                ),
+                "advice": (
+                    "Inspect player kickoff approach and cheat line directly in 3D replay."
+                ),
+                "cited_evidence": pre_keys,
+            }
+        elif "midfield" in motion.lower() or "forward" in motion.lower():
             return {
                 "case_id": case.case_id,
                 "t": case.t0,
@@ -41,7 +59,7 @@ def evaluate_decision_case_heuristics(case: DecisionCase) -> dict[str, Any] | No
                 "title": "Kickoff cheat support hypothesis",
                 "assessment": "tactical_hypothesis",
                 "evidence": (
-                    f"{case.focus_player_name} advanced toward midfield from {spawn} spawn ({boost} boost). "
+                    f"{case.focus_player_name} advanced toward midfield from {spawn} spawn ({boost_str} boost). "
                     "Cheating up gains secondary possession if the kickoff stalls or spills neutral, "
                     "but carries risk of an open net if the kickoff pinches high or is lost cleanly over the car."
                 ),
@@ -123,12 +141,16 @@ def evaluate_decision_case_heuristics(case: DecisionCase) -> dict[str, Any] | No
 
     elif case.situation_type == "last_man_defense":
         is_constrained = ctx.get("is_constrained_boost", False)
-        boost = ctx.get("boost_at_t0", 0.0)
+        boost = ctx.get("boost_at_t0")
         dist_to_goal = ctx.get("dist_to_goal", 0.0)
 
-        case.validate_admissibility(["last_man_role", "last_man_boost", "ball_threat"])
+        available_pre = {e.key for e in case.pre_decision_evidence()}
+        required_keys = ["last_man_role", "ball_threat"]
+        if "last_man_boost" in available_pre:
+            required_keys.append("last_man_boost")
+        case.validate_admissibility(required_keys)
 
-        if is_constrained:
+        if is_constrained and boost is not None:
             return {
                 "case_id": case.case_id,
                 "t": case.t0,
@@ -143,9 +165,10 @@ def evaluate_decision_case_heuristics(case: DecisionCase) -> dict[str, Any] | No
                     "Hold back post, pick up goal-line small pads, and force the shooter to commit. "
                     "Do not dive forward into an early challenge with limited boost."
                 ),
-                "cited_evidence": ["last_man_role", "last_man_boost", "ball_threat"],
+                "cited_evidence": required_keys,
             }
         else:
+            boost_desc = f"with {boost:.1f} boost" if boost is not None else "(boost level unrecorded)"
             return {
                 "case_id": case.case_id,
                 "t": case.t0,
@@ -153,13 +176,13 @@ def evaluate_decision_case_heuristics(case: DecisionCase) -> dict[str, Any] | No
                 "title": "Last-man goal defense posture",
                 "assessment": "tactical_hypothesis",
                 "evidence": (
-                    f"{case.focus_player_name} is positioned {dist_to_goal:.0f} units from goal line with {boost:.1f} boost."
+                    f"{case.focus_player_name} is positioned {dist_to_goal:.0f} units from goal line {boost_desc}."
                 ),
                 "advice": (
                     "Inspect whether back-post alignment covered the full net width and allowed reacting "
                     "to both a direct ground shot and an aerial backboard bounce."
                 ),
-                "cited_evidence": ["last_man_role", "last_man_boost", "ball_threat"],
+                "cited_evidence": required_keys,
             }
 
     return None

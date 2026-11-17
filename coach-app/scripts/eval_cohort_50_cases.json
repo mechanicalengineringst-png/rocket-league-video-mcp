@@ -1,0 +1,1652 @@
+[
+  {
+    "case_id": "eval-case-001",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "kickoff_support",
+    "t0": 9.311,
+    "pre_decision_evidence": [
+      {
+        "key": "kickoff_spawn",
+        "claim": "player_blue_2 spawned at center with 33.3% boost.",
+        "event_time_s": 7.311,
+        "finalized_through_s": 7.311,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "kickoff_role",
+        "claim": "player_blue_2 is second man on kickoff, observing teammate approach.",
+        "event_time_s": 7.311,
+        "finalized_through_s": 7.311,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "kickoff_approach_motion",
+        "claim": "player_blue_2 observed at t0: moving forward toward midfield.",
+        "event_time_s": 9.311,
+        "finalized_through_s": 9.311,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-002",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "kickoff_support",
+    "t0": 9.311,
+    "pre_decision_evidence": [
+      {
+        "key": "kickoff_spawn",
+        "claim": "player_orange_4 spawned at center with 33.3% boost.",
+        "event_time_s": 7.311,
+        "finalized_through_s": 7.311,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "kickoff_role",
+        "claim": "player_orange_4 is second man on kickoff, observing teammate approach.",
+        "event_time_s": 7.311,
+        "finalized_through_s": 7.311,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "kickoff_approach_motion",
+        "claim": "player_orange_4 observed at t0: moving forward toward midfield.",
+        "event_time_s": 9.311,
+        "finalized_through_s": 9.311,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-003",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "kickoff_support",
+    "t0": 24.38,
+    "pre_decision_evidence": [
+      {
+        "key": "kickoff_spawn",
+        "claim": "player_blue_2 spawned at off_center_left with 33.3% boost.",
+        "event_time_s": 22.38,
+        "finalized_through_s": 22.38,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "kickoff_role",
+        "claim": "player_blue_2 is second man on kickoff, observing teammate approach.",
+        "event_time_s": 22.38,
+        "finalized_through_s": 22.38,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "kickoff_approach_motion",
+        "claim": "player_blue_2 observed at t0: moving forward toward midfield.",
+        "event_time_s": 24.38,
+        "finalized_through_s": 24.38,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-004",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "kickoff_support",
+    "t0": 24.38,
+    "pre_decision_evidence": [
+      {
+        "key": "kickoff_spawn",
+        "claim": "player_orange_4 spawned at off_center_left with 33.3% boost.",
+        "event_time_s": 22.38,
+        "finalized_through_s": 22.38,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "kickoff_role",
+        "claim": "player_orange_4 is second man on kickoff, observing teammate approach.",
+        "event_time_s": 22.38,
+        "finalized_through_s": 22.38,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "kickoff_approach_motion",
+        "claim": "player_orange_4 observed at t0: reversing or braking toward net.",
+        "event_time_s": 24.38,
+        "finalized_through_s": 24.38,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-005",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "last_man_defense",
+    "t0": 33.681,
+    "pre_decision_evidence": [
+      {
+        "key": "last_man_role",
+        "claim": "player_blue_2 is last man defending own net at 1541 units from goal line.",
+        "event_time_s": 33.681,
+        "finalized_through_s": 33.681,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "last_man_boost",
+        "claim": "player_blue_2 has 86.3 boost in net defense.",
+        "event_time_s": 33.681,
+        "finalized_through_s": 33.681,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "ball_threat",
+        "claim": "Ball is 138 units away from player_blue_2 and approaching goal area.",
+        "event_time_s": 33.681,
+        "finalized_through_s": 33.681,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-006",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "first_man_challenge",
+    "t0": 35.881,
+    "pre_decision_evidence": [
+      {
+        "key": "challenge_approach",
+        "claim": "player_blue_2 approached a 50/50 challenge as first man.",
+        "event_time_s": 35.881,
+        "finalized_through_s": 35.881,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "challenge_boost",
+        "claim": "player_blue_2 had 78.2 boost at commitment.",
+        "event_time_s": 35.881,
+        "finalized_through_s": 35.881,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "second_man_depth",
+        "claim": "Teammate was 1815 units away at defensive depth (behind player_blue_2).",
+        "event_time_s": 35.881,
+        "finalized_through_s": 35.881,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-007",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "first_man_challenge",
+    "t0": 35.881,
+    "pre_decision_evidence": [
+      {
+        "key": "challenge_approach",
+        "claim": "player_orange_4 approached a 50/50 challenge as first man.",
+        "event_time_s": 35.881,
+        "finalized_through_s": 35.881,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "challenge_boost",
+        "claim": "player_orange_4 had 100.0 boost at commitment.",
+        "event_time_s": 35.881,
+        "finalized_through_s": 35.881,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "second_man_depth",
+        "claim": "Teammate was 3406 units away at defensive depth (behind player_orange_4).",
+        "event_time_s": 35.881,
+        "finalized_through_s": 35.881,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-008",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "first_man_challenge",
+    "t0": 37.88,
+    "pre_decision_evidence": [
+      {
+        "key": "challenge_approach",
+        "claim": "player_blue_2 approached a 50/50 challenge as first man.",
+        "event_time_s": 37.88,
+        "finalized_through_s": 37.88,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "challenge_boost",
+        "claim": "player_blue_2 had 36.6 boost at commitment.",
+        "event_time_s": 37.88,
+        "finalized_through_s": 37.88,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "second_man_depth",
+        "claim": "Teammate was 3303 units away at defensive depth (behind player_blue_2).",
+        "event_time_s": 37.88,
+        "finalized_through_s": 37.88,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-009",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "first_man_challenge",
+    "t0": 41.347,
+    "pre_decision_evidence": [
+      {
+        "key": "challenge_approach",
+        "claim": "player_blue_2 approached a 50/50 challenge as first man.",
+        "event_time_s": 41.347,
+        "finalized_through_s": 41.347,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "challenge_boost",
+        "claim": "player_blue_2 had 75.3 boost at commitment.",
+        "event_time_s": 41.347,
+        "finalized_through_s": 41.347,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "second_man_depth",
+        "claim": "Teammate was 2419 units away at defensive depth (behind player_blue_2).",
+        "event_time_s": 41.347,
+        "finalized_through_s": 41.347,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-010",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "first_man_challenge",
+    "t0": 41.347,
+    "pre_decision_evidence": [
+      {
+        "key": "challenge_approach",
+        "claim": "player_orange_4 approached a 50/50 challenge as first man.",
+        "event_time_s": 41.347,
+        "finalized_through_s": 41.347,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "challenge_boost",
+        "claim": "player_orange_4 had 60.0 boost at commitment.",
+        "event_time_s": 41.347,
+        "finalized_through_s": 41.347,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "second_man_depth",
+        "claim": "Teammate was 4785 units away at defensive depth (ahead of player_orange_4).",
+        "event_time_s": 41.347,
+        "finalized_through_s": 41.347,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-011",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "last_man_defense",
+    "t0": 43.448,
+    "pre_decision_evidence": [
+      {
+        "key": "last_man_role",
+        "claim": "player_orange_4 is last man defending own net at 928 units from goal line.",
+        "event_time_s": 43.448,
+        "finalized_through_s": 43.448,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "last_man_boost",
+        "claim": "player_orange_4 has 42.0 boost in net defense.",
+        "event_time_s": 43.448,
+        "finalized_through_s": 43.448,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "ball_threat",
+        "claim": "Ball is 2310 units away from player_orange_4 and approaching goal area.",
+        "event_time_s": 43.448,
+        "finalized_through_s": 43.448,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-012",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "first_man_challenge",
+    "t0": 43.681,
+    "pre_decision_evidence": [
+      {
+        "key": "challenge_approach",
+        "claim": "player_orange_3 approached a 50/50 challenge as first man.",
+        "event_time_s": 43.681,
+        "finalized_through_s": 43.681,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "challenge_boost",
+        "claim": "player_orange_3 had 0.0 boost at commitment.",
+        "event_time_s": 43.681,
+        "finalized_through_s": 43.681,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "second_man_depth",
+        "claim": "Teammate was 2442 units away at defensive depth (behind player_orange_3).",
+        "event_time_s": 43.681,
+        "finalized_through_s": 43.681,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-013",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "last_man_defense",
+    "t0": 57.645,
+    "pre_decision_evidence": [
+      {
+        "key": "last_man_role",
+        "claim": "player_blue_1 is last man defending own net at 338 units from goal line.",
+        "event_time_s": 57.645,
+        "finalized_through_s": 57.645,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "last_man_boost",
+        "claim": "player_blue_1 has 62.1 boost in net defense.",
+        "event_time_s": 57.645,
+        "finalized_through_s": 57.645,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "ball_threat",
+        "claim": "Ball is 587 units away from player_blue_1 and approaching goal area.",
+        "event_time_s": 57.645,
+        "finalized_through_s": 57.645,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-014",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "kickoff_support",
+    "t0": 90.114,
+    "pre_decision_evidence": [
+      {
+        "key": "kickoff_spawn",
+        "claim": "player_blue_1 spawned at off_center_right with 33.3% boost.",
+        "event_time_s": 88.114,
+        "finalized_through_s": 88.114,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "kickoff_role",
+        "claim": "player_blue_1 is second man on kickoff, observing teammate approach.",
+        "event_time_s": 88.114,
+        "finalized_through_s": 88.114,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "kickoff_approach_motion",
+        "claim": "player_blue_1 observed at t0: moving forward toward midfield.",
+        "event_time_s": 90.114,
+        "finalized_through_s": 90.114,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-015",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "kickoff_support",
+    "t0": 90.114,
+    "pre_decision_evidence": [
+      {
+        "key": "kickoff_spawn",
+        "claim": "player_orange_3 spawned at off_center_right with 33.3% boost.",
+        "event_time_s": 88.114,
+        "finalized_through_s": 88.114,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "kickoff_role",
+        "claim": "player_orange_3 is second man on kickoff, observing teammate approach.",
+        "event_time_s": 88.114,
+        "finalized_through_s": 88.114,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "kickoff_approach_motion",
+        "claim": "player_orange_3 observed at t0: moving forward toward midfield.",
+        "event_time_s": 90.114,
+        "finalized_through_s": 90.114,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-016",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "last_man_defense",
+    "t0": 100.312,
+    "pre_decision_evidence": [
+      {
+        "key": "last_man_role",
+        "claim": "player_blue_1 is last man defending own net at 2750 units from goal line.",
+        "event_time_s": 100.312,
+        "finalized_through_s": 100.312,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "last_man_boost",
+        "claim": "player_blue_1 has 0.0 boost in net defense.",
+        "event_time_s": 100.312,
+        "finalized_through_s": 100.312,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "ball_threat",
+        "claim": "Ball is 933 units away from player_blue_1 and approaching goal area.",
+        "event_time_s": 100.312,
+        "finalized_through_s": 100.312,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-017",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "kickoff_support",
+    "t0": 127.65,
+    "pre_decision_evidence": [
+      {
+        "key": "kickoff_spawn",
+        "claim": "player_blue_2 spawned at off_center_right with 33.3% boost.",
+        "event_time_s": 125.65,
+        "finalized_through_s": 125.65,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "kickoff_role",
+        "claim": "player_blue_2 is second man on kickoff, observing teammate approach.",
+        "event_time_s": 125.65,
+        "finalized_through_s": 125.65,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "kickoff_approach_motion",
+        "claim": "player_blue_2 observed at t0: moving forward toward midfield.",
+        "event_time_s": 127.65,
+        "finalized_through_s": 127.65,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-018",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "kickoff_support",
+    "t0": 127.65,
+    "pre_decision_evidence": [
+      {
+        "key": "kickoff_spawn",
+        "claim": "player_orange_4 spawned at off_center_right with 33.3% boost.",
+        "event_time_s": 125.65,
+        "finalized_through_s": 125.65,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "kickoff_role",
+        "claim": "player_orange_4 is second man on kickoff, observing teammate approach.",
+        "event_time_s": 125.65,
+        "finalized_through_s": 125.65,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "kickoff_approach_motion",
+        "claim": "player_orange_4 observed at t0: moving forward toward midfield.",
+        "event_time_s": 127.65,
+        "finalized_through_s": 127.65,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-019",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "last_man_defense",
+    "t0": 137.715,
+    "pre_decision_evidence": [
+      {
+        "key": "last_man_role",
+        "claim": "player_blue_1 is last man defending own net at 2745 units from goal line.",
+        "event_time_s": 137.715,
+        "finalized_through_s": 137.715,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "last_man_boost",
+        "claim": "player_blue_1 has 100.0 boost in net defense.",
+        "event_time_s": 137.715,
+        "finalized_through_s": 137.715,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "ball_threat",
+        "claim": "Ball is 657 units away from player_blue_1 and approaching goal area.",
+        "event_time_s": 137.715,
+        "finalized_through_s": 137.715,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-020",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "first_man_challenge",
+    "t0": 138.181,
+    "pre_decision_evidence": [
+      {
+        "key": "challenge_approach",
+        "claim": "player_blue_2 approached a 50/50 challenge as first man.",
+        "event_time_s": 138.181,
+        "finalized_through_s": 138.181,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "challenge_boost",
+        "claim": "player_blue_2 had 78.4 boost at commitment.",
+        "event_time_s": 138.181,
+        "finalized_through_s": 138.181,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "second_man_depth",
+        "claim": "Teammate was 1060 units away at defensive depth (behind player_blue_2).",
+        "event_time_s": 138.181,
+        "finalized_through_s": 138.181,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-021",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "first_man_challenge",
+    "t0": 138.181,
+    "pre_decision_evidence": [
+      {
+        "key": "challenge_approach",
+        "claim": "player_orange_3 approached a 50/50 challenge as first man.",
+        "event_time_s": 138.181,
+        "finalized_through_s": 138.181,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "challenge_boost",
+        "claim": "player_orange_3 had 82.0 boost at commitment.",
+        "event_time_s": 138.181,
+        "finalized_through_s": 138.181,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "second_man_depth",
+        "claim": "Teammate was 3252 units away at defensive depth (behind player_orange_3).",
+        "event_time_s": 138.181,
+        "finalized_through_s": 138.181,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-022",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "first_man_challenge",
+    "t0": 144.047,
+    "pre_decision_evidence": [
+      {
+        "key": "challenge_approach",
+        "claim": "player_orange_4 approached a 50/50 challenge as first man.",
+        "event_time_s": 144.047,
+        "finalized_through_s": 144.047,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "challenge_boost",
+        "claim": "player_orange_4 had 22.0 boost at commitment.",
+        "event_time_s": 144.047,
+        "finalized_through_s": 144.047,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "second_man_depth",
+        "claim": "Teammate was 792 units away at defensive depth (ahead of player_orange_4).",
+        "event_time_s": 144.047,
+        "finalized_through_s": 144.047,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-023",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "kickoff_support",
+    "t0": 158.09,
+    "pre_decision_evidence": [
+      {
+        "key": "kickoff_spawn",
+        "claim": "player_blue_1 spawned at center with 33.3% boost.",
+        "event_time_s": 156.09,
+        "finalized_through_s": 156.09,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "kickoff_role",
+        "claim": "player_blue_1 is second man on kickoff, observing teammate approach.",
+        "event_time_s": 156.09,
+        "finalized_through_s": 156.09,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "kickoff_approach_motion",
+        "claim": "player_blue_1 observed at t0: moving forward toward midfield.",
+        "event_time_s": 158.09,
+        "finalized_through_s": 158.09,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-024",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "kickoff_support",
+    "t0": 158.09,
+    "pre_decision_evidence": [
+      {
+        "key": "kickoff_spawn",
+        "claim": "player_orange_3 spawned at center with 33.3% boost.",
+        "event_time_s": 156.09,
+        "finalized_through_s": 156.09,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "kickoff_role",
+        "claim": "player_orange_3 is second man on kickoff, observing teammate approach.",
+        "event_time_s": 156.09,
+        "finalized_through_s": 156.09,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "kickoff_approach_motion",
+        "claim": "player_orange_3 observed at t0: moving forward toward midfield.",
+        "event_time_s": 158.09,
+        "finalized_through_s": 158.09,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-025",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "last_man_defense",
+    "t0": 162.156,
+    "pre_decision_evidence": [
+      {
+        "key": "last_man_role",
+        "claim": "player_blue_2 is last man defending own net at 3556 units from goal line.",
+        "event_time_s": 162.156,
+        "finalized_through_s": 162.156,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "last_man_boost",
+        "claim": "player_blue_2 has 0.0 boost in net defense.",
+        "event_time_s": 162.156,
+        "finalized_through_s": 162.156,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "ball_threat",
+        "claim": "Ball is 2648 units away from player_blue_2 and approaching goal area.",
+        "event_time_s": 162.156,
+        "finalized_through_s": 162.156,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-026",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "kickoff_support",
+    "t0": 172.049,
+    "pre_decision_evidence": [
+      {
+        "key": "kickoff_spawn",
+        "claim": "player_blue_2 spawned at center with 33.3% boost.",
+        "event_time_s": 170.049,
+        "finalized_through_s": 170.049,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "kickoff_role",
+        "claim": "player_blue_2 is second man on kickoff, observing teammate approach.",
+        "event_time_s": 170.049,
+        "finalized_through_s": 170.049,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "kickoff_approach_motion",
+        "claim": "player_blue_2 observed at t0: moving forward toward midfield.",
+        "event_time_s": 172.049,
+        "finalized_through_s": 172.049,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-027",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "kickoff_support",
+    "t0": 172.049,
+    "pre_decision_evidence": [
+      {
+        "key": "kickoff_spawn",
+        "claim": "player_orange_4 spawned at center with 33.3% boost.",
+        "event_time_s": 170.049,
+        "finalized_through_s": 170.049,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "kickoff_role",
+        "claim": "player_orange_4 is second man on kickoff, observing teammate approach.",
+        "event_time_s": 170.049,
+        "finalized_through_s": 170.049,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "kickoff_approach_motion",
+        "claim": "player_orange_4 observed at t0: moving forward toward midfield.",
+        "event_time_s": 172.049,
+        "finalized_through_s": 172.049,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-028",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "first_man_challenge",
+    "t0": 177.048,
+    "pre_decision_evidence": [
+      {
+        "key": "challenge_approach",
+        "claim": "player_blue_2 approached a 50/50 challenge as first man.",
+        "event_time_s": 177.048,
+        "finalized_through_s": 177.048,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "challenge_boost",
+        "claim": "player_blue_2 had 41.9 boost at commitment.",
+        "event_time_s": 177.048,
+        "finalized_through_s": 177.048,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "second_man_depth",
+        "claim": "Teammate was 1035 units away at defensive depth (behind player_blue_2).",
+        "event_time_s": 177.048,
+        "finalized_through_s": 177.048,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-029",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "kickoff_support",
+    "t0": 196.394,
+    "pre_decision_evidence": [
+      {
+        "key": "kickoff_spawn",
+        "claim": "player_blue_2 spawned at off_center_left with 33.3% boost.",
+        "event_time_s": 194.394,
+        "finalized_through_s": 194.394,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "kickoff_role",
+        "claim": "player_blue_2 is second man on kickoff, observing teammate approach.",
+        "event_time_s": 194.394,
+        "finalized_through_s": 194.394,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "kickoff_approach_motion",
+        "claim": "player_blue_2 observed at t0: moving forward toward midfield.",
+        "event_time_s": 196.394,
+        "finalized_through_s": 196.394,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-030",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "kickoff_support",
+    "t0": 196.394,
+    "pre_decision_evidence": [
+      {
+        "key": "kickoff_spawn",
+        "claim": "player_orange_4 spawned at off_center_left with 33.3% boost.",
+        "event_time_s": 194.394,
+        "finalized_through_s": 194.394,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "kickoff_role",
+        "claim": "player_orange_4 is second man on kickoff, observing teammate approach.",
+        "event_time_s": 194.394,
+        "finalized_through_s": 194.394,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "kickoff_approach_motion",
+        "claim": "player_orange_4 observed at t0: reversing or braking toward net.",
+        "event_time_s": 196.394,
+        "finalized_through_s": 196.394,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-031",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "first_man_challenge",
+    "t0": 203.026,
+    "pre_decision_evidence": [
+      {
+        "key": "challenge_approach",
+        "claim": "player_blue_2 approached a 50/50 challenge as first man.",
+        "event_time_s": 203.026,
+        "finalized_through_s": 203.026,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "challenge_boost",
+        "claim": "player_blue_2 had 98.9 boost at commitment.",
+        "event_time_s": 203.026,
+        "finalized_through_s": 203.026,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "second_man_depth",
+        "claim": "Teammate was 10368 units away at defensive depth (behind player_blue_2).",
+        "event_time_s": 203.026,
+        "finalized_through_s": 203.026,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-032",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "first_man_challenge",
+    "t0": 203.026,
+    "pre_decision_evidence": [
+      {
+        "key": "challenge_approach",
+        "claim": "player_orange_4 approached a 50/50 challenge as first man.",
+        "event_time_s": 203.026,
+        "finalized_through_s": 203.026,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "challenge_boost",
+        "claim": "player_orange_4 had 80.4 boost at commitment.",
+        "event_time_s": 203.026,
+        "finalized_through_s": 203.026,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "second_man_depth",
+        "claim": "Teammate was 3795 units away at defensive depth (ahead of player_orange_4).",
+        "event_time_s": 203.026,
+        "finalized_through_s": 203.026,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-033",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "last_man_defense",
+    "t0": 214.391,
+    "pre_decision_evidence": [
+      {
+        "key": "last_man_role",
+        "claim": "player_orange_4 is last man defending own net at 582 units from goal line.",
+        "event_time_s": 214.391,
+        "finalized_through_s": 214.391,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "last_man_boost",
+        "claim": "player_orange_4 has 7.1 boost in net defense.",
+        "event_time_s": 214.391,
+        "finalized_through_s": 214.391,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "ball_threat",
+        "claim": "Ball is 980 units away from player_orange_4 and approaching goal area.",
+        "event_time_s": 214.391,
+        "finalized_through_s": 214.391,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-034",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "first_man_challenge",
+    "t0": 227.922,
+    "pre_decision_evidence": [
+      {
+        "key": "challenge_approach",
+        "claim": "player_blue_2 approached a 50/50 challenge as first man.",
+        "event_time_s": 227.922,
+        "finalized_through_s": 227.922,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "challenge_boost",
+        "claim": "player_blue_2 had 48.9 boost at commitment.",
+        "event_time_s": 227.922,
+        "finalized_through_s": 227.922,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "second_man_depth",
+        "claim": "Teammate was 1429 units away at defensive depth (behind player_blue_2).",
+        "event_time_s": 227.922,
+        "finalized_through_s": 227.922,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-035",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "last_man_defense",
+    "t0": 253.723,
+    "pre_decision_evidence": [
+      {
+        "key": "last_man_role",
+        "claim": "player_orange_4 is last man defending own net at 2142 units from goal line.",
+        "event_time_s": 253.723,
+        "finalized_through_s": 253.723,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "last_man_boost",
+        "claim": "player_orange_4 has 77.8 boost in net defense.",
+        "event_time_s": 253.723,
+        "finalized_through_s": 253.723,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "ball_threat",
+        "claim": "Ball is 2144 units away from player_orange_4 and approaching goal area.",
+        "event_time_s": 253.723,
+        "finalized_through_s": 253.723,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-036",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "last_man_defense",
+    "t0": 263.18,
+    "pre_decision_evidence": [
+      {
+        "key": "last_man_role",
+        "claim": "player_blue_2 is last man defending own net at 2236 units from goal line.",
+        "event_time_s": 263.18,
+        "finalized_through_s": 263.18,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "last_man_boost",
+        "claim": "player_blue_2 has 74.9 boost in net defense.",
+        "event_time_s": 263.18,
+        "finalized_through_s": 263.18,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "ball_threat",
+        "claim": "Ball is 3304 units away from player_blue_2 and approaching goal area.",
+        "event_time_s": 263.18,
+        "finalized_through_s": 263.18,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-037",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "last_man_defense",
+    "t0": 274.686,
+    "pre_decision_evidence": [
+      {
+        "key": "last_man_role",
+        "claim": "player_blue_2 is last man defending own net at 3207 units from goal line.",
+        "event_time_s": 274.686,
+        "finalized_through_s": 274.686,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "last_man_boost",
+        "claim": "player_blue_2 has 100.0 boost in net defense.",
+        "event_time_s": 274.686,
+        "finalized_through_s": 274.686,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "ball_threat",
+        "claim": "Ball is 1879 units away from player_blue_2 and approaching goal area.",
+        "event_time_s": 274.686,
+        "finalized_through_s": 274.686,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-038",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "last_man_defense",
+    "t0": 288.869,
+    "pre_decision_evidence": [
+      {
+        "key": "last_man_role",
+        "claim": "player_orange_3 is last man defending own net at 1171 units from goal line.",
+        "event_time_s": 288.869,
+        "finalized_through_s": 288.869,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "last_man_boost",
+        "claim": "player_orange_3 has 27.9 boost in net defense.",
+        "event_time_s": 288.869,
+        "finalized_through_s": 288.869,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "ball_threat",
+        "claim": "Ball is 738 units away from player_orange_3 and approaching goal area.",
+        "event_time_s": 288.869,
+        "finalized_through_s": 288.869,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-039",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "first_man_challenge",
+    "t0": 293.218,
+    "pre_decision_evidence": [
+      {
+        "key": "challenge_approach",
+        "claim": "player_blue_2 approached a 50/50 challenge as first man.",
+        "event_time_s": 293.218,
+        "finalized_through_s": 293.218,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "challenge_boost",
+        "claim": "player_blue_2 had 71.7 boost at commitment.",
+        "event_time_s": 293.218,
+        "finalized_through_s": 293.218,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "second_man_depth",
+        "claim": "Teammate was 1808 units away at defensive depth (ahead of player_blue_2).",
+        "event_time_s": 293.218,
+        "finalized_through_s": 293.218,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-040",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "first_man_challenge",
+    "t0": 293.218,
+    "pre_decision_evidence": [
+      {
+        "key": "challenge_approach",
+        "claim": "player_orange_4 approached a 50/50 challenge as first man.",
+        "event_time_s": 293.218,
+        "finalized_through_s": 293.218,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "challenge_boost",
+        "claim": "player_orange_4 had 69.8 boost at commitment.",
+        "event_time_s": 293.218,
+        "finalized_through_s": 293.218,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "second_man_depth",
+        "claim": "Teammate was 963 units away at defensive depth (ahead of player_orange_4).",
+        "event_time_s": 293.218,
+        "finalized_through_s": 293.218,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-041",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "first_man_challenge",
+    "t0": 300.309,
+    "pre_decision_evidence": [
+      {
+        "key": "challenge_approach",
+        "claim": "player_orange_3 approached a 50/50 challenge as first man.",
+        "event_time_s": 300.309,
+        "finalized_through_s": 300.309,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "challenge_boost",
+        "claim": "player_orange_3 had 15.8 boost at commitment.",
+        "event_time_s": 300.309,
+        "finalized_through_s": 300.309,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "second_man_depth",
+        "claim": "Teammate was 2408 units away at defensive depth (ahead of player_orange_3).",
+        "event_time_s": 300.309,
+        "finalized_through_s": 300.309,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-042",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "kickoff_support",
+    "t0": 343.676,
+    "pre_decision_evidence": [
+      {
+        "key": "kickoff_spawn",
+        "claim": "player_blue_1 spawned at off_center_right with 33.3% boost.",
+        "event_time_s": 341.676,
+        "finalized_through_s": 341.676,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "kickoff_role",
+        "claim": "player_blue_1 is second man on kickoff, observing teammate approach.",
+        "event_time_s": 341.676,
+        "finalized_through_s": 341.676,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "kickoff_approach_motion",
+        "claim": "player_blue_1 observed at t0: moving forward toward midfield.",
+        "event_time_s": 343.676,
+        "finalized_through_s": 343.676,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-043",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "kickoff_support",
+    "t0": 343.676,
+    "pre_decision_evidence": [
+      {
+        "key": "kickoff_spawn",
+        "claim": "player_orange_3 spawned at off_center_right with 33.3% boost.",
+        "event_time_s": 341.676,
+        "finalized_through_s": 341.676,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "kickoff_role",
+        "claim": "player_orange_3 is second man on kickoff, observing teammate approach.",
+        "event_time_s": 341.676,
+        "finalized_through_s": 341.676,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "kickoff_approach_motion",
+        "claim": "player_orange_3 observed at t0: moving forward toward midfield.",
+        "event_time_s": 343.676,
+        "finalized_through_s": 343.676,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-044",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "last_man_defense",
+    "t0": 368.995,
+    "pre_decision_evidence": [
+      {
+        "key": "last_man_role",
+        "claim": "player_orange_3 is last man defending own net at 1507 units from goal line.",
+        "event_time_s": 368.995,
+        "finalized_through_s": 368.995,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "last_man_boost",
+        "claim": "player_orange_3 has 0.0 boost in net defense.",
+        "event_time_s": 368.995,
+        "finalized_through_s": 368.995,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "ball_threat",
+        "claim": "Ball is 1591 units away from player_orange_3 and approaching goal area.",
+        "event_time_s": 368.995,
+        "finalized_through_s": 368.995,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-045",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "last_man_defense",
+    "t0": 376.955,
+    "pre_decision_evidence": [
+      {
+        "key": "last_man_role",
+        "claim": "player_orange_3 is last man defending own net at 2169 units from goal line.",
+        "event_time_s": 376.955,
+        "finalized_through_s": 376.955,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "last_man_boost",
+        "claim": "player_orange_3 has 0.0 boost in net defense.",
+        "event_time_s": 376.955,
+        "finalized_through_s": 376.955,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "ball_threat",
+        "claim": "Ball is 728 units away from player_orange_3 and approaching goal area.",
+        "event_time_s": 376.955,
+        "finalized_through_s": 376.955,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-046",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "first_man_challenge",
+    "t0": 377.157,
+    "pre_decision_evidence": [
+      {
+        "key": "challenge_approach",
+        "claim": "player_blue_1 approached a 50/50 challenge as first man.",
+        "event_time_s": 377.157,
+        "finalized_through_s": 377.157,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "challenge_boost",
+        "claim": "player_blue_1 had 92.9 boost at commitment.",
+        "event_time_s": 377.157,
+        "finalized_through_s": 377.157,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "second_man_depth",
+        "claim": "Teammate was 2949 units away at defensive depth (behind player_blue_1).",
+        "event_time_s": 377.157,
+        "finalized_through_s": 377.157,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-047",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "first_man_challenge",
+    "t0": 377.157,
+    "pre_decision_evidence": [
+      {
+        "key": "challenge_approach",
+        "claim": "player_orange_4 approached a 50/50 challenge as first man.",
+        "event_time_s": 377.157,
+        "finalized_through_s": 377.157,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "challenge_boost",
+        "claim": "player_orange_4 had 19.6 boost at commitment.",
+        "event_time_s": 377.157,
+        "finalized_through_s": 377.157,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "second_man_depth",
+        "claim": "Teammate was 586 units away at defensive depth (behind player_orange_4).",
+        "event_time_s": 377.157,
+        "finalized_through_s": 377.157,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-048",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "first_man_challenge",
+    "t0": 385.586,
+    "pre_decision_evidence": [
+      {
+        "key": "challenge_approach",
+        "claim": "player_orange_3 approached a 50/50 challenge as first man.",
+        "event_time_s": 385.586,
+        "finalized_through_s": 385.586,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "challenge_boost",
+        "claim": "player_orange_3 had 67.4 boost at commitment.",
+        "event_time_s": 385.586,
+        "finalized_through_s": 385.586,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "second_man_depth",
+        "claim": "Teammate was 4480 units away at defensive depth (behind player_orange_3).",
+        "event_time_s": 385.586,
+        "finalized_through_s": 385.586,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-049",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "last_man_defense",
+    "t0": 387.425,
+    "pre_decision_evidence": [
+      {
+        "key": "last_man_role",
+        "claim": "player_blue_2 is last man defending own net at 2429 units from goal line.",
+        "event_time_s": 387.425,
+        "finalized_through_s": 387.425,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "last_man_boost",
+        "claim": "player_blue_2 has 6.8 boost in net defense.",
+        "event_time_s": 387.425,
+        "finalized_through_s": 387.425,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "ball_threat",
+        "claim": "Ball is 1624 units away from player_blue_2 and approaching goal area.",
+        "event_time_s": 387.425,
+        "finalized_through_s": 387.425,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  },
+  {
+    "case_id": "eval-case-050",
+    "replay_group": "competitive-2v2-fixture-a",
+    "mode": "2v2",
+    "situation_type": "first_man_challenge",
+    "t0": 396.256,
+    "pre_decision_evidence": [
+      {
+        "key": "challenge_approach",
+        "claim": "player_blue_1 approached a 50/50 challenge as first man.",
+        "event_time_s": 396.256,
+        "finalized_through_s": 396.256,
+        "source": "derived",
+        "source_quality": "high"
+      },
+      {
+        "key": "challenge_boost",
+        "claim": "player_blue_1 had 47.5 boost at commitment.",
+        "event_time_s": 396.256,
+        "finalized_through_s": 396.256,
+        "source": "replay",
+        "source_quality": "high"
+      },
+      {
+        "key": "second_man_depth",
+        "claim": "Teammate was 4580 units away at defensive depth (behind player_blue_1).",
+        "event_time_s": 396.256,
+        "finalized_through_s": 396.256,
+        "source": "replay",
+        "source_quality": "high"
+      }
+    ]
+  }
+]

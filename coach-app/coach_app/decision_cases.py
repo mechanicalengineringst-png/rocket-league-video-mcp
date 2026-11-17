@@ -29,6 +29,30 @@ SituationType = Literal[
     "fifty_fifty_contest",
 ]
 
+PRE_DECISION_CONTEXT_ALLOWLIST: dict[str, set[str]] = {
+    "kickoff_support": {
+        "kickoff_index",
+        "spawn_position",
+        "start_boost",
+        "observed_motion_at_t0",
+    },
+    "first_man_challenge": {
+        "mate_distance",
+        "mate_relative_depth",
+        "defensive_coverage_verified",
+        "boost_at_t0",
+        "valid_pre_decision_metric",
+    },
+    "last_man_defense": {
+        "dist_to_goal",
+        "dist_to_ball",
+        "ball_dist",
+        "ball_goal_dist",
+        "boost_at_t0",
+        "is_constrained_boost",
+    },
+}
+
 
 @dataclass(frozen=True)
 class DecisionCase:
@@ -66,18 +90,39 @@ class DecisionCase:
         return require_decision_evidence(cited_keys, self.evidence, self.t0)
 
     def sanitized_pre_decision_context(self) -> dict[str, Any]:
-        """Return tactical context strictly sanitized of any future timestamps or outcomes."""
+        """Return tactical context strictly sanitized of any future timestamps or outcomes via strict allowlist."""
+        allowed = PRE_DECISION_CONTEXT_ALLOWLIST.get(self.situation_type, set())
         sanitized = {}
         for k, v in self.tactical_context.items():
-            # Block any explicit post-decision outcome or resolution fields
-            if any(term in k.lower() for term in ("resolve", "outcome", "win", "scoring", "result", "classified")):
+            if k not in allowed:
                 continue
-            # Block any timestamps that exceed t0
             if isinstance(v, (int, float)) and not isinstance(v, bool):
                 if "time" in k.lower() and v > self.t0:
                     continue
             sanitized[k] = v
         return sanitized
+
+    def to_eval_dict(self) -> dict[str, Any]:
+        """Serialize into ChatGPT PR #16 blind evaluation schema."""
+        pre_ev = self.pre_decision_evidence()
+        return {
+            "case_id": self.case_id,
+            "replay_group": self.replay_id,
+            "mode": "2v2",
+            "situation_type": self.situation_type,
+            "t0": round(self.t0, 3),
+            "pre_decision_evidence": [
+                {
+                    "key": e.key,
+                    "claim": e.claim,
+                    "event_time_s": round(e.event_time_s, 3),
+                    "finalized_through_s": round(e.finalized_through_s, 3),
+                    "source": e.source,
+                    "source_quality": e.source_quality,
+                }
+                for e in pre_ev
+            ],
+        }
 
     def to_llm_payload(self, include_quarantined_outcomes: bool = False) -> dict[str, Any]:
         """Serialize into a structured, evidence-guarded payload for LLM analysis.
@@ -203,22 +248,25 @@ def extract_kickoff_decision_cases(
         t_touch = (
             payload.get("first_touch_time")
             or payload.get("team_zero_taker_touch_time")
+            or kov.get("firstTouchTime")
             or kov.get("t")
             or kov.get("meta", {}).get("timing", {}).get("start_time", 0.0)
         )
         t0 = round(max(0.0, t_touch - 0.5), 3)
         t_spawn = round(max(0.0, min(t0, t_touch - 2.5)), 3)
 
-        z_non_takers = payload.get("team_zero_non_takers", [])
-        o_non_takers = payload.get("team_one_non_takers", [])
+        z_non_takers = payload.get("team_zero_non_takers") or kov.get("teamZeroNonTakers", [])
+        o_non_takers = payload.get("team_one_non_takers") or kov.get("teamOneNonTakers", [])
         winning_team_0 = payload.get("winning_team_is_team_0")
-        win_strength = payload.get("win_strength_band", "unknown")
+        if winning_team_0 is None and "winningTeam" in kov:
+            winning_team_0 = (kov.get("winningTeam") == "blue")
+        win_strength = payload.get("win_strength_band") or kov.get("winStrength") or "unknown"
 
         all_non_takers = [(nt, "blue") for nt in z_non_takers] + [(nt, "orange") for nt in o_non_takers]
         for nt, team in all_non_takers:
-            raw_p = nt.get("player", {})
-            full_pid = _player_key(raw_p)
+            full_pid = nt.get("playerId") or _player_key(nt.get("player", {}))
             if not full_pid or full_pid not in players:
+                raw_p = nt.get("player", {})
                 val = next(iter(raw_p.values()), "") if isinstance(raw_p, dict) and raw_p else ""
                 val_str = str(val) if not isinstance(val, dict) else str(val.get("online_id", ""))
                 full_pid = next((p for p in players if val_str and val_str in p), None)
@@ -227,25 +275,39 @@ def extract_kickoff_decision_cases(
 
             player_info = players[full_pid]
             pname = player_info.get("name", full_pid)
-            support_behavior = nt.get("support_behavior", "unknown")
-            spawn_pos = nt.get("spawn_position", "unknown")
-            start_boost = nt.get("start_boost", 33.0)
+            support_behavior = nt.get("supportBehavior") or nt.get("support_behavior", "unknown")
+            spawn_pos = nt.get("spawnPosition") or nt.get("spawn_position", "unknown")
+
+            raw_boost = nt.get("startBoost") if "startBoost" in nt else nt.get("start_boost")
+            if raw_boost is not None:
+                if raw_boost > 40.0:
+                    start_boost = round(min(100.0, max(0.0, (raw_boost / 255.0) * 100.0)), 1)
+                else:
+                    start_boost = round(float(raw_boost), 1)
+                boost_claim = f"{start_boost:.1f}%"
+            else:
+                start_boost = None
+                boost_claim = "unrecorded"
 
             # Check observed motion at t0 from frames through t0
             car_t0 = _find_car_at_time(frames, t0, full_pid)
-            motion_desc = "moving forward toward midfield"
-            if car_t0:
+            motion_desc = "unknown"
+            if car_t0 and car_t0.get("velocity"):
                 v = car_t0.get("velocity")
                 if isinstance(v, (list, tuple)) and len(v) >= 2:
                     vy = v[1]
                     is_fwd = (team == "blue" and vy > 200) or (team == "orange" and vy < -200)
-                    if not is_fwd:
+                    if is_fwd:
+                        motion_desc = "moving forward toward midfield"
+                    elif (team == "blue" and vy < -200) or (team == "orange" and vy > 200):
+                        motion_desc = "reversing or braking toward net"
+                    else:
                         motion_desc = "turning laterally or toward defensive corner"
 
             ev_items: list[Evidence] = [
                 Evidence(
                     key="kickoff_spawn",
-                    claim=f"{pname} spawned at {spawn_pos} with {start_boost} boost.",
+                    claim=f"{pname} spawned at {spawn_pos} with {boost_claim} boost.",
                     event_time_s=t_spawn,
                     finalized_through_s=t_spawn,
                     kind="decision_context",
@@ -263,7 +325,7 @@ def extract_kickoff_decision_cases(
                 ),
                 Evidence(
                     key="kickoff_approach_motion",
-                    claim=f"{pname} observed at t0 {motion_desc}.",
+                    claim=f"{pname} observed at t0: {motion_desc}.",
                     event_time_s=t0,
                     finalized_through_s=t0,
                     kind="decision_context",
@@ -323,7 +385,7 @@ def extract_kickoff_decision_cases(
                     "Opponent non-taker cheat speed and angle.",
                     "Whether kicker intended a dead ball or a controlled corner spill.",
                 ),
-                provenance={"source": "subtr-actor-native-kickoff", "native_event_id": kov.get("meta", {}).get("id")},
+                provenance={"source": "subtr-actor-native-kickoff", "native_event_id": kov.get("meta", {}).get("id") or kov.get("nativeFrame")},
             )
             cases.append(case)
 
@@ -346,30 +408,45 @@ def extract_first_man_challenge_cases(
     events_to_scan = raw_events if raw_events is not None else replay_payload.get("events", [])
     fifty_events = [
         ev for ev in events_to_scan
-        if ev.get("meta", {}).get("stream") == "fifty_fifty"
+        if ev.get("meta", {}).get("stream") == "fifty_fifty" or ev.get("type") == "fifty_fifty"
     ]
 
     for idx, fev in enumerate(fifty_events):
-        payload = fev.get("payload", {})
-        if "payload" in payload:
-            payload = payload["payload"]
+        if "payload" in fev:
+            payload = fev.get("payload", {})
+            if "payload" in payload:
+                payload = payload["payload"]
+        else:
+            payload = {}
 
-        if payload.get("is_kickoff"):
+        is_kickoff = payload.get("is_kickoff") if "is_kickoff" in payload else fev.get("isKickoff", False)
+        if is_kickoff:
             continue
 
-        start_time = payload.get("start_time") or fev.get("t") or fev.get("meta", {}).get("timing", {}).get("start_time", 0.0)
-        resolve_time = payload.get("resolve_time") or (start_time + 0.4)
+        start_time = (
+            payload.get("start_time")
+            or fev.get("startTime")
+            or fev.get("t")
+            or fev.get("meta", {}).get("timing", {}).get("start_time", 0.0)
+        )
+        resolve_time = (
+            payload.get("resolve_time")
+            or fev.get("resolveTime")
+            or (start_time + 0.4)
+        )
         winning_team_0 = payload.get("winning_team_is_team_0")
+        if winning_team_0 is None and "winningTeam" in fev:
+            winning_team_0 = (fev.get("winningTeam") == "blue")
 
-        p0_dict = payload.get("team_zero_player") or {}
-        p1_dict = payload.get("team_one_player") or {}
-        full_id0 = _player_key(p0_dict)
-        full_id1 = _player_key(p1_dict)
+        full_id0 = fev.get("teamZeroPlayerId") or _player_key(payload.get("team_zero_player") or {})
+        full_id1 = fev.get("teamOnePlayerId") or _player_key(payload.get("team_one_player") or {})
         if not full_id0 or full_id0 not in players:
+            p0_dict = payload.get("team_zero_player") or {}
             v0 = next(iter(p0_dict.values()), "") if isinstance(p0_dict, dict) and p0_dict else ""
             v0_str = str(v0) if not isinstance(v0, dict) else str(v0.get("online_id", ""))
             full_id0 = next((p for p in players if v0_str and v0_str in p), None)
         if not full_id1 or full_id1 not in players:
+            p1_dict = payload.get("team_one_player") or {}
             v1 = next(iter(p1_dict.values()), "") if isinstance(p1_dict, dict) and p1_dict else ""
             v1_str = str(v1) if not isinstance(v1, dict) else str(v1.get("online_id", ""))
             full_id1 = next((p for p in players if v1_str and v1_str in p), None)
@@ -465,6 +542,7 @@ def extract_first_man_challenge_cases(
                     "mate_distance": mate_distance,
                     "mate_relative_depth": "behind" if mate_is_back else "ahead",
                     "defensive_coverage_verified": False,
+                    "boost_at_t0": boost_t0,
                 },
                 feasible_alternatives=(
                     "commit_to_50_50_block",
@@ -476,7 +554,7 @@ def extract_first_man_challenge_cases(
                     "Opponent flip timing and direction.",
                     "Whether teammate called for a challenge or advised shadow.",
                 ),
-                provenance={"source": "subtr-actor-native-fifty_fifty", "native_event_id": fev.get("meta", {}).get("id")},
+                provenance={"source": "subtr-actor-native-fifty_fifty", "native_event_id": fev.get("meta", {}).get("id") or fev.get("nativeFrame")},
             )
             cases.append(case)
 
@@ -496,21 +574,24 @@ def extract_last_man_defense_cases(
     events_to_scan = raw_events if raw_events is not None else replay_payload.get("events", [])
     depth_events = [
         ev for ev in events_to_scan
-        if ev.get("meta", {}).get("stream") == "depth_role"
+        if ev.get("meta", {}).get("stream") == "depth_role" or ev.get("type") == "depth_role"
     ]
 
     for idx, dev in enumerate(depth_events):
-        payload = dev.get("payload", {})
-        if "payload" in payload:
-            payload = payload["payload"]
+        if "payload" in dev:
+            payload = dev.get("payload", {})
+            if "payload" in payload:
+                payload = payload["payload"]
+        else:
+            payload = {}
 
-        state = payload.get("state")
+        state = payload.get("state") or dev.get("state")
         if state not in ("most_back", "second_man", "last_man", "third_man"):
             continue
 
-        raw_p = payload.get("player") or dev.get("meta", {}).get("primary_player") or {}
-        full_pid = _player_key(raw_p)
+        full_pid = dev.get("playerId") or _player_key(payload.get("player") or dev.get("meta", {}).get("primary_player") or {})
         if not full_pid or full_pid not in players:
+            raw_p = payload.get("player") or dev.get("meta", {}).get("primary_player") or {}
             val = next(iter(raw_p.values()), "") if isinstance(raw_p, dict) and raw_p else ""
             val_str = str(val) if not isinstance(val, dict) else str(val.get("online_id", ""))
             full_pid = next((p for p in players if val_str and val_str in p), None)
@@ -540,7 +621,7 @@ def extract_last_man_defense_cases(
         if ball_goal_dist > 3500:
             continue
 
-        boost = car.get("boost", 0.0)
+        boost = car.get("boost")
 
         ev_items: list[Evidence] = [
             Evidence(
@@ -552,15 +633,22 @@ def extract_last_man_defense_cases(
                 source="derived",
                 source_quality="high",
             ),
-            Evidence(
-                key="last_man_boost",
-                claim=f"{pname} has {boost:.1f} boost in net defense.",
-                event_time_s=t0,
-                finalized_through_s=t0,
-                kind="decision_context",
-                source="replay",
-                source_quality="high",
-            ),
+        ]
+
+        if boost is not None:
+            ev_items.append(
+                Evidence(
+                    key="last_man_boost",
+                    claim=f"{pname} has {boost:.1f} boost in net defense.",
+                    event_time_s=t0,
+                    finalized_through_s=t0,
+                    kind="decision_context",
+                    source="replay",
+                    source_quality="high",
+                )
+            )
+
+        ev_items.append(
             Evidence(
                 key="ball_threat",
                 claim=f"Ball is {ball_dist:.0f} units away from {pname} and approaching goal area.",
@@ -569,8 +657,8 @@ def extract_last_man_defense_cases(
                 kind="decision_context",
                 source="replay",
                 source_quality="high",
-            ),
-        ]
+            )
+        )
 
         case = DecisionCase(
             case_id=f"case-lastman-{idx}-{full_pid}",
@@ -584,8 +672,10 @@ def extract_last_man_defense_cases(
             tactical_context={
                 "dist_to_goal": round(dist_to_goal, 1),
                 "ball_dist": round(ball_dist, 1),
-                "boost_at_t0": round(boost, 1),
-                "is_constrained_boost": boost < 20,
+                "dist_to_ball": round(ball_dist, 1),
+                "ball_goal_dist": round(ball_goal_dist, 1),
+                "boost_at_t0": round(boost, 1) if boost is not None else None,
+                "is_constrained_boost": (boost < 20.0) if boost is not None else False,
             },
             feasible_alternatives=(
                 "shadow_across_goal_mouth",
@@ -596,7 +686,7 @@ def extract_last_man_defense_cases(
                 "Opponent strike vector and visual perspective.",
                 "Teammate recovery speed off screen.",
             ),
-            provenance={"source": "subtr-actor-native-depth_role", "native_event_id": dev.get("meta", {}).get("id")},
+            provenance={"source": "subtr-actor-native-depth_role", "native_event_id": dev.get("meta", {}).get("id") or dev.get("nativeFrame")},
         )
         cases.append(case)
 
