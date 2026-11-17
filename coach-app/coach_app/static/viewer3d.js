@@ -152,12 +152,26 @@
     }
 
     buildArena() {
-      // 1. Pitch floor
+      // 1. Pitch floor with authentic alternating Soccar turf mower stripes
+      const turfCanvas = document.createElement('canvas');
+      turfCanvas.width = 512;
+      turfCanvas.height = 1024;
+      const tctx = turfCanvas.getContext('2d');
+      const stripeCount = 16;
+      const stripeH = 1024 / stripeCount;
+      for (let i = 0; i < stripeCount; i++) {
+        tctx.fillStyle = (i % 2 === 0) ? '#103026' : '#0c271f';
+        tctx.fillRect(0, i * stripeH, 512, stripeH);
+      }
+      const turfTexture = new THREE.CanvasTexture(turfCanvas);
+      turfTexture.wrapS = THREE.RepeatWrapping;
+      turfTexture.wrapT = THREE.RepeatWrapping;
+
       const floorGeo = new THREE.PlaneGeometry(PITCH_W, PITCH_L);
       const floorMat = new THREE.MeshStandardMaterial({
-        color: 0x0f2933,
-        roughness: 0.8,
-        metalness: 0.1
+        map: turfTexture,
+        roughness: 0.75,
+        metalness: 0.12
       });
       const floor = new THREE.Mesh(floorGeo, floorMat);
       floor.rotation.x = -Math.PI / 2;
@@ -389,6 +403,36 @@
       wing.position.set(0, 0.95, -1.05);
       group.add(wing);
 
+      // Roof air scoop
+      const scoopGeo = new THREE.BoxGeometry(0.5, 0.2, 0.5);
+      const scoopMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.3 });
+      const scoop = new THREE.Mesh(scoopGeo, scoopMat);
+      scoop.position.set(0, 1.1, -0.1);
+      group.add(scoop);
+
+      // Front wedge bumper / skid plate
+      const bumperGeo = new THREE.BoxGeometry(1.4, 0.2, 0.4);
+      const bumperMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.5 });
+      const bumper = new THREE.Mesh(bumperGeo, bumperMat);
+      bumper.position.set(0, 0.25, 1.25);
+      group.add(bumper);
+
+      // Dual glowing rear boost exhaust pipes
+      const pipeGeo = new THREE.CylinderGeometry(0.12, 0.14, 0.35, 10);
+      const pipeMat = new THREE.MeshStandardMaterial({
+        color: 0x333333,
+        emissive: isBlue ? 0x00e5ff : 0xff9100,
+        emissiveIntensity: 0.7,
+        roughness: 0.3
+      });
+      const pipeL = new THREE.Mesh(pipeGeo, pipeMat);
+      pipeL.rotation.x = Math.PI / 2;
+      pipeL.position.set(-0.38, 0.45, -1.25);
+      const pipeR = new THREE.Mesh(pipeGeo, pipeMat);
+      pipeR.rotation.x = Math.PI / 2;
+      pipeR.position.set(0.38, 0.45, -1.25);
+      group.add(pipeL, pipeR);
+
       // 4 Wheels
       const wheelGeo = new THREE.CylinderGeometry(0.32, 0.32, 0.28, 14);
       const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 });
@@ -458,7 +502,7 @@
         this.controls.enabled = true;
         this.camera.position.set(0, 42, -50);
         this.controls.target.set(0, 2, 0);
-      } else if (mode === 'follow' || mode === 'ball') {
+      } else if (mode === 'follow' || mode === 'ball' || mode === 'pov') {
         this.controls.enabled = false;
       }
     }
@@ -579,6 +623,15 @@
         const camTargetPos = cpos.clone().sub(toBall.multiplyScalar(8)).add(new THREE.Vector3(0, 4, 0));
         this.camera.position.lerp(camTargetPos, 0.12);
         this.camera.lookAt(bpos.clone().add(new THREE.Vector3(0, 0.5, 0)));
+      } else if (focusCarObj && this.cameraMode === 'pov') {
+        const cpos = focusCarObj.group.position;
+        const forwardDir = new THREE.Vector3();
+        focusCarObj.group.getWorldDirection(forwardDir);
+        // Driver / bumper camera right above the hood looking forward
+        const camPos = cpos.clone().add(new THREE.Vector3(0, 0.95, 0)).add(forwardDir.clone().multiplyScalar(0.6));
+        this.camera.position.copy(camPos);
+        const lookTarget = camPos.clone().add(forwardDir.clone().multiplyScalar(25));
+        this.camera.lookAt(lookTarget);
       }
     }
 

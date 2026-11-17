@@ -34,13 +34,24 @@
 .touch-empty{font-size:11px;color:var(--muted);line-height:1.4}
 .leadin-btn{margin-top:8px}
 
-/* 3D Replay Viewer & Modern Multi-View Controls */
+/* View mode separation and display rules */
+[hidden]{display:none !important}
+#field[hidden],#field.view-hidden{display:none !important}
+#viewport3d[hidden],#viewport3d.view-hidden{display:none !important}
+#controls3d[hidden]{display:none !important}
+
+/* In 3D-only mode, remove the 2D field grid overlay and 2D-specific text */
+.pitch-shell.mode-3d:before{display:none !important}
+.pitch-shell.mode-3d .pitch-badge,
+.pitch-shell.mode-3d .pitch-note{display:none !important}
+
 .view-tabs{display:flex;gap:4px;align-items:center;background:#0c1c28;padding:4px;border-radius:8px;border:1px solid var(--border)}
 .tab-btn{background:transparent;border:0;color:var(--muted);padding:6px 13px;border-radius:6px;font-weight:600;font-size:11px;transition:all .18s;cursor:pointer}
 .tab-btn:hover{color:var(--text)}
 .tab-btn.active{background:#183d4c;color:var(--aqua);border:1px solid #366175}
 
 .pitch-shell{min-height:590px;height:640px;position:relative;background:linear-gradient(150deg,#102932 0%,#0a202d 55%,#0f2834);border:1px solid #254654;border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:12px}
+.pitch-shell.mode-3d{background:#0a1720}
 .viewport-3d{width:100%;height:100%;position:absolute;inset:0;display:block}
 .viewport-3d canvas{width:100%!important;height:100%!important;display:block}
 
@@ -50,8 +61,8 @@
 .controls-3d .button-mini.active{background:#184252;border-color:var(--aqua);color:var(--aqua)}
 
 .pitch-shell.split-mode{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px}
-.pitch-shell.split-mode #field{position:relative;width:100%;height:100%;max-height:610px}
-.pitch-shell.split-mode .viewport-3d{position:relative;width:100%;height:100%;min-height:580px;inset:auto}
+.pitch-shell.split-mode #field{position:relative;width:100%;height:100%;max-height:610px;display:block !important}
+.pitch-shell.split-mode .viewport-3d{position:relative;width:100%;height:100%;min-height:580px;inset:auto;display:block !important}
 
 /* Boost pads 2D */
 .boost-big{fill:#ffb300;stroke:#ffca28;stroke-width:1.5;filter:drop-shadow(0 0 5px rgba(255,179,0,.6));opacity:.9}

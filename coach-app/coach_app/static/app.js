@@ -182,27 +182,37 @@ function setViewMode(mode){
   $('viewTab2d').classList.toggle('active',mode==='2d');
   $('viewTab3d').classList.toggle('active',mode==='3d');
   $('viewTabSplit').classList.toggle('active',mode==='split');
-  const shell=$('pitchShell'),field=$('field'),vp3d=$('viewport3d'),ctrl3d=$('controls3d'),badge=$('pitchBadge');
+  const shell=$('pitchShell'),field=$('field'),vp3d=$('viewport3d'),ctrl3d=$('controls3d'),badge=$('pitchBadge'),note=$('pitchNote');
+  shell.className = 'pitch-shell mode-'+mode;
   if(mode==='2d'){
-    shell.classList.remove('split-mode');
-    field.hidden=false;vp3d.hidden=true;ctrl3d.hidden=true;
-    badge.textContent='REPLAY FIELD · 2D TOP-DOWN VIEW';
+    field.style.display='block';field.hidden=false;
+    vp3d.style.display='none';vp3d.hidden=true;
+    ctrl3d.style.display='none';ctrl3d.hidden=true;
+    if(badge){badge.style.display='block';badge.textContent='REPLAY FIELD · 2D TOP-DOWN VIEW';}
+    if(note)note.style.display='block';
+    renderPitch();
   }else if(mode==='3d'){
-    shell.classList.remove('split-mode');
-    field.hidden=true;vp3d.hidden=false;ctrl3d.hidden=false;
-    badge.textContent='REPLAY FIELD · 3D ARENA RECONSTRUCTION';
+    field.style.display='none';field.hidden=true;
+    vp3d.style.display='block';vp3d.hidden=false;
+    ctrl3d.style.display='flex';ctrl3d.hidden=false;
+    if(badge)badge.style.display='none';
+    if(note)note.style.display='none';
     const v=getViewer3d();v?.onResize();
     if(state.replay)v?.update(currentFrame(),state.focusId,state.replay.players);
   }else if(mode==='split'){
-    shell.classList.add('split-mode');
-    field.hidden=false;vp3d.hidden=false;ctrl3d.hidden=false;
-    badge.textContent='REPLAY FIELD · SYNCHRONIZED 2D + 3D VIEW';
+    shell.className = 'pitch-shell split-mode';
+    field.style.display='block';field.hidden=false;
+    vp3d.style.display='block';vp3d.hidden=false;
+    ctrl3d.style.display='flex';ctrl3d.hidden=false;
+    if(badge){badge.style.display='block';badge.textContent='REPLAY FIELD · SYNCHRONIZED 2D + 3D VIEW';}
+    if(note)note.style.display='block';
+    renderPitch();
     const v=getViewer3d();v?.onResize();
     if(state.replay)v?.update(currentFrame(),state.focusId,state.replay.players);
   }
 }
 function setCamMode(mode){
-  for(const [id,m] of [['camOrbit','orbit'],['camTactical','tactical'],['camFollow','follow'],['camBall','ball']]){
+  for(const [id,m] of [['camOrbit','orbit'],['camTactical','tactical'],['camFollow','follow'],['camBall','ball'],['camPOV','pov']]){
     $(id)?.classList.toggle('active',m===mode);
   }
   getViewer3d()?.setCameraMode(mode);
@@ -222,6 +232,7 @@ function drawTrail(parent,points,color,thickness,dashed){
   }
 }
 function renderPitch(){
+  if(currentViewMode==='3d')return;
   const parent=$('dynamicLayers');parent.replaceChildren();
   const f=currentFrame();if(!f)return;
   const focus=f.cars[state.focusId], b=f.ball;
@@ -479,6 +490,7 @@ function wire(){
   $('camOrbit').onclick=()=>setCamMode('orbit');
   $('camTactical').onclick=()=>setCamMode('tactical');
   $('camFollow').onclick=()=>setCamMode('follow');
+  $('camPOV').onclick=()=>setCamMode('pov');
   $('camBall').onclick=()=>setCamMode('ball');
   $('camReset').onclick=()=>getViewer3d()?.resetCamera();
   $('momentFilter').onchange=e=>{
