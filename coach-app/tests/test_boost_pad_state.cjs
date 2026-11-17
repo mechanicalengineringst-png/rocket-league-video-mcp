@@ -86,3 +86,31 @@ test('without kickoff, only observed pad has a defensible state',()=>{
   assert.equal(pads.at(model,1,9).known,false);
   assert.equal(pads.at(model,2,7).known,false);
 });
+
+
+test('an unmatched native small-pad pickup makes availability uncertain until expiry',()=>{
+  const d=sample();
+  d.unmatchedPickups=[{t:7.5,padType:'small'}];
+  const model=pads.compile(d);
+  assert.equal(pads.at(model,7,8).available,false); // matched known pickup
+  assert.equal(pads.at(model,6,8).known,false); // possible unknown consumed
+  assert.equal(pads.at(model,0,8).available,true); // only small pads affected
+  assert.equal(pads.at(model,6,11.5).available,true);
+});
+
+test('an unknown-size native pickup affects both sizes, but never overrides a proven cooldown',()=>{
+  const d=sample();
+  d.unmatchedPickups=[{t:8.5,padType:null}];
+  const model=pads.compile(d);
+  assert.equal(pads.at(model,7,9).available,false);
+  assert.equal(pads.at(model,2,9).known,false);
+  assert.equal(pads.at(model,0,9).available,false); // known 8.11 large cooldown
+  assert.equal(pads.at(model,0,19).available,true);
+});
+
+test('a reset clears uncertainty from earlier unmapped pickups',()=>{
+  const d=sample(); d.unmatchedPickups=[{t:49,padType:'small'}];
+  const model=pads.compile(d);
+  assert.equal(pads.at(model,6,49.5).known,false);
+  assert.equal(pads.at(model,6,50).available,true);
+});
