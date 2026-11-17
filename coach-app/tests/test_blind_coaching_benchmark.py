@@ -172,3 +172,19 @@ def test_explicit_retrospective_source_or_missing_provenance_fails_closed():
     incomplete["pre_decision_evidence"][0].pop("source_quality")
     with pytest.raises(ValueError, match="source_quality is required"):
         evaluate([incomplete], [], [])
+
+def test_correct_guess_without_valid_evidence_cannot_score_as_grounded_coaching():
+    cohort = [case("risky"), case("sound")]
+    labels = reviews("risky", "risk", "risk") + reviews("sound", "sound", "sound")
+    outputs = [
+        pred("risky", "lucky", "risk", ["future_goal_outcome"]),
+        pred("sound", "lucky", "sound", ["observed_positions"]),
+    ]
+    model = evaluate(cohort, outputs, labels)["systems"]["lucky"]
+    assert model["consensus_agreement"] == 1.0  # label-only correct guesses
+    assert model["invalid_evidence_citation_outputs"] == 1
+    assert model["grounded_consensus_answer_coverage"] == 0.5
+    assert model["grounded_consensus_full_cohort_agreement"] == 0.5
+    assert model["grounded_consensus_agreement"] == 1.0
+    assert model["risk_warning_precision"] == 1.0
+    assert model["grounded_risk_warning_precision"] is None
