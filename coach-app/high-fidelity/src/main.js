@@ -58,18 +58,27 @@ if(new URLSearchParams(location.search).get('qa')==='1'){
       );
       const ray=new THREE.Raycaster();
       ray.setFromCamera(mouse,player.camera);
-      return ray.intersectObjects(player.scene.children,true).slice(0,18).map(hit=>({
-        name:hit.object.name||'(unnamed)',
-        parent:hit.object.parent?.name||'(unnamed)',
-        material:Array.isArray(hit.object.material)?
-          hit.object.material.map(x=>x?.name||'').join(','):
-          hit.object.material?.name||'(unnamed)',
-        point:hit.point.toArray().map(x=>Math.round(x)),
-        distance:Math.round(hit.distance),
-        pad:hit.object.userData?.padId??null,
-        visible:hit.object.visible,
-        opacity:hit.object.material?.opacity??null,
-      }));
+      return ray.intersectObjects(player.scene.children,true)
+        .filter(hit=>hit.distance>10 && hit.object?.isMesh &&
+          hit.object.visible &&
+          hit.object.parent?.visible !== false)
+        .slice(0,18).map(hit=>{
+          const mat=Array.isArray(hit.object.material)?
+            hit.object.material[0]:hit.object.material;
+          return {
+            name:hit.object.name||'(unnamed)',
+            parent:hit.object.parent?.name||'(unnamed)',
+            geometry:hit.object.geometry?.type||'',
+            material:mat?.name||'(unnamed)',
+            color:mat?.color?.getHexString?.()??null,
+            point:hit.point.toArray().map(x=>Math.round(x)),
+            distance:Math.round(hit.distance),
+            pad:hit.object.userData?.padId??null,
+            visible:hit.object.visible,
+            opacity:mat?.opacity??null,
+            renderOrder:hit.object.renderOrder,
+          };
+        });
     },
     arenaMeshes(){
       return (player?.arenaManager?.arenaMeshes||[]).map(mesh=>({
