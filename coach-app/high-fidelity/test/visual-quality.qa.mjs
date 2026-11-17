@@ -81,6 +81,12 @@ test('trail settings restore original widths and visibility, including originall
   assert.equal(supersonic.trailWidth,9);
   assert.equal(originalHidden.visible,false);
   assert.equal(visibleRibbon.mesh.visible,true);
+  // Native effect manager may turn on a previously absent emitter at the
+  // next replay frame. Soft mode must not freeze its visibility forever.
+  originalHidden.visible=true;
+  refine.update(player);
+  assert.equal(originalHidden.visible,true,'an active native boost is not suppressed by a cached frame-zero state');
+  originalHidden.visible=false;
   selected='off';refine.update(player);
   assert.equal(originalVisible.visible,false);
   assert.equal(visibleRibbon.mesh.visible,false);
