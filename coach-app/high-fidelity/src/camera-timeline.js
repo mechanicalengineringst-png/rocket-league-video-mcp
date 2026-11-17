@@ -7,24 +7,41 @@ const bool = x => typeof x === 'boolean' ? x : null;
 
 export function findCameraTrack(replay, id, name = '') {
   const players = Array.isArray(replay?.players) ? replay.players : [];
-  return players.find(p => p.id === id) ||
-    players.find(p => p.name === name) || null;
+  const byId = players.filter(p => p.id === id);
+  if (byId.length === 1) return byId[0];
+  // Duplicate identifiers/names can occur in malformed or anonymized
+  // replays. Never silently follow a different player's camera track.
+  if (byId.length > 1 || !name) return null;
+  const byName = players.filter(p => p.name === name);
+  return byName.length === 1 ? byName[0] : null;
 }
 
 export function recordedCameraAt(track, frameIndex) {
   const events = Array.isArray(track?.cameraEvents) ? track.cameraEvents : [];
   const frames = Array.isArray(track?.frames) ? track.frames : [];
   const index = Number.isFinite(frameIndex) ? Math.max(0, Math.floor(frameIndex)) : 0;
-  let ballCam = null;
-  let behind = null;
-  let driving = null;
+  let ballCam = null, behind = null, driving = null;
   let lastSwitchFrame = -1;
+  let lastBallCamFrame = -1, lastBehindFrame = -1, lastDrivingFrame = -1;
   for (const event of events) {
-    if (!Number.isFinite(event?.frame) || event.frame > index) continue;
-    if (bool(event.ballCamActive) !== null) ballCam = event.ballCamActive;
-    if (bool(event.behindViewActive) !== null) behind = event.behindViewActive;
-    if (bool(event.driving) !== null) driving = event.driving;
-    lastSwitchFrame = Math.max(lastSwitchFrame, event.frame);
+    const frame = event?.frame;
+    if (!Number.isInteger(frame) || frame < 0 || frame > index) continue;
+    // Native camera events are not guaranteed to arrive chronologically.
+    // Choose the latest preceding event *for each signal* by frame number,
+    // not whichever record happens to be last in the source array.
+    const ball = bool(event.ballCamActive);
+    const rear = bool(event.behindViewActive);
+    const drive = bool(event.driving);
+    if (ball !== null && frame >= lastBallCamFrame) {
+      ballCam = ball; lastBallCamFrame = frame;
+    }
+    if (rear !== null && frame >= lastBehindFrame) {
+      behind = rear; lastBehindFrame = frame;
+    }
+    if (drive !== null && frame >= lastDrivingFrame) {
+      driving = drive; lastDrivingFrame = frame;
+    }
+    lastSwitchFrame = Math.max(lastSwitchFrame, frame);
   }
   const sample = frames[Math.min(index, Math.max(0, frames.length - 1))] || {};
   return {
