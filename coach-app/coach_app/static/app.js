@@ -216,9 +216,11 @@ function renderBoostPads(){
 }
 function setViewMode(mode){
   currentViewMode=mode;
-  $('viewTab2d').classList.toggle('active',mode==='2d');
-  $('viewTab3d').classList.toggle('active',mode==='3d');
-  $('viewTabSplit').classList.toggle('active',mode==='split');
+  for(const [id,name] of [['viewTab2d','2d'],['viewTab3d','3d'],['viewTabSplit','split']]){
+    const selected=mode===name;
+    $(id).classList.toggle('active',selected);
+    $(id).setAttribute('aria-selected',String(selected));
+  }
   const shell=$('pitchShell'),field=$('field'),vp3d=$('viewport3d'),ctrl3d=$('controls3d'),badge=$('pitchBadge');
   shell.className = 'pitch-shell mode-'+mode;
   if(mode==='2d'){
@@ -546,7 +548,7 @@ function wire(){
   $('camFollow').onclick=()=>setCamMode('follow');
   $('camPOV').onclick=()=>setCamMode('pov');
   $('camBall').onclick=()=>setCamMode('ball');
-  $('camReset').onclick=()=>getViewer3d()?.resetCamera();
+  $('camReset').onclick=()=>{setCamMode('orbit');getViewer3d()?.resetCamera();};
   $('momentFilter').onchange=e=>{
     state.momentFilter=e.target.value;
     const shown=visibleFindings();

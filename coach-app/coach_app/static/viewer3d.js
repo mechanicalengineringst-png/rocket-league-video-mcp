@@ -9,6 +9,7 @@
   'use strict';
 
   const SCALE = 0.01;
+  const replayMath = global.ReplayLabViewMath;
   const PITCH_W = 8192 * SCALE; // 81.92
   const PITCH_L = 10240 * SCALE; // 102.4
   const CEILING = 2044 * SCALE; // 20.44
@@ -67,7 +68,12 @@
       this.camera = null;
       this.renderer = null;
       this.controls = null;
-      this.cameraMode = 'orbit'; // 'orbit', 'tactical', 'follow', 'ball'
+      this.cameraMode = 'orbit'; // orbit, tactical, follow, ball, pov (close chase)
+      this.cameraTarget = null;
+      this.previousHeading = null;
+      this.lastCameraTime = null;
+      this.lastFocusId = null;
+      this.forceCameraSnap = true;
       this.focusPlayerId = null;
       this.carObjects = new Map();
       this.ballMesh = null;
@@ -80,6 +86,10 @@
     }
 
     init() {
+      if (!replayMath) {
+        console.error('Replay camera-math module was not loaded.');
+        return;
+      }
       if (typeof THREE === 'undefined') {
         console.warn('Three.js is not loaded yet.');
         return;
@@ -91,7 +101,7 @@
       this.scene.background = new THREE.Color(0x0c1e28);
       this.scene.fog = new THREE.FogExp2(0x0c1e28, 0.007);
 
-      this.camera = new THREE.PerspectiveCamera(50, width / height, 0.5, 350);
+      this.camera = new THREE.PerspectiveCamera(62, width / height, 0.08, 350);
       this.camera.position.set(0, 36, -55);
 
       this.renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
@@ -252,6 +262,29 @@
       wallGeo.setFromPoints(pts);
       const wallLines = new THREE.LineSegments(wallGeo, wallMat);
       this.scene.add(wallLines);
+      // Translucent pitch enclosure adds stadium depth without blocking review.
+      const glass = new THREE.MeshStandardMaterial({
+        color:0x315c6a, transparent:true, opacity:0.10,
+        roughness:0.2, metalness:0.15, depthWrite:false, side:THREE.DoubleSide
+      });
+      for (const side of [-1,1]) {
+        const sideGlass = new THREE.Mesh(new THREE.PlaneGeometry(PITCH_L, 12), glass);
+        sideGlass.rotation.y = Math.PI/2;
+        sideGlass.position.set(side*(hw+0.75), 6, 0);
+        this.scene.add(sideGlass);
+        const endGlass = new THREE.Mesh(new THREE.PlaneGeometry(PITCH_W, 12), glass);
+        endGlass.position.set(0,6,side*(hl+0.75));
+        this.scene.add(endGlass);
+      }
+      const rail = new THREE.MeshBasicMaterial({color:0x4da6a8});
+      for (const side of [-1,1]) {
+        const longRail = new THREE.Mesh(new THREE.BoxGeometry(0.12,0.12,PITCH_L),rail);
+        longRail.position.set(side*hw,4.5,0);
+        this.scene.add(longRail);
+        const shortRail = new THREE.Mesh(new THREE.BoxGeometry(PITCH_W,0.12,0.12),rail);
+        shortRail.position.set(0,4.5,side*hl);
+        this.scene.add(shortRail);
+      }
     }
 
     buildGoal(zPos, direction, colorHex) {
@@ -341,6 +374,12 @@
         metalness: 0.5
       });
       this.ballMesh = new THREE.Mesh(ballGeo, ballMat);
+      // Low-contrast panel seams give the ball a visible rotational silhouette.
+      const seams = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.IcosahedronGeometry(radius*1.012, 1)),
+        new THREE.LineBasicMaterial({color:0x536671,transparent:true,opacity:0.45})
+      );
+      this.ballMesh.add(seams);
       this.ballMesh.castShadow = true;
       this.scene.add(this.ballMesh);
 
@@ -373,28 +412,55 @@
       const bodyColor = isBlue ? 0x1e88e5 : 0xf57c00;
       const trimColor = isBlue ? 0x0d47a1 : 0xe65100;
 
-      // Chassis body (Octane proportions)
-      const bodyGeo = new THREE.BoxGeometry(1.6, 0.55, 2.3);
+      // Sculpted, bevelled silhouette instead of a single box. These original
+      // geometries are intentionally not ripped Rocket League game assets.
+      const outline = new THREE.Shape();
+      outline.moveTo(-0.57, -1.33);
+      outline.lineTo(0.57, -1.33);
+      outline.lineTo(0.80, -0.80);
+      outline.lineTo(0.85, 0.70);
+      outline.lineTo(0.65, 1.19);
+      outline.lineTo(-0.65, 1.19);
+      outline.lineTo(-0.85, 0.70);
+      outline.lineTo(-0.80, -0.80);
+      outline.closePath();
+      const bodyGeo = new THREE.ExtrudeGeometry(outline, {
+        depth: 0.37, bevelEnabled: true, bevelThickness: 0.11,
+        bevelSize: 0.08, bevelSegments: 3, curveSegments: 3
+      });
       const bodyMat = new THREE.MeshStandardMaterial({
-        color: bodyColor,
-        roughness: 0.4,
-        metalness: 0.5
+        color: bodyColor, roughness: 0.28, metalness: 0.55
       });
       const body = new THREE.Mesh(bodyGeo, bodyMat);
-      body.position.y = 0.45;
+      body.rotation.x = -Math.PI / 2;
+      body.position.y = 0.24;
       body.castShadow = true;
       group.add(body);
 
-      // Cabin / windshield
-      const cabinGeo = new THREE.BoxGeometry(1.2, 0.45, 1.1);
-      const cabinMat = new THREE.MeshStandardMaterial({
-        color: 0x1b2832,
-        roughness: 0.2,
-        metalness: 0.8
-      });
-      const cabin = new THREE.Mesh(cabinGeo, cabinMat);
-      cabin.position.set(0, 0.8, -0.15);
+      // Sloped glass cabin/roof, with distinct windscreen and rear-window angle.
+      const cabinShape = new THREE.BufferGeometry();
+      const corners = new Float32Array([
+        -0.64,0.60, 0.53,  0.64,0.60, 0.53,
+         0.64,0.60,-0.78, -0.64,0.60,-0.78,
+        -0.42,1.12, 0.12,  0.42,1.12, 0.12,
+         0.42,1.10,-0.55, -0.42,1.10,-0.55
+      ]);
+      cabinShape.setAttribute('position', new THREE.BufferAttribute(corners, 3));
+      cabinShape.setIndex([
+        0,1,5, 0,5,4,  1,2,6, 1,6,5,
+        2,3,7, 2,7,6,  3,0,4, 3,4,7,
+        4,5,6, 4,6,7
+      ]);
+      cabinShape.computeVertexNormals();
+      const cabin = new THREE.Mesh(cabinShape, new THREE.MeshStandardMaterial({
+        color: 0x213849, roughness: 0.13, metalness: 0.52, side: THREE.DoubleSide
+      }));
       group.add(cabin);
+      // Metallic roof rail makes its tilt and roll legible in aerial playback.
+      const roof = new THREE.Mesh(new THREE.BoxGeometry(0.85,0.065,0.7),
+        new THREE.MeshStandardMaterial({color: trimColor, metalness:0.6, roughness:0.3}));
+      roof.position.set(0,1.15,-0.22);
+      group.add(roof);
 
       // Spoiler wing
       const wingGeo = new THREE.BoxGeometry(1.5, 0.1, 0.35);
@@ -447,15 +513,28 @@
         wheel.rotation.z = Math.PI / 2;
         wheel.position.set(wx, wy, wz);
         group.add(wheel);
+        const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.20,0.20,0.295,20),
+          new THREE.MeshStandardMaterial({color:0x9aa9ae,metalness:0.85,roughness:0.25}));
+        rim.rotation.z = Math.PI/2;
+        rim.position.set(wx, wy, wz);
+        group.add(rim);
       });
 
-      // Directional nose cone / arrow
-      const noseGeo = new THREE.ConeGeometry(0.28, 0.6, 8);
-      const noseMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
-      const nose = new THREE.Mesh(noseGeo, noseMat);
-      nose.rotation.x = -Math.PI / 2;
-      nose.position.set(0, 0.5, 1.4);
-      group.add(nose);
+      // Realistic orientation cues (front headlights / rear tail lamps)
+      // replace the floating directional nose arrow.
+      const lampGeo = new THREE.BoxGeometry(0.34, 0.14, 0.07);
+      for (const side of [-1, 1]) {
+        const frontLamp = new THREE.Mesh(lampGeo, new THREE.MeshStandardMaterial({
+          color:0xb8ecff, emissive:0x9edfff, emissiveIntensity:0.85
+        }));
+        frontLamp.position.set(side*0.47, 0.43, 1.32);
+        group.add(frontLamp);
+        const rearLamp = new THREE.Mesh(lampGeo, new THREE.MeshStandardMaterial({
+          color:0xc71d22, emissive:0xff162d, emissiveIntensity:0.65
+        }));
+        rearLamp.position.set(side*0.47, 0.45, -1.19);
+        group.add(rearLamp);
+      }
 
       // Focus player indicator halo
       const haloGeo = new THREE.RingGeometry(1.2, 1.45, 24);
@@ -494,26 +573,61 @@
     }
 
     setCameraMode(mode) {
+      if (!['orbit', 'tactical', 'follow', 'ball', 'pov'].includes(mode)) return;
       this.cameraMode = mode;
-      if (!this.controls) return;
-      if (mode === 'orbit') {
-        this.controls.enabled = true;
-      } else if (mode === 'tactical') {
-        this.controls.enabled = true;
-        this.camera.position.set(0, 42, -50);
+      this.forceCameraSnap = true;
+      this.cameraTarget = null;
+      this.previousHeading = null;
+      if (!this.controls || !this.camera) return;
+      const free = mode === 'orbit' || mode === 'tactical';
+      this.controls.enabled = free;
+      if (free) {
+        this.camera.fov = mode === 'tactical' ? 64 : 62;
+        this.camera.updateProjectionMatrix();
+        const pos = mode === 'tactical' ? [0, 67, -18] : [0, 36, -55];
+        this.camera.position.set(...pos);
         this.controls.target.set(0, 2, 0);
-      } else if (mode === 'follow' || mode === 'ball' || mode === 'pov') {
-        this.controls.enabled = false;
+        this.controls.update();
+      } else if (this.lastFrame) {
+        this.updateCamera(this.lastFrame, true);
       }
     }
 
     resetCamera() {
-      this.cameraMode = 'orbit';
-      if (this.controls) {
-        this.controls.enabled = true;
-        this.camera.position.set(0, 36, -55);
-        this.controls.target.set(0, 3, 0);
+      this.setCameraMode('orbit');
+    }
+
+    updateCamera(frame, switching = false) {
+      if (!frame || !['follow', 'ball', 'pov'].includes(this.cameraMode)) return;
+      const car = frame.cars && frame.cars[this.focusPlayerId];
+      if (!car || car.demolished || !replayMath) return;
+      const plan = replayMath.planCamera(
+        this.cameraMode, car, frame.ball, this.previousHeading
+      );
+      if (!plan) return;
+      const nextPos = new THREE.Vector3(...plan.position);
+      const nextTarget = new THREE.Vector3(...plan.target);
+      // Seeking and switching players should not fly a camera across the map.
+      const t = Number(frame.t);
+      const jump = !Number.isFinite(this.lastCameraTime) ||
+        !Number.isFinite(t) || Math.abs(t - this.lastCameraTime) > 0.32;
+      const snap = switching || this.forceCameraSnap || jump ||
+        this.lastFocusId !== this.focusPlayerId;
+      if (snap || !this.cameraTarget) {
+        this.camera.position.copy(nextPos);
+        this.cameraTarget = nextTarget;
+      } else {
+        this.camera.position.lerp(nextPos, 0.26);
+        this.cameraTarget.lerp(nextTarget, 0.38);
       }
+      this.camera.fov = plan.fov;
+      this.camera.updateProjectionMatrix();
+      this.camera.up.set(0, 1, 0); // Never roll the *camera* with a rolling car.
+      this.camera.lookAt(this.cameraTarget);
+      this.previousHeading = plan.heading;
+      this.lastCameraTime = t;
+      this.lastFocusId = this.focusPlayerId;
+      this.forceCameraSnap = false;
     }
 
     update(frame, focusPlayerId, players) {
@@ -577,24 +691,28 @@
         const cz = toThreeZ(carData.y);
         carEntry.group.position.set(cx, cy, cz);
 
-        // Orientation from forward vector
-        if (carData.forward && carData.forward.length === 3) {
-          // RL forward is [fx, fy, fz]; Three forward is [-fx, fz, -fy]
-          const [fx, fy, fz] = carData.forward;
-          const target = new THREE.Vector3(cx - fx * 5, cy + fz * 5, cz - fy * 5);
-          carEntry.group.lookAt(target);
+        // Apply recorded roll, pitch and yaw, not just the car's nose.
+        // The replay axes change handedness when mapped into Three.js.
+        const attitude = replayMath.basisFromRotation(carData.rotation, carData.forward);
+        if (attitude) {
+          const rot = new THREE.Matrix4().makeBasis(
+            new THREE.Vector3(...attitude.right),
+            new THREE.Vector3(...attitude.up),
+            new THREE.Vector3(...attitude.forward)
+          );
+          carEntry.group.quaternion.setFromRotationMatrix(rot);
         }
 
         // Focus halo
         const isFocus = pid === focusPlayerId;
-        carEntry.halo.visible = isFocus;
+        carEntry.halo.visible = isFocus && (this.cameraMode === 'orbit' || this.cameraMode === 'tactical');
         if (isFocus) {
           focusCarObj = carEntry;
           carEntry.halo.rotation.z += 0.03;
         }
 
         // Aerial vertical drop stalk
-        if (cy > 0.8) {
+        if (cy > 1.3 && (this.cameraMode === 'orbit' || this.cameraMode === 'tactical')) {
           carEntry.stalk.visible = true;
           carEntry.stalk.position.set(cx, 0, cz);
           carEntry.stalk.scale.set(1, cy, 1);
@@ -607,32 +725,9 @@
         carEntry.shadow.position.set(cx, 0.03, cz);
       });
 
-      // Update Camera based on mode
-      if (focusCarObj && this.cameraMode === 'follow') {
-        const cpos = focusCarObj.group.position;
-        // Chase camera 8 units back, 4 units up
-        const forwardDir = new THREE.Vector3();
-        focusCarObj.group.getWorldDirection(forwardDir);
-        const camTargetPos = cpos.clone().sub(forwardDir.clone().multiplyScalar(9)).add(new THREE.Vector3(0, 4.5, 0));
-        this.camera.position.lerp(camTargetPos, 0.12);
-        this.camera.lookAt(cpos.clone().add(new THREE.Vector3(0, 1.2, 0)));
-      } else if (focusCarObj && this.ballMesh && this.cameraMode === 'ball') {
-        const cpos = focusCarObj.group.position;
-        const bpos = this.ballMesh.position;
-        const toBall = bpos.clone().sub(cpos).normalize();
-        const camTargetPos = cpos.clone().sub(toBall.multiplyScalar(8)).add(new THREE.Vector3(0, 4, 0));
-        this.camera.position.lerp(camTargetPos, 0.12);
-        this.camera.lookAt(bpos.clone().add(new THREE.Vector3(0, 0.5, 0)));
-      } else if (focusCarObj && this.cameraMode === 'pov') {
-        const cpos = focusCarObj.group.position;
-        const forwardDir = new THREE.Vector3();
-        focusCarObj.group.getWorldDirection(forwardDir);
-        // Driver / bumper camera right above the hood looking forward
-        const camPos = cpos.clone().add(new THREE.Vector3(0, 0.95, 0)).add(forwardDir.clone().multiplyScalar(0.6));
-        this.camera.position.copy(camPos);
-        const lookTarget = camPos.clone().add(forwardDir.clone().multiplyScalar(25));
-        this.camera.lookAt(lookTarget);
-      }
+      // Camera placement is solved independently from the car mesh; the close
+      // camera cannot clip through the car body at its own origin.
+      this.updateCamera(frame);
     }
 
     animate() {

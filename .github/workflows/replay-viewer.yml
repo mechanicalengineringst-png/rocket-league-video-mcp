@@ -1,0 +1,26 @@
+name: Replay Viewer 3D
+on:
+  pull_request:
+    paths:
+      - 'coach-app/**'
+      - '.github/workflows/replay-viewer.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  camera-and-geometry:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+      - name: Syntax-check replay viewer
+        run: |
+          node --check coach-app/coach_app/static/viewer3d-math.js
+          node --check coach-app/coach_app/static/viewer3d.js
+          node --check coach-app/coach_app/static/app.js
+      - name: Test coordinate transforms and cameras
+        run: node --test coach-app/tests/test_viewer_math.cjs
