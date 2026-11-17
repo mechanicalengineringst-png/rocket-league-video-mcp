@@ -1,0 +1,5 @@
+# Research-only dependencies, on top of coach-app/requirements.txt.
+scikit-learn>=1.4,<2
+scipy>=1.11,<2
+lightgbm>=4.3,<5
+pytest>=8
