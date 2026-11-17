@@ -138,11 +138,12 @@ export function createEffectRefiner(getPreference=()=> 'soft') {
   return {update,get shaderUpdates(){return changes;}};
 }
 
-/** The stadium GLTF stacks several opaque Field_STD_Floor_Hex*
- * decorations above the real grass. Same-frame screenshots proved the
- * overlapping hex layers make the large black/blue polygon near the pad.
- * Hide ONLY that decoration family in Clean mode, not live boost pads,
- * turf, field boundaries or player collision objects. Fully reversible.
+/** The stadium GLTF stacks several Field_STD_Floor_Hex*
+ * decorations over the playing surface. Controlled same-frame screenshots
+ * implicated this family in the intrusive dark/blue field polygons. Hide
+ * only these visual overlays in Clean mode; preserve grass, field lines,
+ * gameplay pads and actors. Original restores all these meshes. A final
+ * visual replay comparison is still required to confirm the appearance.
  */
 export function setFieldDecorStyle(player,style='clean') {
   let changed=0;
