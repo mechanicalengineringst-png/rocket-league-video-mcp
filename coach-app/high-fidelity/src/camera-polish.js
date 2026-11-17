@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import {findCameraTrack,recordedCameraAt} from './camera-timeline.js';
+import {findCameraTrack,recordedCameraAtTime} from './camera-timeline.js';
 
 const UP=new THREE.Vector3(0,1,0);
 const relative=new THREE.Vector3();
@@ -32,7 +32,7 @@ export function createCameraPolishPlugin({getCameraPlugin,getFollowId,getReplayL
       }
       const cam=ctx.camera;
       const track=findCameraTrack(ctx.player.replay,focus);
-      const recorded=recordedCameraAt(track,state.frameIndex);
+      const recorded=recordedCameraAtTime(track,ctx.player.replay,time);
       // Free-look angles are replicated per player, but the WORLD camera
       // transform isn't. This is optional reconstruction, not ground truth.
       // A rear-view toggle flips the offset around the car. It only modifies
