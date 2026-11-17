@@ -71,6 +71,14 @@ def test_step_hold_does_not_carry_values_across_a_stoppage():
     assert out[3] == 0.02
 
 
+def test_live_flag_never_reads_a_future_timeline_record():
+    from research.tactical_intel.frames import live_at_or_before
+    src_t = np.array([0.03, 0.13, 0.23, 9.0])
+    src_live = np.array([True, True, False, True])
+    out = live_at_or_before(src_t, src_live, np.array([0.0, 0.2, 0.25, 5.0, 9.05]))
+    assert out.tolist() == [False, True, False, False, True]   # 0.0: nothing yet; 5.0: stale, fail closed
+
+
 # ---------- data hygiene ----------
 
 def test_dedupe_drops_identical_replays():

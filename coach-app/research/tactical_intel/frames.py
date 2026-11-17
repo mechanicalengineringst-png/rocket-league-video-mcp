@@ -111,6 +111,21 @@ def _step_hold(src_t: np.ndarray, src_v: np.ndarray, dst_t: np.ndarray,
     return out
 
 
+def live_at_or_before(src_t: np.ndarray, src_live: np.ndarray, dst_t: np.ndarray,
+                      max_age: float = MAX_HOLD_S) -> np.ndarray:
+    """Latest live-play flag observed at or before each time; fail closed (not live) when stale.
+
+    The two decoder outputs use different timestamps, so a nearest-or-next lookup
+    reads the future, by several seconds across stoppage gaps.
+    """
+    idx = np.searchsorted(src_t, dst_t, side="right") - 1
+    ok = idx >= 0
+    ok[ok] = (dst_t[ok] - src_t[idx[ok]]) <= max_age
+    out = np.zeros(dst_t.shape, dtype=bool)
+    out[ok] = src_live[idx[ok]]
+    return out
+
+
 def load_match(path: str | Path, cache_dir: str | Path | None = None, fps: float = FPS) -> Match:
     """Decode one replay with subtr-actor and return a canonical ``Match``.
 
@@ -167,8 +182,7 @@ def load_match(path: str | Path, cache_dir: str | Path | None = None, fps: float
     tl_t = np.array([f["time"] for f in tl_frames], dtype=np.float64)
     tl_live = np.array([bool(f.get("is_live_play")) for f in tl_frames])
     tl_fn = np.array([f["frame_number"] for f in tl_frames], dtype=np.float64)
-    nearest = np.clip(np.searchsorted(tl_t, t), 0, len(tl_t) - 1)
-    live = tl_live[nearest]
+    live = live_at_or_before(tl_t, tl_live, t)
 
     threat = np.full((t.shape[0], 2), np.nan)
     for team_track in timeline.get("expected_goals_tracks", {}).get("teams", []):

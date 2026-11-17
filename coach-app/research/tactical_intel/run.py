@@ -127,7 +127,7 @@ def main(argv: list[str] | None = None) -> int:
              "brier": h2h.get("brier"), "ece": h2h.get("ece"), "auc": h2h.get("auc")}
     groups = {m: f"anonymous-match-{i:02d}" for i, m in enumerate(sorted({p.match_id for p in p2}))}
     for mid, group in groups.items():
-        train = [p for p in points if p.match_id != mid]
+        train = [p for p in p2 if p.match_id != mid]   # same mode only: no 1v1/3v3 references
         test = [p for p in p2 if p.match_id == mid]
         if len(train) < 15 or not test:
             continue
