@@ -91,10 +91,40 @@ def test_small_pad_respawns_after_four_seconds():
     )
     assert pad_state_at(timeline, 6, 11.9)['available'] is False
     assert pad_state_at(timeline, 6, 12)['available'] is True
-    assert pad_state_at(timeline, 5, 11.9)['available'] is True
+    # No kickoff/reset or pickup for pad 5: do not invent an available state.
+    assert pad_state_at(timeline, 5, 11.9)['available'] is None
 
 
 def test_no_pickup_stream_marks_coverage_unknown_not_guaranteed_active():
     timeline = make_pad_timeline([], [], 0, 10)
     assert timeline['source'] == 'unavailable'
     assert timeline['observedPickupCount'] == 0
+    assert pad_state_at(timeline, 0, 5)['available'] is None
+    assert pad_state_at(timeline, 0, 5)['remaining'] is None
+
+
+
+def test_unmatched_small_pickup_does_not_fabricate_available_pad_state():
+    events = [
+        {'type':'boost_pickups','t':7.5,'padType':'small'},
+        {'type':'kickoff','t':4},
+    ]
+    timeline = make_pad_timeline(events, [], 0, 20)
+    assert timeline['unmatchedPickupCount'] == 1
+    assert timeline['unmatchedPickups'] == [{'t':7.5,'padType':'small'}]
+    assert pad_state_at(timeline, 6, 8.0) == {'available':None,'remaining':None}
+    assert pad_state_at(timeline, 0, 8.0)['available'] is True
+    assert pad_state_at(timeline, 6, 11.5)['available'] is True
+
+
+def test_a_matching_pickup_proves_cooldown_even_during_unknown_events():
+    events = [
+        {'type':'kickoff','t':4},
+        {'type':'boost_pickups','t':7,'padId':6,
+         'padMatch':'player_position_nearest'},
+        {'type':'boost_pickups','t':7.2,'padType':'small'},
+    ]
+    timeline = make_pad_timeline(events, [], 0, 20)
+    assert pad_state_at(timeline, 6, 8)['available'] is False
+    assert pad_state_at(timeline, 6, 11.01)['available'] is None
+    assert pad_state_at(timeline, 6, 11.2)['available'] is True

@@ -13,7 +13,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from .boost_pad_events import match_boost_pickup, make_pad_timeline
+from .boost_pad_events import classify_pad_type, match_boost_pickup, make_pad_timeline
 
 FPS = 30.0
 GLOBAL_FEATURES = ['BallRigidBody', 'CurrentTime', 'SecondsRemaining']
@@ -201,8 +201,11 @@ def _events(event_data: dict, players: list[dict], times: list[float]) -> tuple[
             change = _finite(content.get('ball_speed_change'))
             item['ballSpeedChange'] = round(change, 1) if change is not None else None
         if kind == 'boost_pickups':
-            # Keep native event timing; add pad identity only when the native
-            # size + pickup position gives an unambiguous standard Soccar match.
+            # Preserve pad class on unmatched native pickups so downstream
+            # availability can explicitly remain uncertain, not incorrectly lit.
+            kind_label = classify_pad_type(content.get('pad_type'))
+            if kind_label:
+                item['padType'] = kind_label
             pad_match = match_boost_pickup(content)
             if pad_match:
                 item.update(pad_match)

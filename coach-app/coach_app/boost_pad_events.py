@@ -54,6 +54,11 @@ def _size(value: Any) -> bool | None:
     return None
 
 
+def classify_pad_type(value: Any) -> str | None:
+    kind = _size(value)
+    return None if kind is None else ('big' if kind else 'small')
+
+
 def match_boost_pickup(payload: dict[str, Any]) -> dict[str, Any] | None:
     """Match an observed pickup to a canonical pad only when unambiguous.
 
@@ -101,14 +106,14 @@ def make_pad_timeline(events: list[dict], raw_events: list[dict],
                       start: float, end: float) -> dict[str, Any]:
     """Build a read-only, time-synchronized pad-state contract for both views."""
     pickups = []
-    unmatched = 0
+    unmatched = []
     count = 0
     for item in events:
         if item.get('type') != 'boost_pickups':
             continue
         count += 1
         if not isinstance(item.get('padId'), int):
-            unmatched += 1
+            unmatched.append({'t': item['t'], 'padType': item.get('padType')})
             continue
         pickups.append({
             't': item['t'], 'padId': item['padId'],
@@ -143,23 +148,38 @@ def make_pad_timeline(events: list[dict], raw_events: list[dict],
         'pickups': sorted(pickups, key=lambda x: x['t']),
         'resets': resets,
         'observedPickupCount': count,
-        'unmatchedPickupCount': unmatched,
+        'unmatchedPickupCount': len(unmatched),
+        'unmatchedPickups': sorted(unmatched, key=lambda event: event['t']),
     }
 
 
 def pad_state_at(timeline: dict, pad_id: int, time: float) -> dict[str, Any]:
-    """Reference evaluator for UI implementations; scrub-safe and deterministic."""
+    """Reference evaluator: unassigned pickups make pad availability uncertain.
+
+    Known native pickups prove a cooldown, but an unmatched same-size pickup
+    can mean any pad of that size is unavailable until its cooldown expires.
+    """
+    unknown = {'available': None, 'remaining': None}
+    if timeline.get('source') != 'native-boost-pickups':
+        return unknown
     pad = PADS[pad_id]
-    recent = None
-    for reset in timeline['resets']:
-        if reset <= time and (recent is None or reset > recent):
-            recent = reset
+    resets = [t for t in timeline.get('resets', []) if t <= time]
+    recent = max(resets) if resets else None
     last = None
-    for pickup in timeline['pickups']:
+    for pickup in timeline.get('pickups', []):
         if pickup['padId'] == pad_id and pickup['t'] <= time:
             if recent is None or pickup['t'] >= recent:
                 last = pickup['t']
-    if last is None:
-        return {'available': True, 'remaining': 0.0}
-    remaining = max(0.0, last + pad['respawnSeconds'] - time)
-    return {'available': remaining <= 0.0, 'remaining': round(remaining, 3)}
+    remaining = max(0.0, last + pad['respawnSeconds'] - time) if last is not None else 0.0
+    if remaining > 0:
+        return {'available': False, 'remaining': round(remaining, 3)}
+    for unknown_event in timeline.get('unmatchedPickups', []):
+        t = unknown_event['t']
+        same_size = unknown_event.get('padType') in (
+            None, 'big' if pad['big'] else 'small')
+        if same_size and t <= time < t + pad['respawnSeconds']:
+            if recent is None or t >= recent:
+                return unknown
+    if recent is None and last is None:
+        return unknown
+    return {'available': True, 'remaining': 0.0}

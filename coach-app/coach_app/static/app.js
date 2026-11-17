@@ -47,6 +47,11 @@ function chooseTime(time){
 function setReplay(replay, opts={}){
   if(!replay || !Array.isArray(replay.players) || !Array.isArray(replay.frames) || !replay.frames.length)throw new Error('Invalid replay timeline.');
   stopPlay();removeVideo();state.replay=replay;state.findings=[];
+  const boostPadModel = typeof ReplayLabBoostPadState !== 'undefined'
+    ? ReplayLabBoostPadState.compile(replay.boostPadTimeline) : null;
+  const padStatus=$('boostPadDataStatus');
+  if(padStatus && typeof ReplayLabBoostPadState !== 'undefined')
+    padStatus.textContent=ReplayLabBoostPadState.describe(boostPadModel);
   if($('recentActionsList'))$('recentActionsList').dataset.signature='';
   // Preference: the replay's recording player, then the player chosen last time, then a
   // player on the recording team. Anything weaker is a guess and is labelled as one.

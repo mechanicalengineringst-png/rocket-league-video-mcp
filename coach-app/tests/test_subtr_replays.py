@@ -123,3 +123,19 @@ def test_native_pickup_unknown_pad_does_not_create_false_state():
     assert timeline['observedPickupCount'] == 1
     assert timeline['unmatchedPickupCount'] == 1
     assert timeline['pickups'] == []
+
+
+
+def test_unmatched_native_pickup_retains_size_for_unverified_pad_state():
+    meta, arr, events = fixture()
+    events['events'].append({
+        'meta': {'stream': 'boost_pickups', 'timing': {'time': 4.15}},
+        'payload': {'payload': {'time': 4.15, 'pad_type': 'small',
+                                'player_position': [9000, 9000, 86]}},
+    })
+    replay = normalize_subtr_replay(meta, arr, events)
+    timeline = replay['boostPadTimeline']
+    assert timeline['unmatchedPickups'] == [{'t':4.15,'padType':'small'}]
+    event = next(e for e in replay['events'] if e['type']=='boost_pickups')
+    assert event['padType'] == 'small'
+    assert 'padId' not in event

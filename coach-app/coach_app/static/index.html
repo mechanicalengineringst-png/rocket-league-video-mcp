@@ -48,6 +48,7 @@
           <button id="viewTab2d" class="tab-btn active" type="button" role="tab" aria-selected="true">2D Map</button>
           <button id="viewTab3d" class="tab-btn" type="button" role="tab" aria-selected="false">3D Arena</button>
           <button id="viewTabSplit" class="tab-btn" type="button" role="tab" aria-selected="false">Split View</button>
+          <button id="openHdReplay" class="tab-btn" type="button" title="Open new high-fidelity replay engine in a separate tab">HD 3D Beta ↗</button>
         </div>
       </div>
       <div class="view-controls panel" aria-label="Replay field display controls">
@@ -56,6 +57,7 @@
         <label class="view-toggle"><input type="checkbox" id="showTrail" /> My recent path (2s)</label>
         <label class="view-toggle"><input type="checkbox" id="showBallTrail" /> Ball path (1.5s)</label>
         <label class="view-toggle"><input type="checkbox" id="showBoostPads" checked /> Boost pads</label>
+        <span id="boostPadDataStatus" class="pad-coverage" role="status">Pad pickup data unavailable — state unknown</span>
       </div>
       <div class="pitch-shell" id="pitchShell">
         <div class="pitch-badge" id="pitchBadge">REPLAY FIELD · POSITIONAL VIEW</div>
@@ -143,7 +145,9 @@
   <script src="/static/vendor/three.min.js"></script>
   <script src="/static/vendor/OrbitControls.js"></script>
   <script src="/static/viewer3d-math.js"></script>
+  <script src="/static/boost-pad-state.js"></script>
   <script src="/static/viewer3d.js"></script>
   <script src="/static/app.js" defer></script>
+  <script src="/static/hd-bridge.js" defer></script>
 </body>
 </html>
