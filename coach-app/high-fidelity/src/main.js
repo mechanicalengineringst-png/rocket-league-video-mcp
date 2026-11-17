@@ -7,7 +7,7 @@ import {
 import * as THREE from 'three';
 import { formatTime, clampTime, timelineMarkers } from './time.js';
 import {
-  findCameraTrack, recordedCameraAt, cameraEvidence,
+  findCameraTrack, recordedCameraAtTime, cameraEvidence,
   cameraSwitchMoments, displayCameraMode,
 } from './camera-timeline.js';
 import { createCameraPolishPlugin } from './camera-polish.js';
@@ -282,7 +282,7 @@ function updateHud(force = false) {
   $('playBtn').textContent = state.playing ? '❚❚' : '▶';
   $('playBtn').setAttribute('aria-label', state.playing ? 'Pause replay' : 'Play replay');
   const mode=cameraPlugin?.getMode()||'orbit';
-  const recorded=recordedCameraAt(currentCameraTrack(),state.frameIndex);
+  const recorded=recordedCameraAtTime(currentCameraTrack(),player?.replay,state.currentTime);
   const override=$('ballCamSelect').value;
   const label=displayCameraMode(recorded,override,cameraPlugin?.getBallCam?.(),mode==='follow',$('replayLookToggle').checked);
   $('cameraLabel').textContent=mode==='follow'?label:
