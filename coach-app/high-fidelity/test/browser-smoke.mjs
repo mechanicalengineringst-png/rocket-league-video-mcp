@@ -47,22 +47,6 @@ try{
   },{},{timeout:150000});
   const status=await page.locator('#statusText').textContent();
   console.log('HD_REPLAY_STATUS',status);
-  const materialQA=await page.evaluate(()=>{
-    const qa=window.__rlReplayLabQA;
-    if(!qa)return {missing:true};
-    // Coordinates are viewport-relative. This scene has a conspicuous dark
-    // angular region around the large midfield boost pad.
-    const rect=document.getElementById('viewport').getBoundingClientRect();
-    return {
-      black:qa.hitsAt(rect.left+690,rect.top+278),
-      blackEdge:qa.hitsAt(rect.left+735,rect.top+262),
-      normalField:qa.hitsAt(rect.left+460,rect.top+278),
-      pad:qa.hitsAt(rect.left+591,rect.top+236),
-      arenaNames:qa.arenaMeshes().slice(0,15),
-    };
-  });
-  console.log('HD_QA_MATERIAL_RAYCAST',JSON.stringify(materialQA).slice(0,18000));
-  await page.screenshot({path:path.join(output,'native-replay-in-browser.png'),fullPage:true});
   assert.match(status,/High-fidelity stadium loaded/,'The GLTF stadium should load, not a fallback floor');
   const players=await page.locator('#playerSelect option').count();
   console.log('HD_REPLAY_PLAYERS',players);
@@ -128,13 +112,25 @@ try{
   assert.deepEqual(assetErrors,[],'Model/wasm asset requests must return HTTP 2xx');
   assert.deepEqual(browserErrors,[],'No unhandled JavaScript errors during replay');
   assert.deepEqual(shaderErrors,[],'Soft VFX patches must not produce shader compile errors');
+  // Capture is diagnostic, not a validation prerequisite. Headless
+  // SwiftShader occasionally stalls during screenshot readback even when
+  // the 3D scene, car cameras, and replay are functioning correctly.
+  try {
+    await page.screenshot({
+      path:path.join(output,'native-replay-in-browser.png'),
+      fullPage:false,animations:'disabled',timeout:18000,
+    });
+    console.log('HD_QA_SCREENSHOT_CAPTURED');
+  }catch(error) {
+    console.warn('HD_QA_SCREENSHOT_UNAVAILABLE',error.message?.slice(0,160));
+  }
   console.log('HD_REPLAY_BROWSER_SMOKE_PASS');
 }catch(error){
   console.error('HD_REPLAY_BROWSER_SMOKE_FAIL',error);
   console.error('PAGE_ERRORS',browserErrors);
   console.error('ASSET_ERRORS',assetErrors);
   console.error('SHADER_ERRORS',shaderErrors);
-  try{await page.screenshot({path:path.join(output,'native-replay-error.png'),fullPage:true})}catch{}
+  try{await page.screenshot({path:path.join(output,'native-replay-error.png'),timeout:5000})}catch{}
   throw error;
 }finally{
   await browser.close();
