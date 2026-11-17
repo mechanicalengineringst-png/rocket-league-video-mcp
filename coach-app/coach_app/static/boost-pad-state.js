@@ -26,8 +26,12 @@
       perPad[e.padId].push(e.t);
     }
     perPad.forEach(a=>a.sort((a,b)=>a-b));
+    const unmatched=(Array.isArray(data.unmatchedPickups)?data.unmatchedPickups:[])
+      .filter(e=>e && finite(e.t))
+      .map(e=>({t:e.t,padType:['big','small'].includes(e.padType)?e.padType:null}))
+      .sort((a,b)=>a.t-b.t);
     return {
-      pads,perPad,resets,source:data.source==='native-boost-pickups'?'native':'unavailable',
+      pads,perPad,resets,unmatched,source:data.source==='native-boost-pickups'?'native':'unavailable',
       observedPickupCount:Number(data.observedPickupCount)||0,
       unmatchedPickupCount:Number(data.unmatchedPickupCount)||0
     };
@@ -38,23 +42,32 @@
     }
     const reset=lastAtOrBefore(model.resets,t);
     const pickup=lastAtOrBefore(model.perPad[padId],t);
-    // An authoritative kickoff reset or matched pickup is needed before
-    // claiming the pad is in a particular state.
-    if(reset===null && pickup===null){
+    // A native observed pickup proves cooldown. Otherwise a recent unmatched
+    // native pickup of the same size means the pad could have been consumed.
+    const duration=model.pads[padId].cooldown;
+    const sinceReset=reset===null ? -Infinity : reset;
+    const relevant=pickup!==null && pickup>=sinceReset ? pickup : null;
+    const remaining=relevant===null ? 0 : Math.max(0,relevant+duration-t);
+    if(remaining>0){
+      return {
+        known:true, available:false, remaining,
+        progress:Math.max(0,Math.min(1,1-remaining/duration)),
+        respawnAge:null
+      };
+    }
+    const big=model.pads[padId].big;
+    const possible=model.unmatched.some(e=>e.t>=sinceReset && e.t<=t &&
+      t<e.t+duration && (e.padType===null || e.padType===(big?'big':'small')));
+    if(possible || (reset===null && relevant===null)){
       return {known:false,available:null,remaining:null,progress:0,respawnAge:null};
     }
-    if(pickup===null || (reset!==null && pickup < reset)){
-      return {known:true,available:true,remaining:0,progress:1,respawnAge:null};
-    }
-    const duration=model.pads[padId].cooldown;
-    const remaining=Math.max(0,pickup+duration-t);
-    const respawnAge=t-(pickup+duration);
+    const respawnAge=relevant===null?null:t-(relevant+duration);
     return {
-      known:true,available:remaining===0,remaining,
-      progress:Math.max(0,Math.min(1,1-remaining/duration)),
-      respawnAge:respawnAge>=0?respawnAge:null
+      known:true, available:true,remaining:0,progress:1,
+      respawnAge:respawnAge!==null && respawnAge>=0?respawnAge:null
     };
   }
+
   function describe(model){
     if(!model || model.source!=='native')return 'Pad pickup data unavailable — state unknown';
     const count=model.observedPickupCount;
