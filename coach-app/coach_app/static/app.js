@@ -219,21 +219,19 @@ function setViewMode(mode){
   $('viewTab2d').classList.toggle('active',mode==='2d');
   $('viewTab3d').classList.toggle('active',mode==='3d');
   $('viewTabSplit').classList.toggle('active',mode==='split');
-  const shell=$('pitchShell'),field=$('field'),vp3d=$('viewport3d'),ctrl3d=$('controls3d'),badge=$('pitchBadge'),note=$('pitchNote');
+  const shell=$('pitchShell'),field=$('field'),vp3d=$('viewport3d'),ctrl3d=$('controls3d'),badge=$('pitchBadge');
   shell.className = 'pitch-shell mode-'+mode;
   if(mode==='2d'){
     field.style.display='block';field.hidden=false;
     vp3d.style.display='none';vp3d.hidden=true;
     ctrl3d.style.display='none';ctrl3d.hidden=true;
     if(badge){badge.style.display='block';badge.textContent='REPLAY FIELD · 2D TOP-DOWN VIEW';}
-    if(note)note.style.display='block';
     renderPitch();
   }else if(mode==='3d'){
     field.style.display='none';field.hidden=true;
     vp3d.style.display='block';vp3d.hidden=false;
     ctrl3d.style.display='flex';ctrl3d.hidden=false;
     if(badge)badge.style.display='none';
-    if(note)note.style.display='none';
     const v=getViewer3d();v?.onResize();
     if(state.replay)v?.update(currentFrame(),state.focusId,state.replay.players);
   }else if(mode==='split'){
@@ -242,7 +240,6 @@ function setViewMode(mode){
     vp3d.style.display='block';vp3d.hidden=false;
     ctrl3d.style.display='flex';ctrl3d.hidden=false;
     if(badge){badge.style.display='block';badge.textContent='REPLAY FIELD · SYNCHRONIZED 2D + 3D VIEW';}
-    if(note)note.style.display='block';
     renderPitch();
     const v=getViewer3d();v?.onResize();
     if(state.replay)v?.update(currentFrame(),state.focusId,state.replay.players);
