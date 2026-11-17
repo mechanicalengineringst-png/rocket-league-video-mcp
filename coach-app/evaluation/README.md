@@ -208,3 +208,20 @@ Real nicknames and player identities must already be scrubbed by the producer.
 A smoke test runs the review-state contract with Node when available and checks
 that review.html remains a standalone, offline, staged reviewer page:
     python -m pytest tests/test_blind_review_ui.py -q
+
+### Try the offline review page without real replay data
+
+To test the controls before Antigravity supplies actual anonymized cases,
+open **evaluation/review.html** locally and enter a reviewer code. Load:
+- Stage 1: evaluation/demo/decision_packets.demo.json
+- Stage 2 (after exporting Stage 1): evaluation/demo/quality_packets.demo.json
+
+These are intentionally **synthetic** example situations and fake coaching
+outputs, NOT real Rocket League measurements, expert labels or validated
+model results. One quality sample is intentionally overconfident so reviewers
+can practice identifying unsupported claims.
+
+The packet generator now rejects conspicuous model-name self-references
+(such as a model signing an output with its provider name or system ID).
+This is not perfect de-identification; manually inspect model outputs for
+other wording that could reveal identity before distributing them.
