@@ -98,3 +98,5 @@ def test_no_pickup_stream_marks_coverage_unknown_not_guaranteed_active():
     timeline = make_pad_timeline([], [], 0, 10)
     assert timeline['source'] == 'unavailable'
     assert timeline['observedPickupCount'] == 0
+    assert pad_state_at(timeline, 0, 5)['available'] is None
+    assert pad_state_at(timeline, 0, 5)['remaining'] is None
