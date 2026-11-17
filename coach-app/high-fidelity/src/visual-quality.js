@@ -138,15 +138,16 @@ export function createEffectRefiner(getPreference=()=> 'soft') {
   return {update,get shaderUpdates(){return changes;}};
 }
 
-/** Remove an oversized blue-team floor decal that the raycast QA found
- * immediately beneath the unexplained black/blue polygon in the screenshot.
- * Only this one mesh is toggled. The native pad and field collisions remain.
- * Crucially, the user can restore upstream artwork without rebuilding.
+/** The stadium GLTF stacks several opaque Field_STD_Floor_Hex*
+ * decorations above the real grass. Same-frame screenshots proved the
+ * overlapping hex layers make the large black/blue polygon near the pad.
+ * Hide ONLY that decoration family in Clean mode, not live boost pads,
+ * turf, field boundaries or player collision objects. Fully reversible.
  */
 export function setFieldDecorStyle(player,style='clean') {
   let changed=0;
   for(const mesh of player?.arenaManager?.arenaMeshes ?? []){
-    if(mesh.name==='Field_STD_Floor_Hex002'){
+    if(typeof mesh.name==='string' && mesh.name.startsWith('Field_STD_Floor_Hex')){
       const visible=style==='original';
       if(mesh.visible!==visible){mesh.visible=visible;changed++;}
     }
