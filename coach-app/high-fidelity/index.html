@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#07111e">
+  <title>Replay Lab | High-Fidelity 3D Beta</title>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="site-bar">
+      <a class="brand" href="/" title="Return to Replay Lab">
+        <span class="brand-mark">RL</span>
+        <span><strong>REPLAY LAB</strong><small>HIGH-FIDELITY STADIUM • BETA</small></span>
+      </a>
+      <div class="top-actions">
+        <span class="engine-tag">NATIVE REPLAY • BROWSER ENGINE</span>
+        <a class="home-link" href="/">← Coaching workspace</a>
+      </div>
+    </header>
+    <main>
+      <div class="info-strip">
+        <span id="replayName">No replay loaded</span>
+        <span id="statusText" role="status">Load a native .replay file to begin.</span>
+        <span id="fpsHint">Subtr-actor 1.5.1</span>
+      </div>
+      <section class="stadium-shell" id="dropZone" aria-label="High-fidelity Rocket League replay viewer">
+        <div id="viewport" class="viewport"></div>
+        <div class="stadium-hud">
+          <div class="top-left-chip"><span class="live-dot"></span> REPLAY REVIEW <span id="cameraLabel">FREE CAM</span></div>
+          <div class="top-right-chip" id="playerHud">3D STADIUM</div>
+        </div>
+        <div class="loading-surface" id="loadingSurface">
+          <div class="load-graphic">⬡</div>
+          <h1>A real replay deserves a real stadium.</h1>
+          <p>Load your original <code>.replay</code> file. Cars, walls, boosts and cameras are rendered from native match data.</p>
+          <label class="load-button" for="fileInput">Choose replay file</label>
+          <input type="file" id="fileInput" accept=".replay" hidden>
+          <p class="load-hint">Or drop a replay here. Parsing happens locally in your browser.</p>
+          <p class="load-error" id="loadError" role="alert"></p>
+        </div>
+      </section>
+      <section class="controls" aria-label="Replay controls">
+        <div class="camera-row">
+          <div class="camera-mode-group" aria-label="Camera mode">
+            <button type="button" class="cam active" data-camera="follow">Follow player</button>
+            <button type="button" class="cam" data-camera="orbit">Orbit</button>
+            <button type="button" class="cam" data-camera="ballOrbit">Ball orbit</button>
+            <button type="button" class="cam" data-camera="free">Fly cam</button>
+          </div>
+          <label class="control-label" for="playerSelect">Player</label>
+          <select id="playerSelect" disabled><option>No replay loaded</option></select>
+          <label class="control-label" for="ballCamSelect">View</label>
+          <select id="ballCamSelect" disabled>
+            <option value="recorded">Player's recorded camera</option>
+            <option value="ball">Force Ball Cam</option>
+            <option value="car">Force Car Cam</option>
+          </select>
+          <button id="fullscreenBtn" type="button" title="Fullscreen viewer">⛶</button>
+        </div>
+        <div class="timeline-row">
+          <button id="stepBackBtn" type="button" disabled title="Previous replay frame">❮│</button>
+          <button id="backBtn" type="button" disabled title="Back 5 seconds">−5s</button>
+          <button id="playBtn" type="button" class="primary-play" disabled aria-label="Play or pause">▶</button>
+          <button id="forwardBtn" type="button" disabled title="Forward 5 seconds">+5s</button>
+          <button id="stepForwardBtn" type="button" disabled title="Next replay frame">│❯</button>
+          <div class="seek-stack">
+            <input type="range" id="seek" min="0" max="1" value="0" step="0.01" disabled aria-label="Replay position">
+            <div class="time-labels"><span id="currentTime">00:00.00</span><span id="durationTime">00:00.00</span></div>
+          </div>
+          <select id="speedSelect" disabled aria-label="Playback speed">
+            <option value="0.25">0.25×</option><option value="0.5">0.5×</option>
+            <option value="1" selected>1×</option><option value="1.5">1.5×</option>
+            <option value="2">2×</option>
+          </select>
+        </div>
+        <div class="lower-row">
+          <div class="lower-controls">
+            <label for="interpolation">Motion</label>
+            <select id="interpolation" disabled><option value="hermite">Velocity-smoothed (Hermite)</option><option value="linear">Linear</option></select>
+            <label for="hitboxToggle"><input id="hitboxToggle" type="checkbox" disabled> Hitboxes</label>
+            <label for="trailToggle"><input id="trailToggle" type="checkbox" checked disabled> Effects</label>
+            <button id="replaceFileBtn" type="button">Load another replay</button>
+          </div>
+          <span class="help-line">Space: play/pause · Left/Right: ±5s · B: Ball Cam · F: fullscreen · Fly: WASD + mouse</span>
+        </div>
+      </section>
+      <section class="insights-strip">
+        <div class="events-container">
+          <strong>Match moments</strong>
+          <div id="eventList"><span class="muted">Replay events will appear here after loading.</span></div>
+        </div>
+        <p>Early integration preview. Actual replay models and effects depend on locally installed source assets; the code's MIT license does not independently establish rights to every bundled vehicle or stadium model. Compare flips, wall driving and chase-camera motion with the game before accepting this renderer.</p>
+      </section>
+    </main>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
