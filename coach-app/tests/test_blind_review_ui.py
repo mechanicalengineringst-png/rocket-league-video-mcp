@@ -5,6 +5,7 @@ without it. Real browser layout and accessibility still need manual QA.
 """
 from __future__ import annotations
 
+import json
 import shutil
 import subprocess
 from pathlib import Path
@@ -25,6 +26,9 @@ def test_offline_blind_reviewer_html_has_both_sequential_stages():
     assert 'modelCitations' in html
     assert 'state.decisionFrozen = true' in html
     assert 'state.decisionFrozen = false' in html
+    assert 'state.qualityFrozen = true' in html
+    assert 'state.qualityFrozen = false' in html
+    assert '$(id).disabled = state.qualityFrozen' in html
     assert 'core.validatePairing(state.decisions, records)' in html
     assert 'textContent = ' in html
     assert 'fetch(' not in html
@@ -121,3 +125,15 @@ console.log("offline review contract passed");
     )
     assert completed.returncode == 0, completed.stderr
     assert "offline review contract passed" in completed.stdout
+
+
+def test_demo_packets_are_explicitly_synthetic_and_match_stage_ids():
+    base = ROOT / "demo"
+    decisions = json.loads((base / "decision_packets.demo.json").read_text(encoding="utf-8"))
+    quality = json.loads((base / "quality_packets.demo.json").read_text(encoding="utf-8"))
+    assert len(decisions) == len(quality) == 3
+    decision_ids = {d["review_id"] for d in decisions}
+    assert {q["case_ref"] for q in quality} == decision_ids
+    assert all("SYNTHETIC DEMO ONLY" in d["review_question"] for d in decisions)
+    assert all("SYNTHETIC DEMO ONLY" in q["review_question"] for q in quality)
+    assert all(d["pre_decision_evidence"] for d in decisions)
