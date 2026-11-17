@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import {qualitySettings,createEffectRefiner,setFieldDecorStyle} from '../src/visual-quality.js';
+import {qualitySettings,applySceneQuality,createEffectRefiner,setFieldDecorStyle} from '../src/visual-quality.js';
 
 test('graphics mode respects hardware pixel ratio and anisotropy ceilings',()=>{
   assert.deepEqual(qualitySettings('balanced',1,4),{ratio:1,anisotropy:4});
@@ -96,4 +96,50 @@ test('trail settings restore original widths and visibility, including originall
   assert.equal(hiddenRibbon.mesh.visible,false);
   assert.equal(originalVisible.visible,true);
   assert.equal(visibleRibbon.mesh.visible,true);
+});
+
+test('quality profiles do not replace authored GLTF nearest/no-mipmap sampler',()=>{
+  const tex=new THREE.Texture();
+  tex.minFilter=THREE.NearestFilter;
+  tex.magFilter=THREE.NearestFilter;
+  tex.anisotropy=1;
+  const mat=new THREE.MeshStandardMaterial({map:tex});
+  const mesh=new THREE.Mesh(new THREE.BoxGeometry(),mat);
+  const scene=new THREE.Scene();scene.add(mesh);
+  const calls=[];
+  const fake={
+    scene,renderer:{
+      capabilities:{getMaxAnisotropy:()=>16},
+      setPixelRatio:v=>calls.push(v)
+    },
+    arenaManager:{arenaMeshes:[]},
+  };
+  const result=applySceneQuality(fake,'sharp');
+  assert.equal(result.ratio,2);
+  assert.deepEqual(calls,[2]);
+  assert.equal(tex.magFilter,THREE.NearestFilter,
+    'do not overwrite GLTF sampler magnification mode');
+  assert.equal(tex.minFilter,THREE.NearestFilter,
+    'do not add mipmap sampling to potentially non-mipmapped textures');
+  assert.equal(tex.anisotropy,16);
+});
+
+test('Clean to Original does not reveal source-hidden field decals',()=>{
+  const visible={name:'Field_STD_Floor_Hex',visible:true};
+  const hidden={name:'Field_STD_Floor_Hex001',visible:false};
+  const unrelated={name:'Field_STD_Floor_Thick001',visible:false};
+  const player={arenaManager:{arenaMeshes:[visible,hidden,unrelated]}};
+  assert.equal(setFieldDecorStyle(player,'original'),0,
+    'Original mode before any override should not change GLTF visibility');
+  assert.equal(setFieldDecorStyle(player,'clean'),1);
+  assert.equal(visible.visible,false);
+  assert.equal(hidden.visible,false);
+  assert.equal(setFieldDecorStyle(player,'original'),1);
+  assert.equal(visible.visible,true);
+  assert.equal(hidden.visible,false);
+  assert.equal(unrelated.visible,false);
+  assert.equal(setFieldDecorStyle(player,'original'),0);
+  assert.equal(setFieldDecorStyle(player,'clean'),1);
+  assert.equal(setFieldDecorStyle(player,'original'),1);
+  assert.equal(hidden.visible,false,'original hidden artwork stays hidden across toggles');
 });
