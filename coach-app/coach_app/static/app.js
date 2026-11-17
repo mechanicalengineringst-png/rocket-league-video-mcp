@@ -33,6 +33,7 @@ function publishReplaySyncState(){
   window.dispatchEvent(new CustomEvent('replay-lab:sync-state',{detail:{
     time:state.time, playing:state.playing, speed:state.speed,
     focusName:p.name, focusTeam:p.team, focusId:p.id,
+    synthetic:state.replay.source==='synthetic',
   }}));
 }
 function el(tag, attrs={}, text) { const n=document.createElementNS(SVG_NS,tag); for(const [k,v] of Object.entries(attrs))n.setAttribute(k,String(v)); if(text!==undefined)n.textContent=text; return n; }
