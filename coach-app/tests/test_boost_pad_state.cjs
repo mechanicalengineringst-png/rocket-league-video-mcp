@@ -92,7 +92,7 @@ test('an unmatched native small-pad pickup makes availability uncertain until ex
   const d=sample();
   d.unmatchedPickups=[{t:7.5,padType:'small'}];
   const model=pads.compile(d);
-  assert.equal(pads.at(model,7,8).available,false); // matched known pickup
+  assert.equal(pads.at(model,7,9).available,false); // matched known pickup at 8.25
   assert.equal(pads.at(model,6,8).known,false); // possible unknown consumed
   assert.equal(pads.at(model,0,8).available,true); // only small pads affected
   assert.equal(pads.at(model,6,11.5).available,true);
