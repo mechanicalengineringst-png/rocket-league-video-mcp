@@ -168,6 +168,7 @@ function refreshEvents() {
     btn.title = event.label;
     btn.addEventListener('click', () => {
       player?.pause();
+      invalidateCamera();
       player?.seek(clampTime(event.time,player.duration));
       updateHud(true);
     });
@@ -186,6 +187,15 @@ function updateHud(force = false) {
   if (!scrubbing) $('seek').value = String(state.currentTime);
   $('playBtn').textContent = state.playing ? '❚❚' : '▶';
   $('playBtn').setAttribute('aria-label', state.playing ? 'Pause replay' : 'Play replay');
+  const mode=cameraPlugin?.getMode()||'orbit';
+  const recorded=recordedCameraAt(currentCameraTrack(),state.frameIndex);
+  const override=$('ballCamSelect').value;
+  const label=displayCameraMode(recorded,override,cameraPlugin?.getBallCam?.(),mode==='follow');
+  $('cameraLabel').textContent=mode==='follow'?label:
+    mode==='free'?'FLY CAM':mode==='ballOrbit'?'BALL ORBIT':'ORBIT CAM';
+  $('cameraSource').textContent=mode!=='follow'?'VIEWER CONTROL':
+    override!=='recorded'?'FORCED VIEW':
+    recorded.hasRecordedSwitch?'REPLAY TELEMETRY':'NO RECORDED SWITCH';
 }
 
 async function loadFile(file, preferredName = null) {
@@ -203,14 +213,22 @@ async function loadFile(file, preferredName = null) {
   setStatus('Reading replay bytes locally…');
   setLoading(true, 'Decoding native match…', 'Using subtr-actor WebAssembly. The replay file stays in your browser.');
   try {
-    if (unsubscribe) { unsubscribe(); unsubscribe = null; }
     player?.pause();
     player?.dispose?.();
     player = null;
+    cameraPolish=null;
+    effectRefiner=null;
+    lastHudUpdate=-Infinity;
     viewer.replaceChildren();
     const bytes = new Uint8Array(await file.arrayBuffer());
     if (seq !== loadSequence) return;
-    cameraPlugin = createCameraPlugin({mode:'orbit'});
+    cameraPlugin = createCameraPlugin({mode:'orbit',useRecordedSettings:true});
+    cameraPolish=createCameraPolishPlugin({
+      getCameraPlugin:()=>cameraPlugin,
+      getFollowId:()=>currentPlayer()?.id,
+      getReplayLook:()=>$('replayLookToggle').checked,
+    });
+    effectRefiner=createEffectRefiner(()=>$('fxStyle').value);
     setStatus('Building stadium, cars and replay timeline…');
     const next = await createPlayer(viewer, bytes, {
       autoplay: false,
@@ -226,14 +244,17 @@ async function loadFile(file, preferredName = null) {
         createScoredTextPlugin(),
         fromReplayPlayerPlugin(createBoostPickupAnimationPlugin()),
         cameraPlugin,
+        cameraPolish, // must run AFTER native camera plugin
+        createVisualEffectsPlugin(effectRefiner),
       ],
     });
     if (seq !== loadSequence) { next.dispose?.(); return; }
     player = next;
-    preferredPlayer = preferredName;
     const roster = next.adapter.playerList || [];
     if (!roster.length) throw new Error('Replay has no readable player tracks.');
     fillPlayers(roster, preferredName);
+    updateCameraEvidence();
+    refreshCameraEvents();
     next.setPlaybackRate(Number($('speedSelect').value) || 1);
     next.setMotionInterpolation($('interpolation').value);
     applyBallCam($('ballCamSelect').value);
@@ -255,6 +276,9 @@ async function loadFile(file, preferredName = null) {
     $('ballCamSelect').disabled = false;
     $('hitboxToggle').checked = false;
     $('trailToggle').checked = true;
+    const sceneQA=applySceneQuality(next,$('qualitySelect').value);
+    $('fpsHint').textContent='3D meshes '+sceneQA.meshes+
+      ' · filtered textures '+sceneQA.textures;
     setLoading(false);
     updateHud(true);
     next.play();
