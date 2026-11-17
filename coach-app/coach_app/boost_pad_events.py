@@ -148,7 +148,12 @@ def make_pad_timeline(events: list[dict], raw_events: list[dict],
 
 
 def pad_state_at(timeline: dict, pad_id: int, time: float) -> dict[str, Any]:
-    """Reference evaluator for UI implementations; scrub-safe and deterministic."""
+    """Reference evaluator for UI implementations; scrub-safe and deterministic.
+
+    Unknown native coverage must never be presented as a confirmed live pad.
+    """
+    if timeline.get('source') != 'native-boost-pickups':
+        return {'available': None, 'remaining': None}
     pad = PADS[pad_id]
     recent = None
     for reset in timeline['resets']:
@@ -160,6 +165,8 @@ def pad_state_at(timeline: dict, pad_id: int, time: float) -> dict[str, Any]:
             if recent is None or pickup['t'] >= recent:
                 last = pickup['t']
     if last is None:
+        if recent is None:
+            return {'available': None, 'remaining': None}
         return {'available': True, 'remaining': 0.0}
     remaining = max(0.0, last + pad['respawnSeconds'] - time)
     return {'available': remaining <= 0.0, 'remaining': round(remaining, 3)}
