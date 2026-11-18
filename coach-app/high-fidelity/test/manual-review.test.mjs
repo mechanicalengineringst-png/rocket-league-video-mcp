@@ -106,10 +106,10 @@ test('bad identities, synthetic data, missing physics, sparse time and kickoff a
   r.players[3].team='blue';
   assert.equal(api.buildManualRequest(r,'b1',10.02),null);
   r=replay();
-  r.frames[301].cars.b1.demolished=true;
+  r.frames[300].cars.b1.demolished=true;
   assert.equal(api.buildManualRequest(r,'b1',10.02),null);
   r=replay();
-  delete r.frames[301].ball.z;
+  delete r.frames[300].ball.z;
   assert.equal(api.buildManualRequest(r,'b1',10.02),null);
   r=replay();
   // Drop every frame except one every full second: a derived context
