@@ -27,7 +27,8 @@ claim that the product has passed real-browser, real-game, or expert testing.
   League recreation; small 2D tactical pitch; synchronized HD+2D split view.
   The basic geometric 3D mode is **retired** (do not preserve as an option or
   split-view fallback). PR #24 contains the earlier actual HD-first UI; the
-  newer coaching integration stack still has legacy 3D until reconciled.
+  Antigravity PR #43 now removes it from the active coaching UI. PR #41
+  model-readiness and PR #42 additional HD refinements are still separate.
 - **Develop BOTH visual backends:** (1) standalone, independent HD WebGL/WASM
   renderer with native-replay camera states where available and (2) optional
   native installed Rocket League replay companion via documented Stats API.
@@ -92,13 +93,37 @@ claim that the product has passed real-browser, real-game, or expert testing.
    `coach-app/high-fidelity/docs/ROUND12_CAMERA_AND_VISUAL_ACCEPTANCE.md`.
    **Actual real-replay shader/visual comparison remains unverified.**
    Do not overwrite Antigravity's working frontend; cherry-pick selectively.
-8. [PR #28](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/28)
-   optional native Stats API companion, independently drafted. Real
+8. [PR #43](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/43)
+   **Antigravity's delivered Round 12 unified frontend**, original head
+   `21dda2c`, stacked on #39. Removes geometric 3D from the active view;
+   supports HD/2D/split (default), `CoachReviewBundleV0` source-backed
+   review leads, coaching navigation, tester feedback/export and opt-in
+   local native game command backend. Original GitHub general CI, Replay
+   Coach MVP and Replay Viewer 3D checks passed. Antigravity reports
+   local real-2v2 Playwright upload/review/feedback/screenshot, but the
+   original E2E asserts an iframe's **presence**, not its loaded WebGL
+   canvas or correct stadium/vehicle. No running-game native commands or
+   real AI provider coaching verified. The referenced original Round 12
+   Engineering Report was not in the delivered GitHub tree.
+9. [PR #44](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/44)
+   ChatGPT's **additive native-game and HD acceptance hardening patch**
+   stacked on Antigravity #43, not `main`. Adds game-local
+   `LoadReplay` UI with user-supplied file name/path, explicit same-match
+   confirmation before Seek, accurate TCP-command vs probe-only WebSocket
+   port readiness, privacy-safe command status, and removes hard-coded
+   player ID from a public test. New E2E requires a **real loaded HD
+   WebGL canvas + stadium meshes + nonzero synchronized time**, not a
+   mere iframe DOM node. Integration review and honest acceptance matrix:
+   `coach-app/docs/round12/INTEGRATION_REVIEW_AND_NATIVE_HD_TEST_GATES.md`
+   on #44. CI pending at time of this docs snapshot.
+10. [PR #28](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/28)
+   Earlier native Stats API companion, independently drafted. Real
    Rocket League loading/seek/POV/pause/speed **NOT verified in a live
-   running game**. A TCP port probe or mocked server is not a game pass.
-   Antigravity owns further native integration and actual Windows
-   acceptance with explicit owner permission.
-9. [PR #25](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/25)
+   running game**. Antigravity #43 provides another implementation;
+   reconcile after source review and real game acceptance. A listening
+   port is not game authentication; actual Windows game testing requires
+   owner's explicit permission.
+11. [PR #25](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/25)
    is this canonical project compass. It remains a separate docs-only
    draft; future sessions should read the linked branch version rather than
    assume this file is already on `main`.
@@ -124,14 +149,16 @@ claim that the product has passed real-browser, real-game, or expert testing.
 
 ### Immediate next integration/test plan (one more round before owner testing)
 
-1. Await/publish Antigravity's unfinished Round 10–12 viewer work as a
-   real GitHub branch/PR; do not guess whether local work is pushed.
+1. Antigravity's Round 12 work is published as PR #43. Review its
+   native / HD QA follow-up PR #44, verify CI, and preserve the real
+   native replay load and strict WebGL/asset readiness tests.
 2. Review Claude's larger Round 12 backend and integrate only supported
    tactical contracts; V1 unvalidated grading stays opt-in.
-3. Create a new unified **draft integration branch** combining #41,
-   Claude's new output, Antigravity's real HD-first UI and the safe #42
-   camera improvement. Preserve source cross-references and test every
-   conflict. No `main` merge.
+3. Build the final unified **draft integration branch** from #43,
+   selectively layering native/HD gating #44, model acceptance #41,
+   indexed camera/tire-shader fixes #42, and Claude's latest tactical
+   work. Review overlapping branches rather than overwriting newest
+   code with an old ancestor. No `main` merge.
 4. Browser-test on an actual **native .replay file**: replay/player
    confirmation, 2D, actual HD geometry/textures/camera/boost/trails,
    split sync, source-backed shortlist, lesson->seek, evidence, model
