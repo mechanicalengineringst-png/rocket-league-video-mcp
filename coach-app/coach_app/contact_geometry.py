@@ -185,7 +185,8 @@ def zone_of(x: float, y: float, team: str) -> str:
 
 
 def destination_zones(car_xy, car_v, ball_xyz, ball_v, team: str, directions: int = DIRECTIONS) -> dict[str, Any]:
-    """Validated part of the model: where the ball goes (zone after ZONE_TIME_S) across the contact band."""
+    """Where the ball goes (zone after ZONE_TIME_S) across the contact band. Held-out zone accuracy only ties the
+    car-velocity baseline (calibration file), so coaching findings do not use this; kept for research."""
     if not _ready():
         return {"status": "unsupported", "reason": "contact model not calibrated"}
     if ball_xyz[2] > GROUND_BALL_Z:

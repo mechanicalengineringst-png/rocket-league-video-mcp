@@ -91,8 +91,12 @@ def rank(items: list[dict], max_findings: int = 6) -> list[dict]:
     chosen: list[dict] = []
     per_class: Counter = Counter()
 
+    sigs_chosen: set = set()
+
     def ok(it, cap):
         t = it["situation"]["t0"]
+        if cap == PER_CLASS_FIRST_PASS and signature(it["rationale"]) in sigs_chosen:
+            return False                      # first pass: one finding per pattern; its count is reported instead
         return per_class[it["situation"]["situation_class"]] < cap and all(abs(t - c["situation"]["t0"]) >= MIN_SEPARATION_S for c in chosen)
 
     for cap in (PER_CLASS_FIRST_PASS, 10 ** 6):
@@ -102,5 +106,6 @@ def rank(items: list[dict], max_findings: int = 6) -> list[dict]:
             if it in chosen or it["situation"]["situation_class"] == "aerial_or_wall" or not ok(it, cap):
                 continue
             chosen.append(it)
+            sigs_chosen.add(signature(it["rationale"]))
             per_class[it["situation"]["situation_class"]] += 1
     return sorted(chosen, key=lambda it: it["situation"]["t0"])

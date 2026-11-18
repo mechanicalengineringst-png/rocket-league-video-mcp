@@ -160,8 +160,8 @@ def main(cache: Path, out: Path) -> dict:
             "model_decided": decided_n,
             "baseline_toucher_team_keeps": round(base_keep / n, 3) if n else None,
             "baseline_always_opponents": round(1 - base_keep / n, 3) if n else None,
-            "verdict": "NOT VALIDATED: the next-ball race does not beat the base rate; coaching uses only the "
-                       "validated outgoing-direction model (destination zones), not the race.",
+            "verdict": "NOT VALIDATED: the next-ball race does not beat the base rate. Destination zones only tie the "
+                       "car-velocity baseline. Findings use neither; contact outcome stays a named, unobservable assumption.",
             "baseline_nearest_other_car": round(base_near / n, 3) if n else None},
         "destination_zone_validation_held_out": {
             "touches": zone_n, "centre_zone_correct": round(zone_centre / zone_n, 3) if zone_n else None,

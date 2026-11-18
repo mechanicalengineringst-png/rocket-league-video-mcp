@@ -45,7 +45,7 @@
   "model_decided": 42,
   "baseline_toucher_team_keeps": 0.149,
   "baseline_always_opponents": 0.851,
-  "verdict": "NOT VALIDATED: the next-ball race does not beat the base rate; coaching uses only the validated outgoing-direction model (destination zones), not the race.",
+  "verdict": "NOT VALIDATED: the next-ball race does not beat the base rate. Destination zones only tie the car-velocity baseline. Findings use neither; contact outcome stays a named, unobservable assumption.",
   "baseline_nearest_other_car": 0.787
  },
  "destination_zone_validation_held_out": {
