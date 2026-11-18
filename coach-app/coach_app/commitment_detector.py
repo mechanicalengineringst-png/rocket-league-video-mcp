@@ -6,6 +6,16 @@ Distinguishes:
 2. Irreversible physical commitment (t_latest): The point of no return where stopping or
    aborting is physically impossible under Rocket League friction, braking, and ballistic jump dynamics.
 3. Agency window [t_earliest, t_latest]: The critical interval where tactical choice exists.
+
+Causality: the window is RETROSPECTIVE. It is computed from frames up to the
+contest, which happens after ``t_recommended_t0``, and the case only exists
+because a later contest occurred. Callers may use it to choose *when* to look,
+but must never present the window, its endpoints or its constraint label as
+information available at t0. ``frames_used_through_s`` records the cutoff.
+
+"No return" here is a heuristic, not a physical proof: it compares the braking
+distance implied by the car's horizontal closing speed with its distance to the
+ball's *current* position, and the ball keeps moving.
 """
 from __future__ import annotations
 
@@ -32,6 +42,7 @@ class CommitmentWindow:
     stopping_distance_at_t0: float  # Minimum stopping distance v^2 / (2 * a_brake) in cm
     closing_speed_at_t0: float   # Speed along vector toward contest target (cm/s)
     uncertainty_reasons: tuple[str, ...]
+    frames_used_through_s: float = 0.0  # information cutoff of the detector itself
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -43,6 +54,8 @@ class CommitmentWindow:
             "stopping_distance_cm": round(self.stopping_distance_at_t0, 1),
             "closing_speed_cms": round(self.closing_speed_at_t0, 1),
             "uncertainty_reasons": list(self.uncertainty_reasons),
+            "frames_used_through_s": round(self.frames_used_through_s, 3),
+            "retrospective": True,
         }
 
 
@@ -69,6 +82,7 @@ def detect_commitment_window(
             stopping_distance_at_t0=0.0,
             closing_speed_at_t0=0.0,
             uncertainty_reasons=("No telemetry frames provided; fell back to fixed offset.",),
+            frames_used_through_s=t_contest_start,
         )
 
     # Window of relevant frames leading into the contest
@@ -85,6 +99,7 @@ def detect_commitment_window(
             stopping_distance_at_t0=0.0,
             closing_speed_at_t0=0.0,
             uncertainty_reasons=("Telemetry frames too sparse in pre-contest window.",),
+            frames_used_through_s=t_contest_start,
         )
 
     t_jump: float | None = None
@@ -103,11 +118,13 @@ def detect_commitment_window(
         ball = f.get("ball", {})
 
         v = car.get("velocity", [0.0, 0.0, 0.0])
-        speed = math.hypot(v[0], v[1], v[2])
-        dist = math.hypot(car.get("x", 0.0) - ball.get("x", 0.0), car.get("y", 0.0) - ball.get("y", 0.0))
-
-        # Max ground stopping distance under full emergency braking
-        stop_dist = (speed * speed) / (2.0 * MAX_BRAKING_DECEL)
+        rx = ball.get("x", 0.0) - car.get("x", 0.0)
+        ry = ball.get("y", 0.0) - car.get("y", 0.0)
+        dist = math.hypot(rx, ry)
+        # Horizontal speed toward the ball only. A car moving away (or sideways)
+        # is never "committed" by this test, whatever its total speed.
+        closing = (v[0] * rx + v[1] * ry) / dist if dist > 1.0 else 0.0
+        stop_dist = (closing * closing) / (2.0 * MAX_BRAKING_DECEL) if closing > 0.0 else -1.0
 
         # Check airborne jump / dodge activation
         is_jump = bool(car.get("jumpActive")) or (car.get("z", RESTING_CAR_Z) > JUMP_AIRBORNE_Z and v[2] > 50.0)
@@ -118,7 +135,10 @@ def detect_commitment_window(
         if dist <= stop_dist and t_no_stop is None:
             t_no_stop = t
 
-    # 2. Backward scan: find the onset of forward acceleration and boost toward the contest
+    # 2. Backward scan: find the onset of the sustained approach that leads into
+    # the commitment point, not the earliest qualifying blip in the lookback.
+    t_ref = min([t for t in (t_jump, t_no_stop) if t is not None], default=t_contest_start)
+    qualifying: list[tuple[float, bool]] = []
     for i in range(len(sub_frames) - 1, 0, -1):
         f_curr = sub_frames[i]
         f_prev = sub_frames[i - 1]
@@ -146,8 +166,23 @@ def detect_commitment_window(
             boost_used = max(0.0, c_prev.get("boost", 0.0) - c_curr.get("boost", 0.0))
 
             # Active acceleration toward target: positive velocity increase or boost expenditure
-            if (dv_close > 15.0 and v_close_curr > 400.0) or (boost_used > 0.4 and v_close_curr > 500.0):
-                t_accel = t
+            ok = (dv_close > 15.0 and v_close_curr > 400.0) or (boost_used > 0.4 and v_close_curr > 500.0)
+            if t <= t_ref:
+                qualifying.append((t, ok))
+
+    # qualifying is ordered latest -> earliest. Find the run nearest t_ref, allowing
+    # one-sample gaps, and take its first frame as the onset.
+    in_run = False
+    gap = 0
+    for t, ok in qualifying:
+        if ok:
+            in_run = True
+            gap = 0
+            t_accel = t
+        elif in_run:
+            gap += 1
+            if gap > 1:
+                break
 
     # Resolve t_latest (physical point of no return)
     candidates_latest = [t for t in (t_jump, t_no_stop) if t is not None]
@@ -201,4 +236,5 @@ def detect_commitment_window(
         stopping_distance_at_t0=round(stop_dist_rec, 1),
         closing_speed_at_t0=round(closing_spd, 1),
         uncertainty_reasons=tuple(uncertainties),
+        frames_used_through_s=round(t_contest_start, 3),
     )

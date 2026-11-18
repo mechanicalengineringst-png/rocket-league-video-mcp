@@ -43,8 +43,6 @@ PRE_DECISION_CONTEXT_ALLOWLIST: dict[str, set[str]] = {
         "defensive_coverage_verified",
         "boost_at_t0",
         "boost_at_t0_pct",
-        "commitment_window_s",
-        "primary_constraint",
         "stopping_distance_cm",
         "closing_speed_cms",
         "valid_pre_decision_metric",
@@ -59,7 +57,8 @@ PRE_DECISION_CONTEXT_ALLOWLIST: dict[str, set[str]] = {
         "is_constrained_boost",
         "ball_approach_speed_cms",
         "is_ball_approaching_goal",
-        "time_to_goal_s",
+        "goal_centre_convergence_s",
+        "teammate_deeper_at_t0",
     },
 }
 
@@ -89,6 +88,10 @@ class DecisionCase:
         """Return strictly pre-decision observations available at t0."""
         partition = partition_evidence(self.evidence, self.t0)
         return partition.decision_context
+
+    def observed_actions(self) -> tuple[Evidence, ...]:
+        """Retrospective labels of the action under review. Never pre-decision context or intent."""
+        return partition_evidence(self.evidence, self.t0).observed_actions
 
     def post_decision_outcomes(self) -> tuple[Evidence, ...]:
         """Return outcomes that resolved strictly after t0."""
@@ -165,6 +168,20 @@ class DecisionCase:
             "hypothetical_alternatives_to_inspect": list(self.feasible_alternatives),
             "epistemic_uncertainties": list(self.uncertainties),
         }
+        actions = self.observed_actions()
+        if actions:
+            payload["action_under_review"] = [
+                {
+                    "key": e.key,
+                    "label": e.claim,
+                    "finalized_time_s": round(e.finalized_through_s, 3),
+                    "warning": "RETROSPECTIVE LABEL OF WHAT HAPPENED NEXT. NOT KNOWN AT T0 AND NOT THE PLAYER'S INTENT.",
+                }
+                for e in actions
+            ]
+        selection = self.provenance.get("case_selection")
+        if selection:
+            payload["case_selection"] = selection
 
         if include_quarantined_outcomes and outcomes:
             payload["quarantined_post_decision_outcomes"] = [
@@ -324,11 +341,13 @@ def extract_kickoff_decision_cases(
                     source="replay",
                     source_quality="high",
                 ),
+                # Taker / non-taker is decided by who actually went for the ball, so the
+                # decoder can only finalize this role at first touch.
                 Evidence(
                     key="kickoff_role",
-                    claim=f"{pname} is second man on kickoff, observing teammate approach.",
+                    claim=f"Decoder classified {pname} as a kickoff non-taker (known once the taker reached the ball).",
                     event_time_s=t_spawn,
-                    finalized_through_s=t_spawn,
+                    finalized_through_s=round(t_touch, 3),
                     kind="decision_context",
                     source="derived",
                     source_quality="high",
@@ -396,7 +415,15 @@ def extract_kickoff_decision_cases(
                     "Opponent non-taker cheat speed and angle.",
                     "Whether kicker intended a dead ball or a controlled corner spill.",
                 ),
-                provenance={"source": "subtr-actor-native-kickoff", "native_event_id": kov.get("meta", {}).get("id") or kov.get("nativeFrame")},
+                provenance={
+                    "source": "subtr-actor-native-kickoff",
+                    "native_event_id": kov.get("meta", {}).get("id") or kov.get("nativeFrame"),
+                    "case_selection": {
+                        "selected_by": "decoder kickoff event (non-taker role)",
+                        "selection_finalized_through_s": round(t_touch, 3),
+                        "t0_rule": "fixed 0.5 s before first touch",
+                    },
+                },
             )
             cases.append(case)
 
@@ -481,7 +508,7 @@ def extract_first_man_challenge_cases(
             mate_car = _find_car_at_time(frames, t0, teammates[0]) if teammates else None
 
             mate_distance = None
-            mate_is_back = False
+            mate_is_back: bool | None = None
             if car_t0 and mate_car:
                 dx = car_t0.get("x", 0) - mate_car.get("x", 0)
                 dy = car_t0.get("y", 0) - mate_car.get("y", 0)
@@ -491,15 +518,22 @@ def extract_first_man_challenge_cases(
                 else:
                     mate_is_back = mate_car.get("y", 0) > car_t0.get("y", 0)
 
+            # What the player did next is a retrospective label: it needs the 50/50 to
+            # resolve and the commitment window, both after t0. It names the action
+            # under review; it is not context at t0 and not the player's intent.
+            label_final = round(max(cw.t_latest, start_time, resolve_time), 3)
             ev_items: list[Evidence] = [
                 Evidence(
                     key="challenge_approach",
-                    claim=f"{pname} executed tactical commitment to challenge ({cw.primary_constraint}, window: {cw.t_earliest:.2f}s–{cw.t_latest:.2f}s).",
+                    claim=(
+                        f"Retrospective: {pname} was in a 50/50 at {start_time:.2f}s; the commitment detector "
+                        f"places the approach at {cw.t_earliest:.2f}–{cw.t_latest:.2f}s ({cw.primary_constraint}, heuristic)."
+                    ),
                     event_time_s=t0,
-                    finalized_through_s=t0,
-                    kind="decision_context",
+                    finalized_through_s=max(label_final, t0),
+                    kind="observed_action",
                     source="derived",
-                    source_quality="high",
+                    source_quality="experimental",
                 ),
             ]
 
@@ -507,7 +541,7 @@ def extract_first_man_challenge_cases(
                 ev_items.append(
                     Evidence(
                         key="challenge_boost",
-                        claim=f"{pname} had {boost_t0:.1f}% boost at commitment.",
+                        claim=f"{pname} had {boost_t0:.1f}% boost at t0.",
                         event_time_s=t0,
                         finalized_through_s=t0,
                         kind="decision_context",
@@ -520,7 +554,7 @@ def extract_first_man_challenge_cases(
                 ev_items.append(
                     Evidence(
                         key="second_man_depth",
-                        claim=f"Teammate was {mate_distance:.0f} units away at defensive depth ({'behind' if mate_is_back else 'ahead of'} {pname}).",
+                        claim=f"Teammate was {mate_distance:.0f} units away, {'behind' if mate_is_back else 'ahead of'} {pname} toward their own goal.",
                         event_time_s=t0,
                         finalized_through_s=t0,
                         kind="decision_context",
@@ -553,12 +587,10 @@ def extract_first_man_challenge_cases(
                 evidence=tuple(ev_items),
                 tactical_context={
                     "mate_distance": mate_distance,
-                    "mate_relative_depth": "behind" if mate_is_back else "ahead",
+                    "mate_relative_depth": "unknown" if mate_is_back is None else ("behind" if mate_is_back else "ahead"),
                     "defensive_coverage_verified": False,
                     "boost_at_t0": boost_t0,
                     "boost_at_t0_pct": boost_t0,
-                    "commitment_window_s": round(max(0.0, cw.t_latest - cw.t_earliest), 3),
-                    "primary_constraint": cw.primary_constraint,
                     "stopping_distance_cm": cw.stopping_distance_at_t0,
                     "closing_speed_cms": cw.closing_speed_at_t0,
                 },
@@ -578,6 +610,12 @@ def extract_first_man_challenge_cases(
                     "native_stream": "fifty_fifty",
                     "contest_time_s": round(start_time, 3),
                     "commitment_window": cw.to_dict(),
+                    "case_selection": {
+                        "selected_by": "decoder fifty_fifty event (the player challenged)",
+                        "selection_finalized_through_s": label_final,
+                        "t0_rule": "commitment-detector onset, computed from frames through the contest",
+                        "warning": "This moment was chosen because a challenge happened later. Do not treat the challenge as known at t0.",
+                    },
                 },
             )
             cases.append(case)
@@ -660,10 +698,24 @@ def extract_last_man_defense_cases(
 
         boost = car.get("boost")
 
+        # Verify the role from positions at t0 instead of trusting the decoder state,
+        # which also includes second and third man.
+        mates = [q for q, info in players.items() if info.get("team") == team and q != full_pid]
+        mate_car = _find_car_at_time(frames, t0, mates[0]) if mates else None
+        teammate_deeper: bool | None = None
+        if mate_car is not None:
+            teammate_deeper = (mate_car.get("y", 0) < car.get("y", 0)) if team == "blue" else (mate_car.get("y", 0) > car.get("y", 0))
+        if teammate_deeper:
+            continue
+
         ev_items: list[Evidence] = [
             Evidence(
                 key="last_man_role",
-                claim=f"{pname} is last man defending own net at {dist_to_goal:.0f} units from goal line.",
+                claim=(
+                    f"{pname} is the deepest player on their team, {dist_to_goal:.0f} units from goal centre."
+                    if teammate_deeper is False else
+                    f"{pname} is {dist_to_goal:.0f} units from goal centre; teammate position at t0 is unknown."
+                ),
                 event_time_s=t0,
                 finalized_through_s=t0,
                 kind="decision_context",
@@ -687,8 +739,8 @@ def extract_last_man_defense_cases(
 
         if is_approaching:
             threat_claim = (
-                f"Ball actively closing on goal area ({approach_speed:.0f} cm/s convergence, "
-                f"approx {time_to_goal:.1f}s to net line)."
+                f"Ball moving toward goal centre at {approach_speed:.0f} uu/s; at constant velocity it would "
+                f"converge in about {time_to_goal:.1f}s (ignores bounces, height, walls and goal-mouth width)."
             )
         else:
             threat_claim = (
@@ -724,10 +776,11 @@ def extract_last_man_defense_cases(
                 "ball_goal_dist": round(ball_goal_dist, 1),
                 "boost_at_t0": round(boost, 1) if boost is not None else None,
                 "boost_at_t0_pct": round(boost, 1) if boost is not None else None,
-                "is_constrained_boost": (boost < 20.0) if boost is not None else False,
+                "is_constrained_boost": (boost < 20.0) if boost is not None else None,
                 "ball_approach_speed_cms": round(approach_speed, 1),
                 "is_ball_approaching_goal": is_approaching,
-                "time_to_goal_s": round(time_to_goal, 2) if time_to_goal is not None else None,
+                "goal_centre_convergence_s": round(time_to_goal, 2) if time_to_goal is not None else None,
+                "teammate_deeper_at_t0": teammate_deeper,
             },
             feasible_alternatives=(
                 "shadow_across_goal_mouth",
@@ -737,8 +790,17 @@ def extract_last_man_defense_cases(
             uncertainties=(
                 "Opponent strike vector and visual perspective.",
                 "Teammate recovery speed off screen.",
-            ),
-            provenance={"source": "subtr-actor-native-depth_role", "native_event_id": dev.get("meta", {}).get("id") or dev.get("nativeFrame")},
+            ) + (("Teammate position at t0 unknown; last-man role not verified.",) if teammate_deeper is None else ()),
+            provenance={
+                "source": "subtr-actor-native-depth_role",
+                "native_event_id": dev.get("meta", {}).get("id") or dev.get("nativeFrame"),
+                "case_selection": {
+                    "selected_by": "decoder depth_role event, role re-verified from positions at t0",
+                    "selection_finalized_through_s": None,
+                    "note": "The decoder does not document whether depth_role uses later frames (debounce); unknown.",
+                    "t0_rule": "depth_role event start",
+                },
+            },
         )
         cases.append(case)
 

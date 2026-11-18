@@ -29,8 +29,17 @@ def evaluate_decision_case_heuristics(case: DecisionCase) -> dict[str, Any] | No
         spawn = ctx.get("spawn_position", "unknown")
         boost = ctx.get("start_boost", 33.0)
 
-        # Pre-decision admissible keys
-        pre_keys = ["kickoff_spawn", "kickoff_role", "kickoff_approach_motion"]
+        # Cite only keys that are admissible at t0. The non-taker role is finalized
+        # at first touch, so it is never cited for the decision.
+        available_pre = {e.key for e in case.pre_decision_evidence()}
+        pre_keys = [k for k in ("kickoff_spawn", "kickoff_approach_motion") if k in available_pre]
+        if not pre_keys:
+            return {
+                "case_id": case.case_id, "t": case.t0, "type": "abstain", "assessment": "abstain",
+                "title": "No admissible kickoff evidence at t0",
+                "evidence": "No spawn or motion facts were available at the decision time.",
+                "advice": "Inspect the kickoff directly in the replay.", "cited_evidence": [],
+            }
         case.validate_admissibility(pre_keys)
 
         boost_str = f"{boost:.1f}%" if boost is not None else "unrecorded"
@@ -90,13 +99,24 @@ def evaluate_decision_case_heuristics(case: DecisionCase) -> dict[str, Any] | No
         mate_depth = ctx.get("mate_relative_depth", "unknown")
         mate_dist = ctx.get("mate_distance")
 
-        # Admissible pre-decision keys
-        required_keys = ["challenge_approach"]
+        # Cite facts known at t0 only. The challenge itself is a retrospective
+        # observed_action: it names what is under review, never evidence for it.
         available_pre = {e.key for e in case.pre_decision_evidence()}
-        if "challenge_boost" in available_pre:
-            required_keys.append("challenge_boost")
-        if "second_man_depth" in available_pre:
-            required_keys.append("second_man_depth")
+        required_keys = [k for k in ("second_man_depth", "challenge_boost") if k in available_pre]
+        action_keys = [e.key for e in case.observed_actions()]
+
+        if mate_depth == "unknown" or "second_man_depth" not in available_pre:
+            return {
+                "case_id": case.case_id,
+                "t": case.t0,
+                "type": "abstain",
+                "title": "Teammate position at t0 unknown",
+                "assessment": "abstain",
+                "evidence": "The teammate's position at the decision time was not recorded, so coverage cannot be judged.",
+                "advice": "Review the teammate's position in the replay before judging this challenge.",
+                "cited_evidence": required_keys,
+                "reviewed_action": action_keys,
+            }
 
         case.validate_admissibility(required_keys)
 
@@ -105,18 +125,19 @@ def evaluate_decision_case_heuristics(case: DecisionCase) -> dict[str, Any] | No
             return {
                 "case_id": case.case_id,
                 "t": case.t0,
-                "type": "tactical_risk",
-                "title": "First-man challenge without defensive depth",
-                "assessment": "tactical_risk",
+                "type": "tradeoff_consideration",
+                "title": "Challenge with no teammate behind at t0",
+                "assessment": "tradeoff",
                 "evidence": (
-                    f"{case.focus_player_name} committed to a challenge while teammate was "
-                    f"{'ahead of play' if mate_depth != 'behind' else dist_str}."
+                    f"At t0 the teammate was {'ahead of ' + case.focus_player_name if mate_depth != 'behind' else dist_str}. "
+                    f"Reviewed action (retrospective): {case.focus_player_name} went on to challenge."
                 ),
                 "advice": (
-                    "Challenging without a recovering teammate behind leaves the net vulnerable if beaten. "
-                    "Inspect whether fake challenging or shadowing to delay the attack was preferable."
+                    "If this challenge is beaten, nobody is behind to cover. Check whether a fake or a shadow "
+                    "was realistic here; depth alone does not make the challenge a mistake."
                 ),
                 "cited_evidence": required_keys,
+                "reviewed_action": action_keys,
             }
         else:
             # Teammate has relative depth, but orientation/coverage cannot be proven from depth alone
@@ -127,8 +148,9 @@ def evaluate_decision_case_heuristics(case: DecisionCase) -> dict[str, Any] | No
                 "type": "depth_observation",
                 "title": "First-man challenge with teammate at defensive depth",
                 "assessment": "unverified_coverage_hypothesis",
+                "reviewed_action": action_keys,
                 "evidence": (
-                    f"{case.focus_player_name} committed to a challenge with teammate positioned {dist_str}. "
+                    f"At t0 the teammate was positioned {dist_str}; {case.focus_player_name} went on to challenge (retrospective). "
                     "Telemetry confirms relative depth, but car orientation, momentum toward net, and recovery "
                     "readiness cannot be verified from depth coordinates alone."
                 ),
@@ -140,7 +162,7 @@ def evaluate_decision_case_heuristics(case: DecisionCase) -> dict[str, Any] | No
             }
 
     elif case.situation_type == "last_man_defense":
-        is_constrained = ctx.get("is_constrained_boost", False)
+        is_constrained = ctx.get("is_constrained_boost") is True
         boost = ctx.get("boost_at_t0")
         dist_to_goal = ctx.get("dist_to_goal", 0.0)
 

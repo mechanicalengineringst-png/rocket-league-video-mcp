@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from math import isfinite
 from typing import Iterable, Literal
 
-EvidenceKind = Literal["decision_context", "post_decision_outcome", "player_intent"]
+EvidenceKind = Literal["decision_context", "observed_action", "post_decision_outcome", "player_intent"]
 EvidenceSource = Literal["replay", "derived", "model", "player_feedback"]
 SourceQuality = Literal["high", "medium", "experimental", "unrated"]
 
@@ -31,6 +31,9 @@ class Evidence:
         later frames, this MUST be later than event_time_s.
     kind: separates facts available to a decision-maker from outcome
         descriptions and intent supplied later by the player.
+        ``observed_action`` is a retrospective label of what the player did
+        (for example a detector's "challenged" classification). It names the
+        action under review; it is never pre-decision context and never intent.
     source_quality: confidence category of the *source/measurement*;
         it is NOT the probability a coaching interpretation is correct.
     """
@@ -54,7 +57,7 @@ class Evidence:
                 raise ValueError(f"{name} must be a finite, nonnegative replay time.")
         if self.finalized_through_s < self.event_time_s:
             raise ValueError("Evidence cannot be finalized before its event occurred.")
-        if self.kind not in ("decision_context", "post_decision_outcome", "player_intent"):
+        if self.kind not in ("decision_context", "observed_action", "post_decision_outcome", "player_intent"):
             raise ValueError("Invalid evidence kind.")
         if self.source not in ("replay", "derived", "model", "player_feedback"):
             raise ValueError("Invalid evidence source.")
@@ -70,6 +73,7 @@ class EvidencePartition:
     future_derived: tuple[Evidence, ...]
     outcomes: tuple[Evidence, ...]
     player_intent: tuple[Evidence, ...]
+    observed_actions: tuple[Evidence, ...] = ()
 
 
 def partition_evidence(items: Iterable[Evidence], decision_time_s: float) -> EvidencePartition:
@@ -85,6 +89,7 @@ def partition_evidence(items: Iterable[Evidence], decision_time_s: float) -> Evi
     future: list[Evidence] = []
     outcomes: list[Evidence] = []
     intent: list[Evidence] = []
+    actions: list[Evidence] = []
     seen: set[str] = set()
 
     for item in items:
@@ -95,11 +100,13 @@ def partition_evidence(items: Iterable[Evidence], decision_time_s: float) -> Evi
             outcomes.append(item)
         elif item.kind == "player_intent":
             intent.append(item)
+        elif item.kind == "observed_action":
+            actions.append(item)
         elif item.event_time_s <= decision_time_s and item.finalized_through_s <= decision_time_s:
             decision.append(item)
         else:
             future.append(item)
-    return EvidencePartition(tuple(decision), tuple(future), tuple(outcomes), tuple(intent))
+    return EvidencePartition(tuple(decision), tuple(future), tuple(outcomes), tuple(intent), tuple(actions))
 
 
 def require_decision_evidence(
