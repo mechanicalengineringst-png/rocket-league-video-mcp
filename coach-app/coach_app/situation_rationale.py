@@ -380,7 +380,9 @@ SPECS: dict[str, dict[str, dict]] = {
             ("enough_boost", ["!low_boost"], "Enough boost already: the shortest route back.")],
             "defeaters": []},
         "small_pad_route": {"reasons": [
-            ("refill_on_the_way", ["low_boost", "small_pads_on_route"], "Low on boost; small pads lie on the way back.")],
+            ("refill_on_the_way", ["low_boost", "small_pads_on_route"], "Low on boost; small pads lie on the way back."),
+            ("free_boost_on_the_way", ["small_pads_on_route", "!threat_now"], "No immediate threat; pads on the line cost almost nothing."),
+            ("covered_refill", ["small_pads_on_route", "teammate_covers"], "Your teammate covers; pads on the line cost almost nothing.")],
             "defeaters": []},
         "big_boost_detour": {"reasons": [
             ("covered_and_cheap", ["low_boost", "teammate_covers", "big_pad_available", "big_boost_detour_cheap"],

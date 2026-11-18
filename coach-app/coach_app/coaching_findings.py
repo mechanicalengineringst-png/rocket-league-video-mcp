@@ -613,12 +613,15 @@ def observe_action(replay: dict, situation: dict) -> dict[str, Any]:
         elif dmin <= 1500:
             lab = "aggressive_follow_up"
     elif cls != "aerial_or_wall":
+        end_d = math.dist((rows[-1][0]["x"], rows[-1][0]["y"]), (rows[-1][1]["x"], rows[-1][1]["y"]))
         if mine or dmin < 260:
             lab = "immediate_challenge"
-        elif basis["big_pad_pickup"] or basis["small_pad_pickups"] >= 2:
+        elif goal_side >= 0.8 and dmin >= 500 and end_d <= 2500:
+            lab = "shadow_delay"          # picking up pads while shadowing is still shadowing
+        elif (basis["big_pad_pickup"] or basis["small_pad_pickups"] >= 2) and dmin > 800:
             lab = "rotate_through_small_pads"
         elif goal_side >= 0.8 and dmin >= 500:
-            lab = "shadow_delay"
+            lab = "goal_side_hold"
     fam = ACTIONS.get(lab, {}).get("family") if lab else None
     return {"label": lab, "family": fam, "basis": basis,
             "method": "heuristic label from movement, touches and pickups in the next seconds; not an intent reading"}
