@@ -311,3 +311,34 @@ test('scene relations from a previous player must not appear under a new player'
   assert.equal(elements.get('modelCoachSpatialResults').children.length,0);
   assert.equal(elements.get('modelCoachSpatialBtn').disabled,true);
 });
+
+
+test('an active blind Stage A masks cached AI advice and blocks additional paid calls',async()=>{
+  const {API,elements,root}=modelAPI();
+  const selection=situation();
+  let blinded=true,paidCalls=0;
+  root.blindReviewUI={isPredecisionOpen:()=>blinded};
+  const controller=new API.ModelCoachingController(()=>selection,async url=>{
+    if(url==='/api/coach/model-readiness')return response({
+      schema:'CoachModelReadinessV0',status:'configured_unverified'});
+    if(url==='/api/coach/lesson'){paidCalls++;return response(validLesson());}
+    throw Error('Unexpected endpoint '+url);
+  });
+  root.modelCoachingUI=controller;
+  controller.mount();await tick();
+  assert.equal(controller.readiness,'configured_unverified');
+  const {key}=controller.getContext();
+  controller.results.set(key,{grade:'risky',accepted:1,rejected:0,claims:[],
+    t0:21.1,feedback:null,note:''});
+  elements.get('modelCoachConsent').checked=true;
+  controller.render();
+  assert.equal(elements.get('modelCoachRunBtn').disabled,true);
+  assert.ok(elements.get('modelCoachResults').children.every(x=>
+    !String(x.children?.[0]?.textContent||x.textContent).includes('Model assessment:')));
+  await controller.generate();
+  assert.equal(paidCalls,0,'predecision evaluation must not silently consume model credits');
+  blinded=false;controller.render();
+  assert.equal(elements.get('modelCoachRunBtn').disabled,false);
+  assert.ok(elements.get('modelCoachResults').children.some(x=>
+    x.className==='model-result-heading'));
+});
