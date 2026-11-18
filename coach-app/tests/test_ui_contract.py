@@ -144,3 +144,29 @@ def test_scene_relationships_are_source_linked_local_and_not_grading():
     assert "calculates_tactical_merit!==false" in model
     assert "modelCoachSpatialResults" in model
     assert "modelCoachConsent" in model
+
+
+def test_blind_two_stage_coaching_ui_has_honest_guard_and_local_export():
+    html = (ROOT / "index.html").read_text(encoding="utf-8")
+    app = (ROOT / "app.js").read_text(encoding="utf-8")
+    blind = (ROOT / "blind-review.js").read_text(encoding="utf-8")
+    model = (ROOT / "model-coaching.js").read_text(encoding="utf-8")
+    assert '<script src="/static/blind-review.js"></script>' in html
+    for name in (
+        "blindReviewPanel", "blindStartBtn", "blindPriorExposure",
+        "blindPreStage", "blindPreAction", "blindPreCoverage",
+        "blindPreConfidence", "blindPreRationale", "blindLockBtn",
+        "blindPostStage", "blindPostDecision", "blindPostExecution",
+        "blindPostModel", "blindRevealBtn", "blindOpenModelBtn",
+        "blindFinishBtn", "blindExportBtn", "blindReportSummary",
+    ):
+        assert f'id="{name}"' in html
+    assert "ReplayLabBlindReview.BlindReviewController" in app
+    assert "blindReviewUI?.playbackLimit" in app
+    assert "blindReviewUI?.isPredecisionOpen" in app
+    assert "onReveal:(t0)" in app
+    assert "stage_a" in blind and "stage_b" in blind
+    assert "strategic_merit_expert_verified:false" in blind
+    assert "no_automated_ai_calls:true" in blind
+    assert "root.blindReviewUI?.isPredecisionOpen" in model
+    assert "modelCoachRunBtn" in model
