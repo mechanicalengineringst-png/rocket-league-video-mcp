@@ -232,8 +232,11 @@ claim that the product has passed real-browser, real-game, or expert testing.
    Unlocked unfinished attempts excluded. Tool is an **in-app controlled
    viewing aid**, NOT proof that the reviewer never saw the play before,
    or that an external native Rocket League window was hidden.
-   **CI checkpoint:** 44/44 JS tests passed including real blocking
-   behavior; Python/general checks still running at first handoff.
+   **CI VERIFIED on exact head `d13da11c`: 418 Python passed /
+   13 skipped / 1 warning; 44/44 JavaScript tests including actual
+   model-result masking and playback-state integration; all three
+   GitHub workflows passed.** Real private ranked replay, real model
+   inference, HD render QA and native Rocket League remain unverified.
    Source: `coach-app/docs/round12e/BLIND_TWO_STAGE_EVAL.md`
    on PR #50. Gemini has been tasked with **24 hypothetical
    adversarial 2v2 cases and at least 8 context-flip pairs** with a
