@@ -1,0 +1,676 @@
+{
+ "schema": "DecisionEvidenceV0",
+ "t0": 20.995,
+ "focus_slot": "focus",
+ "slots": {
+  "focus": {
+   "team": "blue"
+  },
+  "teammate": {
+   "team": "blue"
+  },
+  "opponent_1": {
+   "team": "orange"
+  },
+  "opponent_2": {
+   "team": "orange"
+  }
+ },
+ "selection": {
+  "rule": "defender-candidate/0.1",
+  "values": {
+   "carrier_t": 0.49999999999999994,
+   "focus_t": 0.8999999999999999,
+   "mate_t": 1.8000000000000023,
+   "ball_y_rel": -3551,
+   "focus_y_rel": -4756
+  }
+ },
+ "source": {
+  "parser": "subtr-actor-native-replay",
+  "sampling_s": 0.03333333333333333,
+  "player_mapping_verified": true,
+  "note": "30 Hz sample-and-hold of replicated states; parser-level future invariance is tested here by truncation, raw packet update ages are not available."
+ },
+ "not_observable": [
+  "What each player could see (camera direction, ball cam). Positions are recorded, not perceived.",
+  "Controller inputs and intent.",
+  "Quick chat, voice calls and agreements between teammates.",
+  "Ball spin.",
+  "Whether each car still had a flip or dodge available.",
+  "Exact boost between replicated updates.",
+  "Network latency each player experienced."
+ ],
+ "rules": [
+  "Pre-decision evidence uses only data at or before t0.",
+  "Reachability is physical feasibility, not tactical merit.",
+  "Cite evidence by id; a U. id is an unknown and cannot support a claim.",
+  "Retrospective fields describe what happened later and are never reasons the player could know."
+ ],
+ "frame_time_s": 20.9621,
+ "context": {
+  "window_s": 3.0,
+  "from_s": 17.995,
+  "event_ids": [
+   "C.boost_pickups.1",
+   "C.boost_pickups.2",
+   "C.boost_pickups.3",
+   "C.boost_pickups.4"
+  ],
+  "excluded": "Touch kind/strength, whiffs, shadow and 50/50 labels are decided from later frames and are omitted."
+ },
+ "lookback_s": 0.0329,
+ "evidence": [
+  {
+   "id": "E.ball.position",
+   "kind": "observation",
+   "value": [
+    3062.7,
+    -3551.38,
+    371.45
+   ],
+   "unit": "uu",
+   "source_time_s": 20.9621,
+   "provenance": [
+    "replay_sample"
+   ]
+  },
+  {
+   "id": "E.ball.velocity",
+   "kind": "observation",
+   "value": [
+    -714.8,
+    536.2,
+    -193.9
+   ],
+   "unit": "uu/s",
+   "source_time_s": 20.9621,
+   "provenance": [
+    "replay_sample"
+   ]
+  },
+  {
+   "id": "E.ball.state_age",
+   "kind": "derived",
+   "value": 0.066,
+   "unit": "s",
+   "source_time_s": 20.9621,
+   "provenance": [
+    "derived"
+   ],
+   "note": "Time since the sampled ball state last changed."
+  },
+  {
+   "id": "E.focus.position",
+   "kind": "observation",
+   "value": [
+    2318.69,
+    -4756.21,
+    16.84
+   ],
+   "unit": "uu",
+   "source_time_s": 20.9621,
+   "provenance": [
+    "replay_sample"
+   ]
+  },
+  {
+   "id": "E.focus.state_age",
+   "kind": "derived",
+   "value": 0.066,
+   "unit": "s",
+   "source_time_s": 20.9621,
+   "provenance": [
+    "derived"
+   ],
+   "note": "Time since this car's sampled state last changed."
+  },
+  {
+   "id": "E.focus.velocity",
+   "kind": "observation",
+   "value": [
+    -190.7,
+    1211.5,
+    4.5
+   ],
+   "unit": "uu/s",
+   "source_time_s": 20.9621,
+   "provenance": [
+    "replay_sample"
+   ]
+  },
+  {
+   "id": "E.focus.forward",
+   "kind": "observation",
+   "value": [
+    -0.137,
+    0.991,
+    -0.005
+   ],
+   "unit": "unit vector",
+   "source_time_s": 20.9621,
+   "provenance": [
+    "replay_sample"
+   ],
+   "note": "Nose direction from the rotation; not the camera direction."
+  },
+  {
+   "id": "E.focus.boost",
+   "kind": "observation",
+   "value": 87.7,
+   "unit": "0-100",
+   "source_time_s": 20.9621,
+   "provenance": [
+    "replay_sample",
+    "freshness_unverified"
+   ],
+   "note": "Finite amount; 0 means empty, not unknown."
+  },
+  {
+   "id": "E.focus.jump_active",
+   "kind": "observation",
+   "value": false,
+   "unit": null,
+   "source_time_s": 20.9621,
+   "provenance": [
+    "replay_sample"
+   ]
+  },
+  {
+   "id": "E.teammate.position",
+   "kind": "observation",
+   "value": [
+    -1993.76,
+    -3638.24,
+    17.0
+   ],
+   "unit": "uu",
+   "source_time_s": 20.9621,
+   "provenance": [
+    "replay_sample"
+   ]
+  },
+  {
+   "id": "E.teammate.state_age",
+   "kind": "derived",
+   "value": 0.066,
+   "unit": "s",
+   "source_time_s": 20.9621,
+   "provenance": [
+    "derived"
+   ],
+   "note": "Time since this car's sampled state last changed."
+  },
+  {
+   "id": "E.teammate.velocity",
+   "kind": "observation",
+   "value": [
+    1537.4,
+    -1627.6,
+    0.4
+   ],
+   "unit": "uu/s",
+   "source_time_s": 20.9621,
+   "provenance": [
+    "replay_sample"
+   ]
+  },
+  {
+   "id": "E.teammate.forward",
+   "kind": "observation",
+   "value": [
+    0.688,
+    -0.726,
+    -0.01
+   ],
+   "unit": "unit vector",
+   "source_time_s": 20.9621,
+   "provenance": [
+    "replay_sample"
+   ],
+   "note": "Nose direction from the rotation; not the camera direction."
+  },
+  {
+   "id": "E.teammate.boost",
+   "kind": "observation",
+   "value": 78.8,
+   "unit": "0-100",
+   "source_time_s": 20.9621,
+   "provenance": [
+    "replay_sample",
+    "freshness_unverified"
+   ],
+   "note": "Finite amount; 0 means empty, not unknown."
+  },
+  {
+   "id": "E.teammate.jump_active",
+   "kind": "observation",
+   "value": false,
+   "unit": null,
+   "source_time_s": 20.9621,
+   "provenance": [
+    "replay_sample"
+   ]
+  },
+  {
+   "id": "E.opponent_1.position",
+   "kind": "observation",
+   "value": [
+    3242.41,
+    -2095.52,
+    16.99
+   ],
+   "unit": "uu",
+   "source_time_s": 20.9621,
+   "provenance": [
+    "replay_sample"
+   ]
+  },
+  {
+   "id": "E.opponent_1.state_age",
+   "kind": "derived",
+   "value": 0.066,
+   "unit": "s",
+   "source_time_s": 20.9621,
+   "provenance": [
+    "derived"
+   ],
+   "note": "Time since this car's sampled state last changed."
+  },
+  {
+   "id": "E.opponent_1.velocity",
+   "kind": "observation",
+   "value": [
+    -805.8,
+    -2009.1,
+    0.3
+   ],
+   "unit": "uu/s",
+   "source_time_s": 20.9621,
+   "provenance": [
+    "replay_sample"
+   ]
+  },
+  {
+   "id": "E.opponent_1.forward",
+   "kind": "observation",
+   "value": [
+    -0.373,
+    -0.928,
+    -0.01
+   ],
+   "unit": "unit vector",
+   "source_time_s": 20.9621,
+   "provenance": [
+    "replay_sample"
+   ],
+   "note": "Nose direction from the rotation; not the camera direction."
+  },
+  {
+   "id": "E.opponent_1.boost",
+   "kind": "observation",
+   "value": 93.9,
+   "unit": "0-100",
+   "source_time_s": 20.9621,
+   "provenance": [
+    "replay_sample",
+    "freshness_unverified"
+   ],
+   "note": "Finite amount; 0 means empty, not unknown."
+  },
+  {
+   "id": "E.opponent_1.jump_active",
+   "kind": "observation",
+   "value": false,
+   "unit": null,
+   "source_time_s": 20.9621,
+   "provenance": [
+    "replay_sample"
+   ]
+  },
+  {
+   "id": "E.opponent_2.position",
+   "kind": "observation",
+   "value": [
+    3335.53,
+    803.06,
+    17.02
+   ],
+   "unit": "uu",
+   "source_time_s": 20.9621,
+   "provenance": [
+    "replay_sample"
+   ]
+  },
+  {
+   "id": "E.opponent_2.state_age",
+   "kind": "derived",
+   "value": 0.066,
+   "unit": "s",
+   "source_time_s": 20.9621,
+   "provenance": [
+    "derived"
+   ],
+   "note": "Time since this car's sampled state last changed."
+  },
+  {
+   "id": "E.opponent_2.velocity",
+   "kind": "observation",
+   "value": [
+    -20.7,
+    1425.4,
+    0.1
+   ],
+   "unit": "uu/s",
+   "source_time_s": 20.9621,
+   "provenance": [
+    "replay_sample"
+   ]
+  },
+  {
+   "id": "E.opponent_2.forward",
+   "kind": "observation",
+   "value": [
+    -0.02,
+    1.0,
+    -0.01
+   ],
+   "unit": "unit vector",
+   "source_time_s": 20.9621,
+   "provenance": [
+    "replay_sample"
+   ],
+   "note": "Nose direction from the rotation; not the camera direction."
+  },
+  {
+   "id": "E.opponent_2.boost",
+   "kind": "observation",
+   "value": 0.0,
+   "unit": "0-100",
+   "source_time_s": 20.9621,
+   "provenance": [
+    "replay_sample",
+    "freshness_unverified"
+   ],
+   "note": "Finite amount; 0 means empty, not unknown."
+  },
+  {
+   "id": "E.opponent_2.jump_active",
+   "kind": "observation",
+   "value": false,
+   "unit": null,
+   "source_time_s": 20.9621,
+   "provenance": [
+    "replay_sample"
+   ]
+  },
+  {
+   "id": "E.reach.focus",
+   "kind": "derived",
+   "value": {
+    "status": "ok",
+    "t_min_s": 0.8999999999999999,
+    "t_max_s": 0.8999999999999999,
+    "approach": "drive",
+    "unknowns": []
+   },
+   "unit": "s after t0",
+   "source_time_s": 20.9621,
+   "provenance": [
+    "derived",
+    "kinematic_model:kinematic-reach/0.1"
+   ],
+   "note": "Lower bound on time to touch under the listed assumptions; not a prediction."
+  },
+  {
+   "id": "E.reach.teammate",
+   "kind": "derived",
+   "value": {
+    "status": "ok",
+    "t_min_s": 1.8000000000000023,
+    "t_max_s": 1.8000000000000023,
+    "approach": "powerslide",
+    "unknowns": []
+   },
+   "unit": "s after t0",
+   "source_time_s": 20.9621,
+   "provenance": [
+    "derived",
+    "kinematic_model:kinematic-reach/0.1"
+   ],
+   "note": "Lower bound on time to touch under the listed assumptions; not a prediction."
+  },
+  {
+   "id": "E.reach.opponent_1",
+   "kind": "derived",
+   "value": {
+    "status": "ok",
+    "t_min_s": 0.49999999999999994,
+    "t_max_s": 0.6,
+    "approach": "drive + single jump",
+    "unknowns": []
+   },
+   "unit": "s after t0",
+   "source_time_s": 20.9621,
+   "provenance": [
+    "derived",
+    "kinematic_model:kinematic-reach/0.1"
+   ],
+   "note": "Lower bound on time to touch under the listed assumptions; not a prediction."
+  },
+  {
+   "id": "E.reach.opponent_2",
+   "kind": "derived",
+   "value": {
+    "status": "ok",
+    "t_min_s": 2.8999999999999995,
+    "t_max_s": 2.8999999999999995,
+    "approach": "dodge",
+    "unknowns": []
+   },
+   "unit": "s after t0",
+   "source_time_s": 20.9621,
+   "provenance": [
+    "derived",
+    "kinematic_model:kinematic-reach/0.1"
+   ],
+   "note": "Lower bound on time to touch under the listed assumptions; not a prediction."
+  },
+  {
+   "id": "E.roles.own",
+   "kind": "derived",
+   "value": {
+    "first": "focus",
+    "second": "teammate",
+    "gap_s": 0.9,
+    "confidence": "estimate"
+   },
+   "unit": null,
+   "source_time_s": 20.995,
+   "provenance": [
+    "derived"
+   ],
+   "note": "Ordered by earliest feasible touch, not by rotation intent or what the players agreed."
+  },
+  {
+   "id": "E.roles.opponents",
+   "kind": "derived",
+   "value": {
+    "first": "opponent_1",
+    "second": "opponent_2",
+    "gap_s": 2.4,
+    "confidence": "estimate"
+   },
+   "unit": null,
+   "source_time_s": 20.995,
+   "provenance": [
+    "derived"
+   ],
+   "note": "Ordered by earliest feasible touch, not by rotation intent or what the players agreed."
+  },
+  {
+   "id": "E.race.margin",
+   "kind": "derived",
+   "value": {
+    "margin_s": -0.4,
+    "pessimistic_s": -0.4,
+    "optimistic_s": -0.3
+   },
+   "unit": "s",
+   "source_time_s": 20.995,
+   "provenance": [
+    "derived"
+   ],
+   "note": "Fastest opponent minus fastest own-team touch bound; positive = own team first."
+  },
+  {
+   "id": "E.cover.teammate",
+   "kind": "derived",
+   "value": 1.733,
+   "unit": "s after t0",
+   "source_time_s": 20.9621,
+   "provenance": [
+    "derived",
+    "kinematic_model"
+   ],
+   "note": "0 = already between ball and own goal; null = not reachable within 4 s. A feasibility bound, not proof the teammate would cover."
+  },
+  {
+   "id": "C.boost_pickups.1",
+   "kind": "context_event",
+   "value": {
+    "t": 19.048,
+    "playerId": "teammate",
+    "padType": "big"
+   },
+   "unit": null,
+   "source_time_s": 19.048,
+   "provenance": [
+    "decoder_event",
+    "pad_inferred_from_position"
+   ]
+  },
+  {
+   "id": "C.boost_pickups.2",
+   "kind": "context_event",
+   "value": {
+    "t": 19.094,
+    "playerId": "opponent_1",
+    "padType": "small"
+   },
+   "unit": null,
+   "source_time_s": 19.094,
+   "provenance": [
+    "decoder_event",
+    "pad_inferred_from_position"
+   ]
+  },
+  {
+   "id": "C.boost_pickups.3",
+   "kind": "context_event",
+   "value": {
+    "t": 19.645,
+    "playerId": "focus",
+    "padType": "big"
+   },
+   "unit": null,
+   "source_time_s": 19.645,
+   "provenance": [
+    "decoder_event",
+    "pad_inferred_from_position"
+   ]
+  },
+  {
+   "id": "C.boost_pickups.4",
+   "kind": "context_event",
+   "value": {
+    "t": 19.828,
+    "playerId": "opponent_1",
+    "padType": "big"
+   },
+   "unit": null,
+   "source_time_s": 19.828,
+   "provenance": [
+    "decoder_event",
+    "pad_inferred_from_position"
+   ]
+  },
+  {
+   "id": "C.boost_change.focus",
+   "kind": "derived",
+   "value": 50.8,
+   "unit": "boost",
+   "source_time_s": 20.9621,
+   "provenance": [
+    "derived",
+    "freshness_unverified"
+   ],
+   "note": "Boost at t0 minus boost 3 s earlier (net of pickups)."
+  },
+  {
+   "id": "C.boost_change.teammate",
+   "kind": "derived",
+   "value": 71.3,
+   "unit": "boost",
+   "source_time_s": 20.9621,
+   "provenance": [
+    "derived",
+    "freshness_unverified"
+   ],
+   "note": "Boost at t0 minus boost 3 s earlier (net of pickups)."
+  },
+  {
+   "id": "C.boost_change.opponent_1",
+   "kind": "derived",
+   "value": 56.7,
+   "unit": "boost",
+   "source_time_s": 20.9621,
+   "provenance": [
+    "derived",
+    "freshness_unverified"
+   ],
+   "note": "Boost at t0 minus boost 3 s earlier (net of pickups)."
+  },
+  {
+   "id": "C.boost_change.opponent_2",
+   "kind": "derived",
+   "value": 0.0,
+   "unit": "boost",
+   "source_time_s": 20.9621,
+   "provenance": [
+    "derived",
+    "freshness_unverified"
+   ],
+   "note": "Boost at t0 minus boost 3 s earlier (net of pickups)."
+  }
+ ],
+ "unknowns": [],
+ "status": "ok",
+ "retrospective": {
+  "kind": "retrospective",
+  "warning": "Happened after t0. Not known at the decision, not intent, and not proof of decision quality.",
+  "observed_action": {
+   "id": "R.observed_action",
+   "label": "challenge",
+   "basis": {
+    "min_distance_uu": 189,
+    "goal_side_share": 0.44,
+    "moved_toward_own_goal_uu": -2897,
+    "boost_gained": 0.0,
+    "reason": "reached the ball without a recorded touch"
+   },
+   "finalized_through_s": 22.495
+  },
+  "next_touch": {
+   "id": "R.next_touch",
+   "slot": "opponent_1",
+   "after_s": 0.526,
+   "finalized_through_s": 21.521
+  },
+  "goal_within_5s": {
+   "id": "R.goal_within_5s",
+   "scored_by": "opponents",
+   "finalized_through_s": 22.846
+  }
+ }
+}
