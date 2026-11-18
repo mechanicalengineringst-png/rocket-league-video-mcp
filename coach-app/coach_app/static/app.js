@@ -1,14 +1,15 @@
 'use strict';
 const $ = id => document.getElementById(id);
 const state = { replay: null, findings: [], focusId: null, selectedId: null, time: 0, playing: false, timer: null, overrides: new Map(), reviewFeedback: new Map(), view: {facing:true, travel:false, heights:false, trail:false, ballTrail:false, boostPads:true}, speed:1, momentFilter:'shortlist', videoUrl:null, videoOffset:0, videoAligned:false };
-let viewer3d = null;
-let currentViewMode = '2d';
-function getViewer3d(){
-  if(!viewer3d && typeof Viewer3D !== 'undefined'){
-    const container = $('viewport3d');
-    if(container) viewer3d = new Viewer3D(container);
-  }
-  return viewer3d;
+let currentViewMode = 'split';
+function announceReplaySync(){
+  if(!state.replay)return;
+  const focus=playerById(state.focusId);
+  if(!focus)return;
+  window.dispatchEvent(new CustomEvent('replay-lab:sync-state',{detail:{
+    time:state.time,playing:state.playing,speed:state.speed,
+    focusName:focus.name,focusTeam:focus.team,synthetic:state.replay.source==='synthetic'
+  }}));
 }
 const SVG_NS = 'http://www.w3.org/2000/svg';
 // Rocket League uses Unreal's left-handed axes: seen from above with the orange goal (+Y)
@@ -36,13 +37,8 @@ function chooseTime(time){
   renderPitch();
   renderSceneInspector();
   if(state.replay.boostPadTimeline) renderBoostPads();
-  if(viewer3d) {
-    viewer3d.update(frame, state.focusId, state.replay.players);
-    if(state.replay.boostPadTimeline) {
-      viewer3d.updateBoostPads(state.replay.boostPadTimeline, state.time);
-    }
-  }
   syncVideoToReplay();
+  announceReplaySync();
 }
 function setReplay(replay, opts={}){
   if(!replay || !Array.isArray(replay.players) || !Array.isArray(replay.frames) || !replay.frames.length)throw new Error('Invalid replay timeline.');
@@ -69,26 +65,30 @@ function setReplay(replay, opts={}){
   // Demo fixtures are never attached to a user's real match.
   window.coachingController?.resetForReplay(Boolean(opts.demo));
   refreshFindings(opts.demo);renderBoostPads();
-  const v = getViewer3d();
-  if(v) v.update(currentFrame(), state.focusId, state.replay.players);
+  window.dispatchEvent(new CustomEvent('replay-lab:replay-ready',{detail:{synthetic:replay.source==='synthetic'}}));
   chooseTime(0);
   if(!opts.demo && replay.source !== 'synthetic') {
     loadDecisionCasesForCoaching(replay, state.focusId);
   }
 }
-function makeCoachLessonRequest(replay, playerId, decisionCase) {
-  // Source cases choose the primary moment; context nodes are explicitly selected
-  // nearby timestamps, not automatically inferred prior mistakes.
-  const t0 = Number(decisionCase.t0 ?? decisionCase.timestamp);
-  const first = Number(replay.frames?.[0]?.t ?? 0);
-  if (!Number.isFinite(t0) || t0 - first < 5.05 || t0 > replay.duration) return null;
-  const episodeStart = +(t0 - 5).toFixed(3);
-  const decisionTimes = [t0 - 3.2, t0 - 1.5, t0].map(t => +t.toFixed(3));
-  if (decisionTimes.some(t => t < episodeStart || !Number.isFinite(t))) return null;
+function makeCoachLessonRequest(replay, playerId, candidate, opts = {}) {
+  const t0 = Number(candidate.primary_t0 ?? candidate.t0 ?? candidate.timestamp);
+  const first = Number(replay?.frames?.[0]?.t ?? 0);
+  if (!Number.isFinite(t0) || t0 < first || t0 > (replay?.duration ?? 99999)) return null;
+  const episodeStart = Number.isFinite(candidate.episode_start_s)
+    ? candidate.episode_start_s
+    : +Math.max(first, t0 - 5.0).toFixed(3);
+  const decisionTimes = Array.isArray(candidate.decision_times) && candidate.decision_times.length
+    ? candidate.decision_times
+    : [+(t0 - 2.0).toFixed(3), +t0.toFixed(3)];
   return {
-    replay, player_id: playerId, decision_times: decisionTimes,
-    episode_start_s: episodeStart, primary_t0: +t0.toFixed(3),
-    mode: 'deterministic'
+    replay,
+    player_id: playerId,
+    decision_times: decisionTimes,
+    episode_start_s: episodeStart,
+    primary_t0: +t0.toFixed(3),
+    mode: 'deterministic',
+    experimental_tactical_v1: Boolean(opts.experimental_tactical_v1)
   };
 }
 
@@ -99,23 +99,71 @@ async function loadDecisionCasesForCoaching(replay, playerId) {
     coach?.setLiveStatus('Confirm the player being coached to request source-backed analysis.');
     return;
   }
-  coach?.setLiveStatus('Inspecting candidate decisions with the local coaching backend...');
+  coach?.setLiveStatus('Discovering source-backed review moments with local coaching backend...');
   try {
-    const res = await fetch('/api/decision-cases', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({replay, player_id: playerId, evaluate: true, analyze: true})
-    });
-    if (!res.ok) throw new Error('Candidate decision extraction unavailable (' + res.status + ').');
-    const data = await res.json();
+    let candidateList = [];
+    // 1. Official Round 10/11 Candidate Discovery Endpoint
+    try {
+      const candRes = await fetch('/api/coach/candidates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ replay, player_id: playerId, max_candidates: 6 })
+      });
+      if (candRes.ok) {
+        const candData = await candRes.json();
+        if (candData.schema === 'EpisodeCandidatesV0' && Array.isArray(candData.candidates)) {
+          candidateList = candData.candidates;
+        }
+      }
+    } catch (cErr) {
+      console.warn('Candidate discovery endpoint error:', cErr);
+    }
+
+    // 2. Fallback to /api/decision-cases if candidate discovery returned empty
+    if (!candidateList.length) {
+      try {
+        const res = await fetch('/api/decision-cases', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ replay, player_id: playerId, evaluate: true, analyze: true })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          candidateList = (data.cases || []).slice(0, 5).map(c => {
+            const t0 = Number(c.t0 ?? c.timestamp);
+            const first = Number(replay.frames?.[0]?.t ?? 0);
+            return {
+              candidate_id: c.case_id || ('case-' + t0),
+              primary_t0: +t0.toFixed(3),
+              decision_times: [+(t0 - 2.0).toFixed(3), +t0.toFixed(3)],
+              episode_start_s: +Math.max(first, t0 - 5.0).toFixed(3),
+              signals: [c.situation_type || 'tactical_decision'],
+              case_obj: c
+            };
+          });
+        }
+      } catch (dcErr) {
+        console.warn('Decision-cases fallback error:', dcErr);
+      }
+    }
+
+    if (!candidateList.length) {
+      if (state.replay === replay && state.focusId === playerId) {
+        coach?.setLiveStatus('No source-backed review moments found for this player.');
+      }
+      return;
+    }
+
     let count = 0;
-    for (const c of (data.cases || []).slice(0, 5)) {
+    const useExperimentalV1 = Boolean(coach?.useExperimentalV1);
+    for (const c of candidateList.slice(0, 6)) {
       if (state.replay !== replay || state.focusId !== playerId) return;
-      const payload = makeCoachLessonRequest(replay, playerId, c);
+      const payload = makeCoachLessonRequest(replay, playerId, c, { experimental_tactical_v1: useExperimentalV1 });
       if (!payload) continue;
       try {
         const lessonRes = await fetch('/api/coach/lesson', {
-          method: 'POST', headers: {'Content-Type':'application/json'},
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
         });
         if (!lessonRes.ok) continue;
@@ -125,15 +173,17 @@ async function loadDecisionCasesForCoaching(replay, playerId) {
         coach?.addVerifiedLesson(lesson, payload, c);
         count += 1;
       } catch (err) {
-        console.warn('An individual coaching lesson could not be loaded:', err);
+        console.warn('Individual coaching lesson could not be loaded:', err);
       }
     }
-    if (!count && state.replay === replay && state.focusId === playerId)
+    if (!count && state.replay === replay && state.focusId === playerId) {
       coach?.setLiveStatus('No source-backed lessons could be constructed for this replay. Demo examples remain separate.');
+    }
   } catch (err) {
-    console.warn('Could not load live coaching cases:', err);
-    if (state.replay === replay && state.focusId === playerId)
+    console.warn('Could not load live coaching candidates:', err);
+    if (state.replay === replay && state.focusId === playerId) {
       coach?.setLiveStatus('Source-backed coaching is unavailable: ' + err.message);
+    }
   }
 }
 
@@ -297,43 +347,26 @@ function renderBoostPads(){
   }
 }
 function setViewMode(mode){
+  if(!['hd','2d','split'].includes(mode))return;
   currentViewMode=mode;
-  for(const [id,name] of [['viewTab2d','2d'],['viewTab3d','3d'],['viewTabSplit','split']]){
+  for(const [id,name] of [['viewTabHd','hd'],['viewTab2d','2d'],['viewTabSplit','split']]){
     const selected=mode===name;
-    $(id).classList.toggle('active',selected);
-    $(id).setAttribute('aria-selected',String(selected));
+    const tab=$(id);
+    if(tab){
+      tab.classList.toggle('active',selected);
+      tab.setAttribute('aria-selected',String(selected));
+    }
   }
-  const shell=$('pitchShell'),field=$('field'),vp3d=$('viewport3d'),ctrl3d=$('controls3d'),badge=$('pitchBadge');
-  shell.className = 'pitch-shell mode-'+mode;
-  if(mode==='2d'){
-    field.style.display='block';field.hidden=false;
-    vp3d.style.display='none';vp3d.hidden=true;
-    ctrl3d.style.display='none';ctrl3d.hidden=true;
-    if(badge){badge.style.display='block';badge.textContent='REPLAY FIELD · 2D TOP-DOWN VIEW';}
-    renderPitch();
-  }else if(mode==='3d'){
-    field.style.display='none';field.hidden=true;
-    vp3d.style.display='block';vp3d.hidden=false;
-    ctrl3d.style.display='flex';ctrl3d.hidden=false;
-    if(badge)badge.style.display='none';
-    const v=getViewer3d();v?.onResize();
-    if(state.replay)v?.update(currentFrame(),state.focusId,state.replay.players);
-  }else if(mode==='split'){
-    shell.className = 'pitch-shell split-mode';
-    field.style.display='block';field.hidden=false;
-    vp3d.style.display='block';vp3d.hidden=false;
-    ctrl3d.style.display='flex';ctrl3d.hidden=false;
-    if(badge){badge.style.display='block';badge.textContent='REPLAY FIELD · SYNCHRONIZED 2D + 3D VIEW';}
-    renderPitch();
-    const v=getViewer3d();v?.onResize();
-    if(state.replay)v?.update(currentFrame(),state.focusId,state.replay.players);
+  const shell=$('pitchShell'),field=$('field'),hdFrame=$('hdInlineFrame'),badge=$('pitchBadge');
+  if(shell) shell.className = 'pitch-shell '+(mode==='split'?'split-mode':'mode-'+mode);
+  if(hdFrame) hdFrame.hidden = mode==='2d';
+  if(field) field.hidden = mode==='hd';
+  if(badge){
+    if(mode==='split'){ badge.style.display='block'; badge.textContent='TACTICAL MAP · LIVE POSITION'; }
+    else if(mode==='2d'){ badge.style.display='block'; badge.textContent='TACTICAL MAP · 2D VIEW'; }
+    else { badge.style.display='none'; }
   }
-}
-function setCamMode(mode){
-  for(const [id,m] of [['camOrbit','orbit'],['camTactical','tactical'],['camFollow','follow'],['camBall','ball'],['camPOV','pov']]){
-    $(id)?.classList.toggle('active',m===mode);
-  }
-  getViewer3d()?.setCameraMode(mode);
+  renderPitch();
 }
 function drawTrail(parent,points,color,thickness,dashed){
   if(points.length<2)return;
@@ -652,15 +685,9 @@ function wire(){
   }
   $('showBoostPads').onchange=e=>{state.view.boostPads=e.target.checked;renderBoostPads();};
   $('recentActionsPanel').ontoggle=renderRecentActions;
+  $('viewTabHd').onclick=()=>setViewMode('hd');
   $('viewTab2d').onclick=()=>setViewMode('2d');
-  $('viewTab3d').onclick=()=>setViewMode('3d');
   $('viewTabSplit').onclick=()=>setViewMode('split');
-  $('camOrbit').onclick=()=>setCamMode('orbit');
-  $('camTactical').onclick=()=>setCamMode('tactical');
-  $('camFollow').onclick=()=>setCamMode('follow');
-  $('camPOV').onclick=()=>setCamMode('pov');
-  $('camBall').onclick=()=>setCamMode('ball');
-  $('camReset').onclick=()=>{setCamMode('orbit');getViewer3d()?.resetCamera();};
   $('momentFilter').onchange=e=>{
     state.momentFilter=e.target.value;
     const shown=visibleFindings();
@@ -679,10 +706,12 @@ function wire(){
   window.stopPlay = stopPlay;
   window.setReplay = setReplay;
   window.demoReplay = demoReplay;
+  window.reloadCoachingLessons = () => { if (state.replay && state.focusId) loadDecisionCasesForCoaching(state.replay, state.focusId); };
   if (typeof CoachingExperienceController !== 'undefined') {
     window.coachingController = new CoachingExperienceController();
     window.coachingController.mount('coachingExperienceContainer');
   }
+  setViewMode('split');
 }
 
 wire();

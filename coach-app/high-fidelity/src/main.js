@@ -1,10 +1,23 @@
 import {
   createPlayer, createCameraPlugin, createNameTagPlugin,
   createBoostPadsPlugin, createScoredTextPlugin,
-  createBoostPickupAnimationPlugin,
-  fromReplayPlayerPlugin, setPlayerAssetBase,
+  setPlayerAssetBase,
 } from '@rlrml/player';
+import * as THREE from 'three';
 import { formatTime, clampTime, timelineMarkers } from './time.js';
+import {
+  findCameraTrack, recordedCameraAtTime, cameraEvidence,
+  cameraSwitchMoments, displayCameraMode,
+} from './camera-timeline.js';
+import {
+  validateExternalControl, resolveFocusedPlayer, findSelectedPlayer,
+  shouldCorrectReplayTime, safeSessionId,
+} from './external-sync.js';
+import { createCameraPolishPlugin } from './camera-polish.js';
+import { createRecordedCameraSwitchPlugin } from './recorded-camera-switch.js';
+import {
+  applySceneQuality, setFieldDecorStyle, createEffectRefiner, createVisualEffectsPlugin,
+} from './visual-quality.js';
 import './style.css';
 
 const $ = id => document.getElementById(id);
@@ -12,19 +25,121 @@ const shell = $('dropZone');
 const surface = $('loadingSurface');
 const upload = $('fileInput');
 const viewer = $('viewport');
+// The HD viewer is shared by standalone replay mode and the embedded 3D
+// half of Replay Lab's tactical split view.
+const embedded = new URLSearchParams(location.search).get('embedded') === '1';
+if (embedded) document.body.classList.add('embedded');
+const syncHost = () => window.parent !== window ? window.parent :
+  (window.opener && window.opener !== window ? window.opener : null);
 
 const assetBase = import.meta.env.DEV ? '/' : import.meta.env.BASE_URL;
 setPlayerAssetBase(assetBase);
 
+// Disable the upstream skybox's artificial 2-degree/second rotation, which
+// can read as background camera shake while reviewing stationary gameplay.
+const STILL_HDR={
+  id:'replay-lab-stable-stadium',
+  skyboxUrl:'skyboxes/PlanetaryEarth4k.hdr',
+  exposure:1.20,
+  rotation:{x:8,y:0,z:28},
+  animation:{enabled:false,speed:0}
+};
+
 let player = null;
 let cameraPlugin = null;
-let unsubscribe = null;
+let cameraPolish = null;
+let effectRefiner = null;
 let loadSequence = 0;
 let loading = false;
 let scrubbing = false;
 let resumeAfterScrub = false;
-let preferredPlayer = null;
 let lastHudUpdate = -Infinity;
+let bridgeSessionId = null;
+const hdInstanceId = globalThis.crypto?.randomUUID?.() ||
+  'instance-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
+let lastBridgeSeq = 0;
+// Optional QA-only mesh probe, only enabled by ?qa=1 on this same-origin page.
+// It reports what the renderer really draws under a pixel, to locate oversized
+// black field decorations without guessing at material names.
+if(new URLSearchParams(location.search).get('qa')==='1'){
+  window.__rlReplayLabQA={
+    effectiveCameraState(){
+      if(!player)return null;
+      const state=player.getState();
+      return {
+        attached:state.attachedPlayerId,
+        viewMode:state.cameraViewMode,
+        useReplayBallCam:state.useReplayBallCam,
+        effectiveBallCamEnabled:state.effectiveBallCamEnabled,
+        pluginBallCam:cameraPlugin?.getBallCam?.(),
+        pluginMode:cameraPlugin?.getMode?.(),
+        time:state.currentTime
+      };
+    },
+    hitsAt(clientX,clientY){
+      if(!player?.scene||!player?.camera)return [];
+      const bounds=viewer.getBoundingClientRect();
+      const mouse=new THREE.Vector2(
+        ((clientX-bounds.left)/bounds.width)*2-1,
+        -((clientY-bounds.top)/bounds.height)*2+1
+      );
+      const ray=new THREE.Raycaster();
+      ray.setFromCamera(mouse,player.camera);
+      return ray.intersectObjects(player.scene.children,true)
+        .filter(hit=>hit.distance>10 && hit.object?.isMesh &&
+          hit.object.visible &&
+          hit.object.parent?.visible !== false)
+        .slice(0,18).map(hit=>{
+          const mat=Array.isArray(hit.object.material)?
+            hit.object.material[0]:hit.object.material;
+          return {
+            name:hit.object.name||'(unnamed)',
+            parent:hit.object.parent?.name||'(unnamed)',
+            geometry:hit.object.geometry?.type||'',
+            material:mat?.name||'(unnamed)',
+            color:mat?.color?.getHexString?.()??null,
+            point:hit.point.toArray().map(x=>Math.round(x)),
+            distance:Math.round(hit.distance),
+            pad:hit.object.userData?.padId??null,
+            visible:hit.object.visible,
+            opacity:mat?.opacity??null,
+            renderOrder:hit.object.renderOrder,
+          };
+        });
+    },
+    arenaMeshes(){
+      return (player?.arenaManager?.arenaMeshes||[]).map(mesh=>({
+        name:mesh.name,material:mesh.material?.name||'',
+        visible:mesh.visible,castShadow:mesh.castShadow,
+      }));
+    },
+    setArenaMeshVisible(name,visible){
+      let count=0;
+      for(const mesh of player?.arenaManager?.arenaMeshes||[]){
+        if(mesh.name===name){mesh.visible=!!visible;count++;}
+      }
+      return count;
+    },
+    setBoostMeshesVisible(visible){
+      let count=0;
+      for(const child of player?.scene?.children||[]){
+        if(Number.isInteger(child.userData?.padId)){
+          child.visible=!!visible;count++;
+        }
+      }
+      return count;
+    },
+    setSceneShadows(enabled){
+      const renderer=player?.renderer;
+      if(renderer?.shadowMap)renderer.shadowMap.enabled=!!enabled;
+      return renderer?.shadowMap?.enabled??null;
+    },
+    freezeAt(t){
+      player?.pause();player?.seek(t);
+    },
+  };
+}
+
 
 function setStatus(message, isError = false) {
   $('statusText').textContent = message;
@@ -42,47 +157,95 @@ function enableControls(enabled) {
   for (const id of [
     'stepBackBtn','backBtn','playBtn','forwardBtn','stepForwardBtn',
     'seek','speedSelect','playerSelect','ballCamSelect',
-    'interpolation','hitboxToggle','trailToggle'
+    'interpolation','hitboxToggle','trailToggle','replayLookToggle',
+    'qualitySelect','fxStyle','lightingSelect','fieldDecorSelect'
   ]) $(id).disabled = !enabled;
   for (const button of document.querySelectorAll('.cam')) button.disabled = !enabled;
 }
 
 function currentPlayer() {
-  return player?.adapter?.playerList?.find(p => p.id === $('playerSelect').value) ?? null;
+  return findSelectedPlayer(player?.adapter?.playerList,$('playerSelect').value);
 }
+function currentCameraTrack() {
+  const p=currentPlayer();
+  return p ? findCameraTrack(player?.replay,p.id,p.name) : null;
+}
+function invalidateCamera() { cameraPolish?.invalidate(); }
 function switchCamera(mode) {
   if (!cameraPlugin || !player) return;
-  const available = new Set(['follow', 'orbit', 'ballOrbit', 'free']);
-  if (!available.has(mode)) return;
-  const picked = currentPlayer();
-  if (mode === 'follow') {
-    if (picked) cameraPlugin.follow(picked.name);
-  } else if (mode === 'orbit') {
-    cameraPlugin.release();
-  } else {
+  if (!['follow','orbit','ballOrbit','free'].includes(mode)) return;
+  const picked=currentPlayer();
+  if(mode==='follow'){
+    // Use the *public* parity API, not plugin.follow alone. Keeping the
+    // attached player in the engine state lets applyReplayBallCam reproduce
+    // per-player native Ball Cam toggles during seeking and playback.
+    if(picked) player.setAttachedPlayer(picked.id);
+  }else{
+    player.setCameraViewMode('free');
     cameraPlugin.setMode(mode);
   }
-  for (const button of document.querySelectorAll('.cam')) {
-    const active = button.dataset.camera === mode;
-    button.classList.toggle('active', active);
-    button.setAttribute('aria-pressed', String(active));
+  invalidateCamera();
+  for(const button of document.querySelectorAll('.cam')){
+    const active=button.dataset.camera===mode;
+    button.classList.toggle('active',active);
+    button.setAttribute('aria-pressed',String(active));
   }
-  $('ballCamSelect').disabled = mode !== 'follow';
-  $('cameraLabel').textContent = ({
-    follow: 'PLAYER CAM',
-    orbit: 'ORBIT CAM',
-    ballOrbit: 'BALL ORBIT',
-    free: 'FLY CAM',
-  })[mode];
-  $('playerHud').textContent = mode === 'follow' && picked ? picked.name : 'FREE CAMERA';
+  $('ballCamSelect').disabled=mode!=='follow';
+  $('playerHud').textContent=mode==='follow'&&picked?picked.name:
+    mode==='free'?'FREE FLY CAMERA':mode==='ballOrbit'?'BALL ORBIT':'ORBIT CAMERA';
+  updateHud(true);
 }
-
 function applyBallCam(value) {
-  if (!cameraPlugin) return;
-  cameraPlugin.setBallCam(value === 'recorded' ? null : value === 'ball');
-  $('ballCamSelect').value = value;
+  if(!player)return;
+  // null means use replay-authored camera changes, not "ball cam always on".
+  player.setBallCamEnabled(value==='recorded'?null:value==='ball');
+  $('ballCamSelect').value=value;
+  invalidateCamera();
+  updateHud(true);
 }
-
+function updateCameraEvidence(){
+  const evidence=cameraEvidence(currentCameraTrack());
+  const el=$('cameraEvidence');
+  if(!evidence.events){
+    el.classList.add('unknown');
+    el.textContent='This player has no replicated Ball Cam switch events. Recorded state is unknown; use Force Car Cam or Force Ball Cam for comparison.';
+  }else{
+    el.classList.remove('unknown');
+    el.textContent='Native camera events: '+evidence.events+
+      ' • Ball Cam OFF: '+evidence.ballOff+
+      ' • Ball Cam ON: '+evidence.ballOn+
+      ' • Rear view: '+evidence.rear+
+      ' • Manual-look samples: '+(evidence.hasSwivel?'present':'not replicated')+
+      '. The game does not store a literal camera-world transform.';
+  }
+}
+function refreshCameraEvents() {
+  const list=$('cameraEventList');
+  list.replaceChildren();
+  // Native 2v2 camera tracks can contain hundreds of toggles; limiting the
+  // strip to the first 60 prevented seeking to legitimate later Car Cam OFF
+  // moments. The list has a fixed-height scroll container in style.css.
+  const moments=cameraSwitchMoments(player?.replay,currentCameraTrack(),500);
+  if(!moments.length){
+    const span=document.createElement('span');
+    span.className='muted';
+    span.textContent='No recorded camera switches for this player.';
+    list.append(span);
+    return;
+  }
+  for(const moment of moments){
+    const btn=document.createElement('button');
+    btn.type='button';
+    btn.classList.toggle('off',moment.label==='Ball Cam off');
+    btn.textContent=moment.label+' · '+formatTime(moment.time);
+    btn.addEventListener('click',()=>{
+      player?.pause();invalidateCamera();
+      player?.seek(clampTime(moment.time,player.duration));
+      updateHud(true);
+    });
+    list.append(btn);
+  }
+}
 function fillPlayers(players, preferredName = null) {
   const select = $('playerSelect');
   select.replaceChildren();
@@ -114,6 +277,7 @@ function refreshEvents() {
     btn.title = event.label;
     btn.addEventListener('click', () => {
       player?.pause();
+      invalidateCamera();
       player?.seek(clampTime(event.time,player.duration));
       updateHud(true);
     });
@@ -132,9 +296,50 @@ function updateHud(force = false) {
   if (!scrubbing) $('seek').value = String(state.currentTime);
   $('playBtn').textContent = state.playing ? '❚❚' : '▶';
   $('playBtn').setAttribute('aria-label', state.playing ? 'Pause replay' : 'Play replay');
+  const mode=cameraPlugin?.getMode()||'orbit';
+  const recorded=recordedCameraAtTime(currentCameraTrack(),player?.replay,state.currentTime);
+  const override=$('ballCamSelect').value;
+  const label=displayCameraMode(recorded,override,cameraPlugin?.getBallCam?.(),mode==='follow',$('replayLookToggle').checked);
+  $('cameraLabel').textContent=mode==='follow'?label:
+    mode==='free'?'FLY CAM':mode==='ballOrbit'?'BALL ORBIT':'ORBIT CAM';
+  $('cameraSource').textContent=mode!=='follow'?'VIEWER CONTROL':
+    override!=='recorded'?'FORCED VIEW':
+    recorded.hasRecordedSwitch?'REPLAY TELEMETRY':'NO RECORDED SWITCH';
+
+  // Live selected-player boost gauge
+  const focus = currentPlayer();
+  const boostHud = $('boostHud');
+  if (boostHud) {
+    if (mode === 'follow' && focus) {
+      boostHud.classList.remove('hidden');
+      const pData = player?.adapter?.getPlayer(focus.id);
+      const rawBoost = pData?.boost;
+      const bar = $('boostBar');
+      if (rawBoost == null || Number.isNaN(rawBoost)) {
+        $('boostNum').textContent = '--';
+        if (bar) {
+          bar.style.strokeDashoffset = '251.327';
+          bar.setAttribute('class', 'boost-bar unknown-team');
+        }
+      } else {
+        const boostVal = Math.round(Math.max(0, Math.min(100, rawBoost)));
+        const isBoosting = !!pData?.isBoosting;
+        const team = focus.team === 0 ? 'blue' : 'orange';
+        $('boostNum').textContent = String(boostVal);
+        if (bar) {
+          const maxOffset = 251.327;
+          const offset = maxOffset * (1 - boostVal / 100);
+          bar.style.strokeDashoffset = String(offset);
+          bar.setAttribute('class', `boost-bar ${team}-team` + (isBoosting ? ' boosting' : ''));
+        }
+      }
+    } else {
+      boostHud.classList.add('hidden');
+    }
+  }
 }
 
-async function loadFile(file, preferredName = null) {
+async function loadFile(file, preferredName = null, sessionId = null) {
   if (!file || !String(file.name || '').toLowerCase().endsWith('.replay')) {
     setStatus('Choose a .replay file.', true);
     return;
@@ -143,26 +348,44 @@ async function loadFile(file, preferredName = null) {
     setStatus('Replay file exceeds the 20 MB local limit.', true);
     return;
   }
+  if (sessionId) {
+    bridgeSessionId = sessionId;
+    lastBridgeSeq = 0;
+  }
   const seq = ++loadSequence;
   loading = true;
   enableControls(false);
   setStatus('Reading replay bytes locally…');
   setLoading(true, 'Decoding native match…', 'Using subtr-actor WebAssembly. The replay file stays in your browser.');
   try {
-    if (unsubscribe) { unsubscribe(); unsubscribe = null; }
     player?.pause();
     player?.dispose?.();
     player = null;
+    cameraPolish=null;
+    effectRefiner=null;
+    lastHudUpdate=-Infinity;
     viewer.replaceChildren();
     const bytes = new Uint8Array(await file.arrayBuffer());
     if (seq !== loadSequence) return;
-    cameraPlugin = createCameraPlugin({mode:'orbit'});
+    cameraPlugin = createCameraPlugin({mode:'orbit',useRecordedSettings:true});
+    cameraPolish=createCameraPolishPlugin({
+      getCameraPlugin:()=>cameraPlugin,
+      getFollowId:()=>currentPlayer()?.id,
+      getReplayLook:()=>$('replayLookToggle').checked,
+    });
+    const cameraStateSource=createRecordedCameraSwitchPlugin({
+      getCameraPlugin:()=>cameraPlugin,
+      getFollowId:()=>currentPlayer()?.id,
+      getCameraOverride:()=>$('ballCamSelect').value,
+    });
+    effectRefiner=createEffectRefiner(()=>$('fxStyle').value);
     setStatus('Building stadium, cars and replay timeline…');
     const next = await createPlayer(viewer, bytes, {
       autoplay: false,
       loop: false,
       motionInterpolation: 'hermite',
       motionSmoothing: true,
+      environment: $('lightingSelect').value==='neutral'?false:STILL_HDR,
       initialSkipPostGoalTransitionsEnabled: false,
       initialSkipKickoffsEnabled: false,
       assetBase,
@@ -170,16 +393,19 @@ async function loadFile(file, preferredName = null) {
         createNameTagPlugin(),
         createBoostPadsPlugin(),
         createScoredTextPlugin(),
-        fromReplayPlayerPlugin(createBoostPickupAnimationPlugin()),
+        cameraStateSource, // native source overrides stale adapter BEFORE camera renders
         cameraPlugin,
+        cameraPolish, // must run AFTER native camera plugin
+        createVisualEffectsPlugin(effectRefiner),
       ],
     });
     if (seq !== loadSequence) { next.dispose?.(); return; }
     player = next;
-    preferredPlayer = preferredName;
     const roster = next.adapter.playerList || [];
     if (!roster.length) throw new Error('Replay has no readable player tracks.');
     fillPlayers(roster, preferredName);
+    updateCameraEvidence();
+    refreshCameraEvents();
     next.setPlaybackRate(Number($('speedSelect').value) || 1);
     next.setMotionInterpolation($('interpolation').value);
     applyBallCam($('ballCamSelect').value);
@@ -200,10 +426,20 @@ async function loadFile(file, preferredName = null) {
     enableControls(true);
     $('ballCamSelect').disabled = false;
     $('hitboxToggle').checked = false;
-    $('trailToggle').checked = true;
+    $('trailToggle').checked = false;
+    next.setBoostPickupAnimationEnabled?.(false);
+    setFieldDecorStyle(next,$('fieldDecorSelect').value);
+    const sceneQA=applySceneQuality(next,$('qualitySelect').value);
+    $('fpsHint').textContent='3D meshes '+sceneQA.meshes+
+      ' · filtered textures '+sceneQA.textures;
     setLoading(false);
+    loading = false; // Parent controls can now be applied immediately on hd-loaded.
     updateHud(true);
-    next.play();
+    if (bridgeSessionId && syncHost()) {
+      syncHost().postMessage({ type: 'replay-lab:hd-loaded', sessionId: bridgeSessionId }, location.origin);
+    }
+    if (embedded) next.pause(); // Parent main timeline owns play/pause.
+    else next.play();
   } catch (error) {
     if (seq !== loadSequence) return;
     console.error('[Replay Lab HD] Replay failed to load', error);
@@ -211,6 +447,9 @@ async function loadFile(file, preferredName = null) {
     setStatus('Failed to open replay • ' + message, true);
     setLoading(true, 'Replay could not be loaded', 'Try another .replay or inspect the browser console for a parsing/asset error.');
     $('loadError').textContent = message;
+    if (bridgeSessionId && syncHost()) {
+      syncHost().postMessage({ type: 'replay-lab:hd-load-error', sessionId: bridgeSessionId }, location.origin);
+    }
   } finally {
     if (seq === loadSequence) loading = false;
   }
@@ -219,37 +458,56 @@ async function loadFile(file, preferredName = null) {
 for (const button of document.querySelectorAll('.cam')) {
   button.addEventListener('click', () => switchCamera(button.dataset.camera));
 }
-$('playerSelect').addEventListener('change', () => switchCamera('follow'));
+$('playerSelect').addEventListener('change', () => {
+  switchCamera('follow');
+  updateCameraEvidence();
+  refreshCameraEvents();
+});
 $('ballCamSelect').addEventListener('change', e => applyBallCam(e.target.value));
 $('speedSelect').addEventListener('change', e => player?.setPlaybackRate(Number(e.target.value)));
 $('interpolation').addEventListener('change', e => player?.setMotionInterpolation(e.target.value));
-$('hitboxToggle').addEventListener('change', e => player?.setHitboxWireframesEnabled(e.target.checked));
-$('trailToggle').addEventListener('change', e => { 
-  // The bridged native pickup particle plugin observes this state.
-  player?.setBoostPickupAnimationEnabled(e.target.checked);
+$('replayLookToggle').addEventListener('change', invalidateCamera);
+$('lightingSelect').addEventListener('change', e=>{
+  player?.setEnvironment(e.target.value==='neutral'?false:STILL_HDR);
 });
+$('qualitySelect').addEventListener('change', e => {
+  if(player) applySceneQuality(player,e.target.value);
+});
+$('fieldDecorSelect').addEventListener('change', e => {
+  if(player) setFieldDecorStyle(player,e.target.value);
+});
+$('fxStyle').addEventListener('change', () => {
+  if(player) effectRefiner?.update(player);
+});
+$('hitboxToggle').addEventListener('change', e => player?.setHitboxWireframesEnabled(e.target.checked));
+// Boost pads themselves remain visible; numeric pickup popups are deliberately disabled.
+
 $('playBtn').addEventListener('click', () => {
   if (!player) return;
   if (player.getState().playing) player.pause(); else player.play();
   updateHud(true);
 });
 $('backBtn').addEventListener('click', () => {
+  invalidateCamera();
   player?.seek(clampTime((player?.getState().currentTime || 0) - 5,player?.duration));
   updateHud(true);
 });
 $('forwardBtn').addEventListener('click', () => {
+  invalidateCamera();
   player?.seek(clampTime((player?.getState().currentTime || 0) + 5,player?.duration));
   updateHud(true);
 });
-$('stepBackBtn').addEventListener('click', () => { player?.stepBackwardFrame(); updateHud(true); });
-$('stepForwardBtn').addEventListener('click', () => { player?.stepForwardFrame(); updateHud(true); });
+$('stepBackBtn').addEventListener('click', () => { invalidateCamera(); player?.stepBackwardFrame(); updateHud(true); });
+$('stepForwardBtn').addEventListener('click', () => { invalidateCamera(); player?.stepForwardFrame(); updateHud(true); });
 $('seek').addEventListener('pointerdown', () => {
   scrubbing = true;
+  invalidateCamera();
   resumeAfterScrub = !!player?.getState().playing;
   player?.pause();
 });
 $('seek').addEventListener('input', e => {
   const t = Number(e.target.value);
+  invalidateCamera();
   player?.seek(t);
   $('currentTime').textContent = formatTime(t);
 });
@@ -290,7 +548,9 @@ document.addEventListener('keydown', e => {
     e.preventDefault();
     if (player.getState().playing) player.pause(); else player.play();
   } else if (e.code === 'ArrowLeft' || e.code === 'ArrowRight') {
+    if (cameraPlugin?.getMode() === 'free') return; // arrows move fly camera
     e.preventDefault();
+    invalidateCamera();
     player.seek(clampTime(player.getState().currentTime +
       (e.code === 'ArrowLeft' ? -5 : 5),player.duration));
   } else if (e.code === 'KeyB') {
@@ -298,28 +558,70 @@ document.addEventListener('keydown', e => {
     switchCamera('follow');
     const value = $('ballCamSelect').value === 'ball' ? 'car' : 'ball';
     applyBallCam(value);
+  } else if (e.code === 'KeyR') {
+    e.preventDefault();
+    switchCamera('follow');
+    applyBallCam('recorded');
   } else if (e.code === 'KeyF') {
     e.preventDefault();
     $('fullscreenBtn').click();
   }
 });
 
+function applyParentReplayControl(data) {
+  if (!player || loading || !bridgeSessionId) return;
+  const command = validateExternalControl(
+    data, bridgeSessionId, lastBridgeSeq, player.duration
+  );
+  if (!command) return;
+  lastBridgeSeq = command.seq;
+
+  const focus = resolveFocusedPlayer(
+    player.adapter?.playerList, command.focusName, command.focusTeam
+  );
+  // A name+team match is the best available cross-parser identity mapping.
+  // If ambiguous, DO NOT silently attach the wrong player's camera.
+  if (focus && $('playerSelect').value !== String(focus.id)) {
+    $('playerSelect').value = String(focus.id);
+    switchCamera('follow');
+  } else if (!focus) {
+    setStatus('HD synchronization: player identity is ambiguous; camera unchanged.', true);
+  }
+
+  if (Number($('speedSelect').value) !== command.speed) {
+    $('speedSelect').value = String(command.speed);
+    player.setPlaybackRate(command.speed);
+  }
+  const before = player.getState();
+  if (shouldCorrectReplayTime(command.time, before.currentTime, command.playing)) {
+    player.seek(clampTime(command.time, player.duration));
+  }
+  const after = player.getState();
+  if (command.playing && !after.playing) player.play();
+  else if (!command.playing && after.playing) player.pause();
+  updateHud(true);
+}
+
 // The parent Replay Lab can transfer an already-selected File without
 // uploading it again, using a strict same-origin postMessage handshake.
 window.addEventListener('message', event => {
-  if (event.origin !== location.origin || event.source !== window.opener) return;
+  if (event.origin !== location.origin || event.source !== syncHost()) return;
   if (event.data?.type === 'replay-lab:hd-ping') {
-    window.opener?.postMessage({ type:'replay-lab:hd-ready' }, location.origin);
+    syncHost()?.postMessage({ type: 'replay-lab:hd-ready', instanceId: hdInstanceId }, location.origin);
+    return;
+  }
+  if (event.data?.type === 'replay-lab:hd-control') {
+    applyParentReplayControl(event.data);
     return;
   }
   if (event.data?.type !== 'replay-lab:hd-load') return;
   const file = event.data.file;
-  if (!(file instanceof File)) return;
+  if (!(file instanceof File) || !safeSessionId(event.data.sessionId)) return;
   void loadFile(file, typeof event.data.preferredPlayer === 'string'
-    ? event.data.preferredPlayer : null);
+    ? event.data.preferredPlayer : null, event.data.sessionId);
 });
-if (window.opener && window.opener !== window) {
-  window.opener.postMessage({ type:'replay-lab:hd-ready' }, location.origin);
+if (syncHost()) {
+  syncHost().postMessage({ type: 'replay-lab:hd-ready', instanceId: hdInstanceId }, location.origin);
 }
 
 function hudLoop() {

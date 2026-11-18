@@ -24,6 +24,7 @@
     constructor() {
       this.episodes = [];
       this.isDemo = false;
+      this.useExperimentalV1 = false;
       this.liveStatus = 'Load a real replay to inspect source-backed coaching, or explicitly select the simulated demo.';
       this.activeEpisode = null;
       this.activeNode = (this.activeEpisode && this.activeEpisode.nodes[this.activeEpisode.nodes.length - 1]) || null;
@@ -141,11 +142,13 @@
         };
       });
       const replayPlayer = request.replay?.players?.find(p => p.id === request.player_id);
+      const isExpV1 = Boolean(request.experimental_tactical_v1);
       const ep = {
         schema: 'CoachLessonV0', source: 'backend_stage1',
         episode_id: 'backend-' + request.player_id + '-' + String(time),
         title: String(decisionCase.title || 'Replay tactical decision'),
-        subtitle: 'SOURCE-BACKED / PREDECISION / UNCALIBRATED',
+        subtitle: isExpV1 ? 'EXPERIMENTAL V1 STANCES / UNVALIDATED RESEARCH' : 'SOURCE-BACKED / DETERMINISTIC V0 BASELINE',
+        is_experimental_v1: isExpV1,
         player_id: request.player_id, player_name: replayPlayer?.name || 'Selected player',
         backendRequest: request,
         window: {start_s: request.episode_start_s, end_s: time,
@@ -482,6 +485,10 @@
                     </option>
                   `).join('')}
                 </select>
+                <label class="view-toggle" title="Opt in to experimental V1 tactical stances on deterministic lessons" style="margin-left:8px;font-size:11px;display:inline-flex;align-items:center;gap:4px;">
+                  <input type="checkbox" id="toggleV1Stances" ${this.useExperimentalV1 ? 'checked' : ''} />
+                  <span>V1 Stances (Research)</span>
+                </label>
               </div>
             </div>
 
@@ -880,6 +887,17 @@
       const epSelect = $('episodeSelect');
       if (epSelect) {
         epSelect.onchange = e => this.selectEpisode(e.target.value);
+      }
+
+      // V1 experimental stances toggle
+      const v1Toggle = $('toggleV1Stances');
+      if (v1Toggle) {
+        v1Toggle.onchange = e => {
+          this.useExperimentalV1 = e.target.checked;
+          if (typeof window.reloadCoachingLessons === 'function') {
+            window.reloadCoachingLessons();
+          }
+        };
       }
 
       // Firewall toggle
