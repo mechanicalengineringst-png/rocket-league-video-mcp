@@ -11,7 +11,7 @@ from evaluation.commitment_review import (
 
 def manifest(groups=("m1", "m2", "m3", "m4"), count_per_group=12):
     rows = []
-    for g in groups:
+    for group_idx, g in enumerate(groups):
         for fam_idx, label in enumerate(("challenge", "shadow", "unclear")):
             for i in range(count_per_group):
                 # Separate all moments on the same replay by >=12 s.
@@ -21,7 +21,7 @@ def manifest(groups=("m1", "m2", "m3", "m4"), count_per_group=12):
                     "replay_group": g,
                     "detector_choice": label,
                     "source_t0_s": t0,
-                    "clip_start_s": t0 - (3 + ((i % 9) - 4) * 0.2),
+                    "clip_start_s": t0 - (2.2 + ((i * 3 + fam_idx * 2 + group_idx * 2) % 9) * 0.2),
                     "clip_end_s": t0 + 1.5,
                     "clip_file": f"{g}-{label}-{i}.mp4",
                     "focus_hint": "Follow the outlined blue car",
