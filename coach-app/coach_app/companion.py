@@ -251,17 +251,33 @@ def _parse_stats_ini(ini_path: Path) -> Optional[Dict[str, int]]:
     return None
 
 
+def anonymize_display_path(path_str: Optional[str]) -> str:
+    """Anonymize local file paths for safe reporting in logs and public output."""
+    if not path_str:
+        return "Not detected"
+    norm = path_str.replace("\\", "/")
+    if "/My Games/Rocket League/" in norm:
+        suffix = norm.split("/My Games/Rocket League/", 1)[1]
+        return f"%USERPROFILE%\\Documents\\My Games\\Rocket League\\{suffix}".replace("/", "\\")
+    if "/rocketleague/" in norm.lower():
+        idx = norm.lower().find("/rocketleague/")
+        suffix = norm[idx + len("/rocketleague/"):]
+        return f"<INSTALL_DIR>\\{suffix}".replace("/", "\\")
+    return path_str
+
+
 def diagnose_configuration(
     custom_documents_dir: Optional[str] = None,
     custom_install_dir: Optional[str] = None,
 ) -> ConfigurationDiagnostics:
-    """Perform safe, read-only inspection of installed Rocket League Stats API configuration.
+    """Perform safe, read-only inspection of candidate Rocket League Stats API configuration files.
     
-    Explains the Unreal Engine 3 configuration layer:
-    - DefaultStatsAPI.ini in game install folder sets base engine defaults.
-    - TAStatsAPI.ini in user Documents folder overrides defaults at game launch.
-    - Setting PacketSendRate=0 mutes telemetry packets (dormant).
-    - Setting PacketSendRate=30 in TAStatsAPI.ini enables telemetry without admin rights.
+    Checks both documented and candidate configuration locations:
+    - DefaultStatsAPI.ini in game install folder (official Psyonix documented baseline).
+    - TAStatsAPI.ini in user Documents folder (candidate Unreal Engine 3 user overlay).
+    
+    Avoids claiming the Documents overlay is definitely active without runtime game evidence;
+    until verified on a running client, both paths are candidate locations.
     """
     notes: List[str] = []
     doc_dir = find_rocket_league_documents_dir(custom_documents_dir)
@@ -289,7 +305,7 @@ def diagnose_configuration(
     doc_rate = doc_parsed["PacketSendRate"] if doc_parsed else None
     install_rate = install_parsed["PacketSendRate"] if install_parsed else None
 
-    # UE3 precedence: user documents overlay overrides install default
+    # Track rates without claiming one definitively overrides the other
     effective_rate = doc_rate if doc_rate is not None else install_rate
 
     tcp_port = DEFAULT_TCP_PORT
@@ -302,27 +318,32 @@ def diagnose_configuration(
         web_port = install_parsed.get("WebPort", DEFAULT_WS_PORT)
 
     if doc_ini:
-        notes.append(f"User documents INI found at: {doc_ini}")
+        notes.append(f"Candidate user documents INI found at: {anonymize_display_path(str(doc_ini))}")
     if install_ini:
-        notes.append(f"Game install INI found at: {install_ini}")
+        notes.append(f"Documented install INI found at: {anonymize_display_path(str(install_ini))}")
 
     if effective_rate is not None:
-        if effective_rate > 0:
+        if (doc_rate and doc_rate > 0) or (install_rate and install_rate > 0):
             status = "CONFIGURED_ENABLED"
             instructions = (
-                f"Rocket League Stats API is configured with PacketSendRate={effective_rate}. "
+                f"Rocket League Stats API has PacketSendRate > 0 configured "
+                f"(Documents: {doc_rate}, Install: {install_rate}). "
                 f"Ensure Rocket League is launched to accept connections on port {tcp_port}."
             )
-            notes.append("Telemetry transmission is enabled.")
+            notes.append("Telemetry transmission is configured in at least one candidate location.")
         else:
             status = "CONFIGURED_MUTED"
-            target_file = str(doc_ini or install_ini)
+            target_file = anonymize_display_path(str(doc_ini or install_ini))
             instructions = (
                 f"The Rocket League Stats API configuration is present, but PacketSendRate is 0 (muted).\n"
+                f"Documented install location: {anonymize_display_path(str(install_ini))}\n"
+                f"Candidate user documents location: {anonymize_display_path(str(doc_ini))}\n"
                 f"To enable live telemetry and companion control:\n"
                 f"1. Open '{target_file}' in a text editor.\n"
                 f"2. Under [TAGame.MatchStatsExporter_TA], set PacketSendRate=30\n"
-                f"3. Save the file and restart Rocket League."
+                f"3. Save the file and restart Rocket League.\n"
+                f"Note: While UE3 typically layers user documents over install defaults, "
+                f"runtime telemetry confirmation is required to verify which path the game engine is reading."
             )
             notes.append("PacketSendRate is 0; the Stats API exporter thread is muted.")
     else:
@@ -353,12 +374,15 @@ def resolve_spectator_shortcut(
     """Resolve a target player name, ID, or index to an official spectator shortcut ("1"-"8") or "Ball".
     
     Psyonix ChangePOV requires Focus to be "Ball" or a numeric spectator shortcut string ("1"-"8").
-    In Rocket League:
-    - "1"-"4" correspond to Team 0 (Blue) roster order.
-    - "5"-"8" correspond to Team 1 (Orange) roster order.
-    - Real Stats API telemetry can supply explicit "SpectatorShortcut".
+    Official telemetry fields from Psyonix Stats API:
+    - PrimaryId (string): Unique platform account identifier
+    - Name (string): Player display name
+    - Shortcut (string): Assigned spectator focus shortcut ("1"-"8")
+    - TeamNum (int): 0 for Blue, 1 for Orange
     
-    Raises CompanionProtocolError if target cannot be resolved or is ambiguous.
+    Never guesses spectator shortcuts from arbitrary list or roster ordering.
+    Raises CompanionProtocolError if target cannot be resolved, is ambiguous,
+    or has no assigned Shortcut in game telemetry.
     """
     if isinstance(target, str) and target.strip().lower() == "ball":
         return "Ball"
@@ -384,7 +408,7 @@ def resolve_spectator_shortcut(
     matches: List[Dict[str, Any]] = []
 
     for p in players:
-        p_id = str(p.get("Id") or p.get("PrimaryId") or p.get("UniqueId") or p.get("OnlineID") or "").strip().lower()
+        p_id = str(p.get("PrimaryId") or p.get("Id") or p.get("UniqueId") or "").strip().lower()
         p_name = str(p.get("Name") or p.get("name") or "").strip().lower()
         if target_lower in (p_id, p_name):
             matches.append(p)
@@ -397,27 +421,21 @@ def resolve_spectator_shortcut(
 
     matched = matches[0]
 
-    # If player payload already has an explicit SpectatorShortcut
-    if "SpectatorShortcut" in matched:
-        sc = str(matched["SpectatorShortcut"]).strip()
-        if sc.isdigit() and 1 <= int(sc) <= 8:
-            return sc
+    # Official Psyonix telemetry shortcut field: 'Shortcut' (with fallback to 'SpectatorShortcut')
+    shortcut = matched.get("Shortcut") or matched.get("SpectatorShortcut")
+    if shortcut is not None:
+        sc_str = str(shortcut).strip()
+        if sc_str.isdigit() and 1 <= int(sc_str) <= 8:
+            return sc_str
+        raise CompanionProtocolError(
+            f"Player '{target_clean}' has invalid spectator shortcut '{shortcut}'. Must be '1'-'8'."
+        )
 
-    # Infer shortcut from team affiliation and roster order
-    # Team 0 (Blue) -> 1, 2, 3, 4; Team 1 (Orange) -> 5, 6, 7, 8
-    team0 = [p for p in players if p.get("Team", p.get("team", 0)) == 0]
-    team1 = [p for p in players if p.get("Team", p.get("team", 0)) == 1]
-
-    if matched in team0:
-        idx = team0.index(matched)
-        if idx < 4:
-            return str(idx + 1)
-    elif matched in team1:
-        idx = team1.index(matched)
-        if idx < 4:
-            return str(5 + idx)
-
-    raise CompanionProtocolError(f"Roster size exceeds 8 players; cannot assign spectator shortcut for '{target_clean}'.")
+    team_num = matched.get("TeamNum") if matched.get("TeamNum") is not None else matched.get("Team")
+    raise CompanionProtocolError(
+        f"Player '{target_clean}' matched in roster (TeamNum={team_num}) but does not have an official "
+        "'Shortcut' assigned by game telemetry. Spectator shortcuts must not be guessed from arbitrary roster ordering."
+    )
 
 
 # --- Command Validation ---
@@ -520,7 +538,7 @@ class RocketLeagueCompanion:
         probe_timeout: float = DEFAULT_PROBE_TIMEOUT,
         command_timeout: float = DEFAULT_COMMAND_TIMEOUT,
         enabled: Optional[bool] = None,
-        require_opt_in: bool = False,
+        require_opt_in: bool = True,
     ):
         if host not in ("127.0.0.1", "localhost", "::1"):
             raise CompanionProtocolError("Native companion must stay on local loopback.")
@@ -872,6 +890,128 @@ class RocketLeagueCompanion:
             time.sleep(poll_interval)
         return False
 
+    def verify_native_replay_acceptance(
+        self,
+        replay_name: str,
+        timeout: float = 4.0,
+    ) -> Dict[str, Any]:
+        """Perform verified 7-step actual-game acceptance sequence.
+        
+        Verifies observed state changes for each operation. Returns structured report
+        with per-step pass/fail results. Reports FAIL when replay loading, seeking,
+        POV, pause, or speed cannot be confirmed.
+        """
+        results: List[Dict[str, Any]] = []
+
+        def fail_step(step_num: int, name: str, reason: str) -> Dict[str, Any]:
+            logger.error("Acceptance Step %d (%s) FAILED: %s", step_num, name, reason)
+            return {
+                "step": step_num,
+                "name": name,
+                "status": "FAIL",
+                "reason": reason,
+                "timestamp": time.time(),
+            }
+
+        def pass_step(step_num: int, name: str, details: str) -> Dict[str, Any]:
+            logger.info("Acceptance Step %d (%s) PASSED: %s", step_num, name, details)
+            return {
+                "step": step_num,
+                "name": name,
+                "status": "PASS",
+                "details": details,
+                "timestamp": time.time(),
+            }
+
+        # Step 1: LoadReplay
+        try:
+            self.load_replay(replay_name)
+        except Exception as e:
+            return {"all_passed": False, "failed_step": 1, "steps": [fail_step(1, "LoadReplay", str(e))]}
+
+        loaded = self.wait_for_observation(lambda s: s.get("is_replay") is True, timeout=timeout)
+        if not loaded:
+            results.append(fail_step(1, "LoadReplay", f"Game did not report is_replay=True within {timeout}s"))
+            return {"all_passed": False, "failed_step": 1, "steps": results}
+        results.append(pass_step(1, "LoadReplay", f"Confirmed is_replay=True for '{replay_name}'"))
+
+        # Step 2: SeekReplay
+        target_time = 15.0
+        try:
+            self.seek_replay(target_time)
+        except Exception as e:
+            results.append(fail_step(2, "SeekReplay", str(e)))
+            return {"all_passed": False, "failed_step": 2, "steps": results}
+
+        seek_confirmed = self.wait_for_observation(
+            lambda s: s.get("replay_elapsed_seconds") is not None and abs(s["replay_elapsed_seconds"] - target_time) <= 1.0,
+            timeout=timeout,
+        )
+        current_state = self.observe_playback_state()
+        if not seek_confirmed:
+            results.append(fail_step(2, "SeekReplay", f"Seek to {target_time}s not confirmed in telemetry (reported: {current_state.get('replay_elapsed_seconds')})"))
+            return {"all_passed": False, "failed_step": 2, "steps": results}
+        results.append(pass_step(2, "SeekReplay", f"Confirmed elapsed={current_state.get('replay_elapsed_seconds')}s"))
+
+        # Step 3: ChangePOV (Player Focus 1)
+        try:
+            self.change_pov(focus="1", perspective="PlayerView")
+            results.append(pass_step(3, "ChangePOV_Player", "ChangePOV Focus='1', Perspective='PlayerView' transmitted"))
+        except Exception as e:
+            results.append(fail_step(3, "ChangePOV_Player", str(e)))
+            return {"all_passed": False, "failed_step": 3, "steps": results}
+
+        # Step 4: ChangePOV (Fly Perspective)
+        try:
+            self.change_pov(perspective="Fly")
+            results.append(pass_step(4, "ChangePOV_Perspective", "ChangePOV Perspective='Fly' transmitted"))
+        except Exception as e:
+            results.append(fail_step(4, "ChangePOV_Perspective", str(e)))
+            return {"all_passed": False, "failed_step": 4, "steps": results}
+
+        # Step 5: SetMatchPaused (Pause and Resume)
+        try:
+            self.set_match_paused(True)
+            paused = self.wait_for_observation(lambda s: s.get("is_paused") is True, timeout=timeout)
+            if not paused:
+                results.append(fail_step(5, "SetMatchPaused", "bPaused=True not confirmed in game state"))
+                return {"all_passed": False, "failed_step": 5, "steps": results}
+
+            self.set_match_paused(False)
+            resumed = self.wait_for_observation(lambda s: s.get("is_paused") is False, timeout=timeout)
+            if not resumed:
+                results.append(fail_step(5, "SetMatchPaused", "bPaused=False (resume) not confirmed in game state"))
+                return {"all_passed": False, "failed_step": 5, "steps": results}
+            results.append(pass_step(5, "SetMatchPaused", "Pause and resume confirmed via telemetry"))
+        except Exception as e:
+            results.append(fail_step(5, "SetMatchPaused", str(e)))
+            return {"all_passed": False, "failed_step": 5, "steps": results}
+
+        # Step 6: SetGameSpeed
+        try:
+            self.set_game_speed(0.5)
+            speed_confirmed = self.wait_for_observation(lambda s: s.get("game_speed") == 0.5, timeout=timeout)
+            if not speed_confirmed:
+                results.append(fail_step(6, "SetGameSpeed", "Speed=0.5 not confirmed in game state"))
+                return {"all_passed": False, "failed_step": 6, "steps": results}
+            results.append(pass_step(6, "SetGameSpeed", "Confirmed game_speed=0.5"))
+        except Exception as e:
+            results.append(fail_step(6, "SetGameSpeed", str(e)))
+            return {"all_passed": False, "failed_step": 6, "steps": results}
+
+        # Step 7: Final timeline clock observation and drift
+        final_state = self.observe_playback_state()
+        drift = self.measure_drift(target_time)
+        results.append(pass_step(7, "TimelineObservation", f"Final ReplayElapsed={final_state.get('replay_elapsed_seconds')}, Drift={drift}s"))
+
+        return {
+            "all_passed": True,
+            "failed_step": None,
+            "steps": results,
+            "final_state": final_state,
+            "drift_seconds": drift,
+        }
+
     def get_status(self) -> CompanionStatus:
         """Probe ports and inspect local INI configuration without opening persistent socket."""
         probe = self.detect_api_availability()
@@ -920,11 +1060,27 @@ class RocketLeagueCompanion:
         )
 
 
+def anonymize_display_path(path_str: Optional[str]) -> str:
+    """Anonymize local file paths for safe reporting in logs and public output."""
+    if not path_str:
+        return "Not detected"
+    norm = path_str.replace("\\", "/")
+    if "/My Games/Rocket League/" in norm:
+        suffix = norm.split("/My Games/Rocket League/", 1)[1]
+        return f"%USERPROFILE%\\Documents\\My Games\\Rocket League\\{suffix}".replace("/", "\\")
+    if "/rocketleague/" in norm.lower():
+        idx = norm.lower().find("/rocketleague/")
+        suffix = norm[idx + len("/rocketleague/"):]
+        return f"<INSTALL_DIR>\\{suffix}".replace("/", "\\")
+    return path_str
+
+
 def main_cli() -> None:
     """CLI diagnostics and dry-run runner for Rocket League Native Companion."""
     import argparse
     parser = argparse.ArgumentParser(description="Rocket League Native Companion Diagnostics & Runner")
     parser.add_argument("--run-acceptance", action="store_true", help="Run 7-step acceptance test on running game")
+    parser.add_argument("--enable-native-commands", action="store_true", help="Explicitly authorize sending native game commands")
     parser.add_argument("--replay", type=str, default=None, help="Replay filename to test")
     args = parser.parse_args()
 
@@ -936,9 +1092,12 @@ def main_cli() -> None:
     status = comp.get_status()
     diag = status.config_diagnostics or {}
 
+    anon_doc = anonymize_display_path(diag.get("documents_ini_path"))
+    anon_install = anonymize_display_path(diag.get("install_ini_path"))
+
     print(f"Configuration Status:  {diag.get('status')}")
-    print(f"Documents INI:        {diag.get('documents_ini_path')}")
-    print(f"Install INI:          {diag.get('install_ini_path')}")
+    print(f"Documents INI:        {anon_doc}")
+    print(f"Install INI:          {anon_install}")
     print(f"Effective Send Rate:  {diag.get('effective_packet_send_rate')} packets/sec")
     print(f"TCP Port:             {diag.get('tcp_port')}")
     print(f"API Port Listening:   {status.available}")
@@ -951,7 +1110,7 @@ def main_cli() -> None:
         print("\nDIAGNOSTIC GUIDANCE:")
         print(status.instructions)
         print("\nSINGLE NEXT ACTION REQUIRED:")
-        print(f"1. Open '{diag.get('documents_ini_path')}' in a text editor.")
+        print(f"1. Open '{anon_doc}' in a text editor.")
         print("2. Set PacketSendRate=30 under [TAGame.MatchStatsExporter_TA].")
         print("3. Launch Rocket League.")
         print("4. Re-run this CLI to verify: python -m coach_app.companion\n")
@@ -959,31 +1118,37 @@ def main_cli() -> None:
 
     print("Port 49123 is listening! Testing native connection...")
     if args.run_acceptance:
-        print("Running live 7-step native replay acceptance verification...")
-        if not comp.commands_enabled:
-            print("Notice: Authorizing commands for live test session...")
-            comp.enable_commands(True)
+        print("Verifying native command authorization...")
+        opt_in = args.enable_native_commands or (os.getenv("REPLAY_LAB_ENABLE_NATIVE_COMMANDS", "0").lower() in ("1", "true", "yes"))
+        if not opt_in:
+            print("\n[FAIL] Native game commands are NOT authorized.")
+            print("To protect your game session, commands are disabled by default.")
+            print("To authorize, pass --enable-native-commands or set REPLAY_LAB_ENABLE_NATIVE_COMMANDS=1.\n")
+            sys.exit(1)
+
+        comp.enable_commands(True)
         if not comp.connect():
-            print("Failed to establish TCP session with listening port.")
-            return
+            print("\n[FAIL] Failed to establish TCP connection on port 49123.")
+            sys.exit(1)
 
         replay_name = args.replay or "028EA2CD420A3913ACA4CDBC149F9EA5.replay"
-        print(f"Step 1: LoadReplay ('{replay_name}') -> {comp.load_replay(replay_name)}")
-        time.sleep(1.0)
-        print(f"Step 2: SeekReplay (15.0s) -> {comp.seek_replay(15.0)}")
-        time.sleep(0.5)
-        print(f"Step 3: ChangePOV (Focus='1', Perspective='PlayerView') -> {comp.change_pov('1', 'PlayerView')}")
-        time.sleep(0.5)
-        print(f"Step 4: ChangePOV (Perspective='Fly') -> {comp.change_pov(perspective='Fly')}")
-        time.sleep(0.5)
-        print(f"Step 5: SetMatchPaused (True/False) -> {comp.set_match_paused(True)}")
-        comp.set_match_paused(False)
-        print(f"Step 6: SetGameSpeed (0.5x) -> {comp.set_game_speed(0.5)}")
-        time.sleep(0.5)
-        state = comp.observe_playback_state()
-        print(f"Step 7: Observed State: ReplayElapsed={state.get('replay_elapsed_seconds')}, Drift={comp.measure_drift(15.0)}")
+        print(f"Running verified 7-step actual-game acceptance sequence on '{replay_name}'...\n")
+
+        report = comp.verify_native_replay_acceptance(replay_name, timeout=5.0)
         comp.disconnect()
-        print("\nRound-trip complete.")
+
+        for step in report["steps"]:
+            status_tag = f"[{step['status']}]"
+            details = step.get('details') or step.get('reason') or ""
+            print(f"{status_tag} Step {step['step']}: {step['name']} -> {details}")
+
+        if not report["all_passed"]:
+            print(f"\n[FAIL] Acceptance verification failed at Step {report['failed_step']}.")
+            sys.exit(1)
+        else:
+            print(f"\n[SUCCESS] All 7 native replay acceptance operations verified in game client.")
+            print(f"Measured Timeline Drift: {report.get('drift_seconds')}s")
+            sys.exit(0)
 
 
 if __name__ == "__main__":

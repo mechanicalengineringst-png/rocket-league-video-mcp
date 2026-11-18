@@ -74,6 +74,11 @@ class MockRocketLeagueServer:
                             # Also stream async PlaybackState update
                             if "TimeSeconds" in payload.get("Data", {}):
                                 self.elapsed = payload["Data"]["TimeSeconds"]
+                            if "bPaused" in payload.get("Data", {}):
+                                self.paused = payload["Data"]["bPaused"]
+                            if "Speed" in payload.get("Data", {}):
+                                self.speed = payload["Data"]["Speed"]
+
                             # Official UpdateState payload nests replay clock
                             # under Game.Elapsed; Game.TimeSeconds is countdown.
                             state_data = {
@@ -81,6 +86,10 @@ class MockRocketLeagueServer:
                                     "bReplay": True,
                                     "Elapsed": self.elapsed,
                                     "TimeSeconds": 180,
+                                    "bMatchPaused": getattr(self, "paused", False),
+                                    "bPaused": getattr(self, "paused", False),
+                                    "GameSpeed": getattr(self, "speed", 1.0),
+                                    "Speed": getattr(self, "speed", 1.0),
                                 },
                             }
                             state_event = {
@@ -117,6 +126,7 @@ def test_companion_mock_server_interaction():
             ws_port=server.port + 1,
             probe_timeout=0.5,
             command_timeout=1.0,
+            enabled=True,
         )
         assert companion.connect(server.port)
         assert companion.is_connected()
@@ -278,7 +288,7 @@ def test_diagnose_configuration_custom_dir(tmp_path):
     assert diag.effective_packet_send_rate == 30
     assert diag.documents_packet_send_rate == 30
     assert diag.tcp_port == 49123
-    assert "PacketSendRate=30" in diag.instructions
+    assert "Documents: 30" in diag.instructions
 
 
 def test_diagnose_configuration_muted_dir(tmp_path):
@@ -305,22 +315,25 @@ def test_diagnose_configuration_not_found(tmp_path):
 
 def test_diagnose_configuration_real_environment():
     diag = diagnose_configuration()
-    # On this local development workstation, Rocket League configuration is verified present
+    # Portable check: on machines without Rocket League (such as CI runners), skip gracefully
+    if not diag.documents_ini_path and not diag.install_ini_path:
+        pytest.skip("Rocket League configuration not detected on this machine (portable CI environment).")
     assert diag.status in ("CONFIGURED_MUTED", "CONFIGURED_ENABLED")
-    assert diag.documents_ini_path is not None
-    assert diag.documents_ini_path.endswith("TAStatsAPI.ini")
-    assert diag.install_ini_path is not None
-    assert diag.install_ini_path.endswith("DefaultStatsAPI.ini")
+    if diag.documents_ini_path:
+        assert diag.documents_ini_path.endswith("TAStatsAPI.ini")
+    if diag.install_ini_path:
+        assert diag.install_ini_path.endswith("DefaultStatsAPI.ini")
     assert diag.tcp_port == 49123
     assert diag.web_port == 49124
 
 
 def test_resolve_spectator_shortcut():
     players = [
-        {"Id": "Steam_001", "Name": "Musty", "Team": 0},
-        {"Id": "Steam_002", "Name": "Ament", "Team": 0},
-        {"Id": "Epic_003", "Name": "Squishy", "Team": 1},
-        {"Id": "Epic_004", "Name": "GarrettG", "Team": 1, "SpectatorShortcut": "6"},
+        {"PrimaryId": "Steam_001", "Name": "Musty", "Shortcut": "1", "TeamNum": 0},
+        {"PrimaryId": "Steam_002", "Name": "Ament", "Shortcut": "2", "TeamNum": 0},
+        {"PrimaryId": "Epic_003", "Name": "Squishy", "Shortcut": "5", "TeamNum": 1},
+        {"PrimaryId": "Epic_004", "Name": "GarrettG", "Shortcut": "6", "TeamNum": 1},
+        {"PrimaryId": "Bot_005", "Name": "NoShortcutBot", "TeamNum": 0},
     ]
 
     # 1. Ball
@@ -338,20 +351,24 @@ def test_resolve_spectator_shortcut():
     with pytest.raises(CompanionProtocolError):
         resolve_spectator_shortcut(players, "9")
 
-    # 3. Resolve by name (case-insensitive)
+    # 3. Resolve by name with official Shortcut field
     assert resolve_spectator_shortcut(players, "Musty") == "1"
     assert resolve_spectator_shortcut(players, "musty") == "1"
     assert resolve_spectator_shortcut(players, "Ament") == "2"
 
-    # 4. Resolve by ID
+    # 4. Resolve by PrimaryId
     assert resolve_spectator_shortcut(players, "Steam_002") == "2"
     assert resolve_spectator_shortcut(players, "steam_002") == "2"
 
-    # 5. Resolve Orange team (team 1 inferred index = 5)
+    # 5. Resolve Orange team player with official Shortcut
     assert resolve_spectator_shortcut(players, "Squishy") == "5"
-
-    # 6. Resolve Orange team (explicit shortcut = 6)
     assert resolve_spectator_shortcut(players, "GarrettG") == "6"
+
+    # 6. Refuse to guess shortcuts when Shortcut telemetry is missing
+    with pytest.raises(CompanionProtocolError) as exc_info:
+        resolve_spectator_shortcut(players, "NoShortcutBot")
+    assert "does not have an official 'Shortcut'" in str(exc_info.value)
+    assert "must not be guessed from arbitrary roster ordering" in str(exc_info.value)
 
     # 7. Unmatched player
     with pytest.raises(CompanionProtocolError) as exc_info:
@@ -360,8 +377,8 @@ def test_resolve_spectator_shortcut():
 
     # 8. Ambiguous player
     duplicate_players = [
-        {"Id": "1", "Name": "Clone", "Team": 0},
-        {"Id": "2", "Name": "Clone", "Team": 1},
+        {"PrimaryId": "1", "Name": "Clone", "Shortcut": "1", "TeamNum": 0},
+        {"PrimaryId": "2", "Name": "Clone", "Shortcut": "5", "TeamNum": 1},
     ]
     with pytest.raises(CompanionProtocolError) as exc_info:
         resolve_spectator_shortcut(duplicate_players, "Clone")
@@ -369,7 +386,7 @@ def test_resolve_spectator_shortcut():
 
 
 def test_dual_clock_telemetry_observation():
-    c = RocketLeagueCompanion()
+    c = RocketLeagueCompanion(enabled=True)
     c._process_inbound_line(json.dumps({
         "Event": "UpdateState",
         "Data": {
@@ -405,7 +422,7 @@ def test_companion_opt_in_workflow():
 
 
 def test_companion_replay_path_validation():
-    c = RocketLeagueCompanion()
+    c = RocketLeagueCompanion(enabled=True)
 
     # Path traversal rejected
     with pytest.raises(CompanionProtocolError):
@@ -428,7 +445,7 @@ def test_companion_replay_path_validation():
 
 
 def test_full_companion_simulated_acceptance_roundtrip():
-    """Step C Full Simulated Round-Trip: 7 core native replay operations against mock server."""
+    """Step C Full Simulated Round-Trip: 7 core native replay operations with state verification."""
     server = MockRocketLeagueServer()
     try:
         companion = RocketLeagueCompanion(
@@ -438,50 +455,82 @@ def test_full_companion_simulated_acceptance_roundtrip():
             probe_timeout=0.5,
             command_timeout=1.0,
             enabled=True,
+            require_opt_in=True,
         )
         assert companion.connect(server.port)
         assert companion.is_connected()
 
-        players = [
-            {"Id": "Steam_001", "Name": "Musty", "Team": 0},
-            {"Id": "Steam_002", "Name": "Ament", "Team": 0},
-            {"Id": "Epic_003", "Name": "Squishy", "Team": 1},
-        ]
-
-        # 1. Load a real replay by name
-        res_load = companion.load_replay("028EA2CD420A3913ACA4CDBC149F9EA5.replay")
-        assert res_load["Status"] == "Sent"
-
-        # 2. Seek to a chosen moment
-        res_seek = companion.seek_replay(32.5)
-        assert res_seek["Status"] == "Sent"
-
-        # 3. Select a specific player & change POV
-        res_pov1 = companion.change_pov_to_player(players, "Musty", perspective="PlayerView")
-        assert res_pov1["Status"] == "Sent"
-
-        # 4. Switch to alternative perspective (Fly)
-        res_pov2 = companion.change_pov(perspective="Fly")
-        assert res_pov2["Status"] == "Sent"
-
-        # 5. Pause and resume
-        companion.set_match_paused(True)
-        companion.set_match_paused(False)
-
-        # 6. Change playback speed
-        companion.set_game_speed(0.5)
-
-        # Allow inbound loop to process server replies
-        time.sleep(0.1)
-
-        # 7. Verify reported state, time alignment and focus
-        state = companion.observe_playback_state()
-        assert state["connected"] is True
-        assert state["reported_time_seconds"] == 32.5
-        assert companion.measure_drift(32.5) == 0.0
+        report = companion.verify_native_replay_acceptance("028EA2CD420A3913ACA4CDBC149F9EA5.replay", timeout=2.0)
+        assert report["all_passed"] is True
+        assert report["failed_step"] is None
+        assert len(report["steps"]) == 7
+        assert all(s["status"] == "PASS" for s in report["steps"])
+        assert report["drift_seconds"] == 0.0
 
         companion.disconnect()
         assert not companion.is_connected()
+    finally:
+        server.stop()
+
+
+def test_companion_acceptance_reports_fail_on_unconfirmed_state():
+    """Verify acceptance sequence halts and reports FAIL when a state change is unconfirmed."""
+    class StubUncooperativeServer:
+        def __init__(self):
+            self.server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.server_sock.bind(("127.0.0.1", 0))
+            self.port = self.server_sock.getsockname()[1]
+            self.server_sock.listen(1)
+            self.running = True
+            self.thread = threading.Thread(target=self._run, daemon=True)
+            self.thread.start()
+
+        def _run(self):
+            while self.running:
+                try:
+                    self.server_sock.settimeout(0.2)
+                    conn, _ = self.server_sock.accept()
+                except (socket.timeout, OSError):
+                    continue
+                with conn:
+                    # Echo response, but NEVER transition to bReplay=True
+                    conn.settimeout(0.5)
+                    while self.running:
+                        try:
+                            data = conn.recv(1024)
+                            if not data:
+                                break
+                            # Stream non-replay state
+                            evt = {"Event": "UpdateState", "Data": {"Game": {"bReplay": False, "Elapsed": 0.0}}}
+                            conn.sendall((json.dumps(evt) + "\n").encode("utf-8"))
+                        except (socket.timeout, OSError):
+                            break
+
+        def stop(self):
+            self.running = False
+            try:
+                self.server_sock.close()
+            except OSError:
+                pass
+
+    server = StubUncooperativeServer()
+    try:
+        companion = RocketLeagueCompanion(
+            host="127.0.0.1",
+            tcp_port=server.port,
+            ws_port=server.port + 1,
+            probe_timeout=0.2,
+            command_timeout=0.5,
+            enabled=True,
+        )
+        assert companion.connect(server.port)
+        # Should timeout waiting for is_replay=True and report FAIL on Step 1
+        report = companion.verify_native_replay_acceptance("test.replay", timeout=0.3)
+        assert report["all_passed"] is False
+        assert report["failed_step"] == 1
+        assert report["steps"][0]["status"] == "FAIL"
+        assert "did not report is_replay=True" in report["steps"][0]["reason"]
+        companion.disconnect()
     finally:
         server.stop()
 
