@@ -1,6 +1,152 @@
 # Replay Lab — Project Compass (read first)
 
-**Status snapshot: 17 November 2026.** **Source of truth for product direction and active work.** Keep this file short and updated after material decisions, tests, and PR changes. It is **not** a transcript archive; exact GitHub code/CI is the authority for implementation claims.
+## CURRENT OPERATIONAL HANDOFF — 18 November 2026 / Round 12
+
+**READ THIS SECTION FIRST; older entries below are historical and may
+contradict the current code.** GitHub PR heads and exact CI checks outrank
+status summaries. This is a user-approved design/engineering handoff, not a
+claim that the product has passed real-browser, real-game, or expert testing.
+
+### Binding owner decisions
+
+- **Primary product:** excellent, substantive, situation-specific Rocket
+  League **2v2 coaching**, eventually useful to experienced GC/SSL players.
+  Deep alternatives, first/second-man tradeoffs, possession, pressure,
+  boost/recovery, teammate coverage and uncertainty matter. Positive plays
+  matter as much as mistakes. Winning/losing a challenge is NOT proof the
+  choice was good/bad. User's illustrative hard benchmark is a challenge
+  near an opponent's backboard: consider follow-up possession after winning
+  the contest, exposing teammate to a 1v2, opponent outplay options, recovery
+  and shadow/delay tradeoffs. Do not fabricate a specific replay finding.
+- **AI style:** strong coaching **recommendations**, not a chat-first product.
+  A conversational LLM interface is optional. Several highly useful,
+  falsifiable lessons beat dozens of generic flags. Use deterministic
+  source evidence + conditionally justified model proposals; require expert
+  feedback before calling the recommendations accurate.
+- **Three user-facing replay modes only:** high-fidelity standalone Rocket
+  League recreation; small 2D tactical pitch; synchronized HD+2D split view.
+  The basic geometric 3D mode is **retired** (do not preserve as an option or
+  split-view fallback). PR #24 contains the earlier actual HD-first UI; the
+  newer coaching integration stack still has legacy 3D until reconciled.
+- **Develop BOTH visual backends:** (1) standalone, independent HD WebGL/WASM
+  renderer with native-replay camera states where available and (2) optional
+  native installed Rocket League replay companion via documented Stats API.
+  The latter is NOT a video stream from the API. Game-process integration,
+  configuration and capture must be tested only with owner's explicit
+  permission. The HD viewer must work without installing/running the game.
+- **Development/test cadence:** finish the current Round 12, allow **one
+  additional development/integration round**, then user tests all components:
+  actual ranked replays, HD/2D/split, native game loading/seek/player POV,
+  real opt-in model suggestions, false blame, visuals and usability. Capture
+  feedback as structured cases; targeted refinements follow actual evidence.
+- **Collaboration:** Claude leads tactical backend, Antigravity leads
+  frontend/HD/native companion, ChatGPT leads API/model transport, safety,
+  integration review and independent HD QA. Gemini paused due to usage and
+  not required for this round. Each agent makes a separate draft PR and
+  shares exact SHA/test output; **NO unreviewed merges to main**.
+
+### Current integration graph and verified statuses
+
+1. [PR #35](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/35)
+   Round 9 coaching UI + verified backend, baseline for the latest coach
+   lineage. UI has fixture demos; source-backed production behavior needs
+   browser acceptance.
+2. [PR #38](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/38)
+   combines ChatGPT observational episode discovery and Claude's opt-in
+   TacticalDecisionStateV1 on PR #35; head `97eba07`, 352 passed/4 skipped,
+   all 3 workflows green. V1 tactical merit is NOT expert-validated.
+3. [PR #39](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/39)
+   one-call stateless `/api/coach/review-bundle`: actual source-backed
+   candidate shortlist + <=4 lesson previews, no LLM, no fake fallback.
+   Head `b2d0e66`, 369 passed/4 skipped, 3 workflows green.
+4. [PR #41](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/41)
+   **current latest ChatGPT coaching/testing branch**, stacked on #39.
+   `/api/coach/model-readiness` no-network provider preflight,
+   `round12-test-windows.cmd`, `scripts/round12_acceptance.py`,
+   opt-in **one** sanitized real-model request, read-only native TCP port
+   probe and privacy-safe diagnostics. Tested local HTTP provider stub,
+   **NOT a real trained model or GC coaching quality**. Head `1152a5d`,
+   **392 passed/4 skipped**, all 3 workflows green.
+5. [PR #40](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/40)
+   **Claude independent Round 11 tactical/evaluation branch** from #38,
+   head `f05f73e`, 3 workflows green. Falsified a fixed 0.55 s V1 reach
+   margin; introduced condition-based `ActionRationaleV0`, a blind expert
+   study harness and unknown-aware options. **No real human expert ratings**.
+   Claude is now assigned a larger Round 12 advance in end-to-end tactics,
+   action alternatives, possession/support/pressing and useful coaching
+   outputs. Its Round 12 PR is **not yet reported** at this checkpoint.
+6. [PR #24](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/24)
+   is the **separate HD-first 2D + standalone 3D + split UI** lineage.
+   Its viewer uses `@rlrml/player`, `@rlrml/subtr-actor`, Three.js,
+   WebAssembly, camera polishing/switch telemetry and reversible FX.
+   **This frontend is NOT yet merged with #41's coaching stack.**
+7. [PR #42](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/42)
+   is ChatGPT's **separate Round 12 HD camera QA patch stacked on #24**.
+   Indexes recorded Ball/Car Cam, rear view and other camera events once
+   with O(log n) seeks instead of per-frame rescans, adds large-history
+   tests and an exhaustive user-reported-issues/visual QA list at
+   `coach-app/high-fidelity/docs/ROUND12_CAMERA_AND_VISUAL_ACCEPTANCE.md`.
+   **CI pending at this snapshot; not visually verified**. Do not overwrite
+   Antigravity's working frontend; cherry-pick/reconcile selectively.
+8. [PR #28](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/28)
+   optional native Stats API companion, independently drafted. Real
+   Rocket League loading/seek/POV/pause/speed **NOT verified in a live
+   running game**. A TCP port probe or mocked server is not a game pass.
+   Antigravity owns further native integration and actual Windows
+   acceptance with explicit owner permission.
+9. [PR #25](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/25)
+   is this canonical project compass. It remains a separate docs-only
+   draft; future sessions should read the linked branch version rather than
+   assume this file is already on `main`.
+
+### Real HD viewer defects reported by the owner — still require fresh QA
+
+- **Camera:** low, tire-level chase/POV; odd roll/jitter, sometimes wrong
+  player-follow; perceived permanent Ball Cam ON; want recorded Car/Ball Cam
+  toggles, distinct free/orbit, stable aerial/wall/backboard framing.
+- **Rendering:** blue block-style vehicle, asset/decals and low-quality
+  textures, blocky tire/supersonic/boost trails, wheel-ground contact,
+  demolition/goal/respawn transitions; missing or confusing boost display.
+- **UX:** prior 2D clutter/trails/rings/TOUCH labels and too many generic
+  findings; compact 2D boost/position map and **actual HD** for mechanics.
+- **Status:** PR #24 includes partial camera, quality and UI changes. PR #42
+  makes camera-state lookup cheaper/deterministic. Neither green JS tests
+  nor a built Vite bundle prove the underlying 3D visuals are fixed.
+  Capture actual before/after real-replay screenshots/short clips, report
+  defects and preserve footage privately. **Do not claim pixel-native
+  camera fidelity when analog inputs are unavailable.**
+
+### Immediate next integration/test plan (one more round before owner testing)
+
+1. Await/publish Antigravity's unfinished Round 10–12 viewer work as a
+   real GitHub branch/PR; do not guess whether local work is pushed.
+2. Review Claude's larger Round 12 backend and integrate only supported
+   tactical contracts; V1 unvalidated grading stays opt-in.
+3. Create a new unified **draft integration branch** combining #41,
+   Claude's new output, Antigravity's real HD-first UI and the safe #42
+   camera improvement. Preserve source cross-references and test every
+   conflict. No `main` merge.
+4. Browser-test on an actual **native .replay file**: replay/player
+   confirmation, 2D, actual HD geometry/textures/camera/boost/trails,
+   split sync, source-backed shortlist, lesson->seek, evidence, model
+   opt-in and saved feedback. Fixtures are demonstration-only.
+5. Separately test optional native Rocket League control **with explicit
+   owner opt-in** on Windows: actual replay load, seek, matching player POV,
+   pause/speed, telemetry/state confirmations and any manual-only steps.
+6. Prepare 3–5 of the user's ranked 2v2 replays for substantive assessment:
+   a few deep positive/negative/ambiguous cases and source citations,
+   measured false blame, usefulness and unknowns. Do NOT infer tactical
+   quality from green CI, unknown-rank public replay correlations or a
+   mocked model server.
+7. Update this section and the PR comments after **every material branch
+   handoff, integration, failure or human decision**. Public GitHub should
+   contain only non-private decision records and code, no raw replay data,
+   secrets or user identifying local paths. The detailed older history
+   continues below.
+
+---
+
+**Historical status snapshot: 17 November 2026 (see current operational handoff above).** **Source of truth for product direction and active work.** Keep this file short and updated after material decisions, tests, and PR changes. It is **not** a transcript archive; exact GitHub code/CI is the authority for implementation claims.
 
 **Detailed historical record:** [Google Drive master handoff](https://docs.google.com/document/d/12OuLwWCDxprVzGSnQVWJ6vvIQ_SujJAOqNn3_FBF-Q0/edit). The older [AI team onboarding](AI_TEAM_ONBOARDING.md) is historical and no longer current. **All new ChatGPT/Claude/Antigravity sessions must read this compass, then check current PR heads, before proposing work.**
 
