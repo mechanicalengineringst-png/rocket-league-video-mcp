@@ -210,3 +210,34 @@ def run_reasoner(finding: dict[str, Any], transport: Callable[[dict], Any] | Non
         else:
             out["stage_b"] = {"mode": "model_validated", "feedback": resp_b["feedback"], "rejections": []}
     return out
+
+
+async def run_reasoner_async(finding: dict[str, Any], transport) -> dict[str, Any]:
+    """Async variant for an async transport (e.g. an httpx-based provider client). Same validation and fallback."""
+    results: dict[str, Any] = {}
+
+    async def call(system, req):
+        raw = await transport({"system": system, "input": req})
+        return json.loads(raw) if isinstance(raw, str) else raw
+
+    # Pre-compute both responses with the async transport, then reuse the sync validation path.
+    if transport is None or finding.get("kind") == "observation_only" or finding.get("status") != "ok":
+        return run_reasoner(finding, None)
+    req_a = build_stage_a_request(finding)
+    try:
+        results["a"] = await call(SYSTEM_A, req_a)
+    except ValueError:
+        results["a"] = None
+    errs = validate_stage_a_response(req_a, results["a"])
+    text_a = ({"interpretation": results["a"]["interpretation"], "takeaway": results["a"]["takeaway"]} if not errs else
+              {"interpretation": finding["interpretation"]["text"], "takeaway": finding["takeaway"]["text"]})
+    retro = finding.get("retrospective")
+    if retro and "assessment" in retro:
+        try:
+            results["b"] = await call(SYSTEM_B, build_stage_b_request(finding, text_a))
+        except ValueError:
+            results["b"] = None
+
+    def replay_transport(msg):
+        return results.get("a") if msg["input"]["schema"] == SCHEMA_A_REQ else results.get("b")
+    return run_reasoner(finding, replay_transport)

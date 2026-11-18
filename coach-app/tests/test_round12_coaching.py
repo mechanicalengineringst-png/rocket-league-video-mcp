@@ -332,3 +332,16 @@ def test_build_helper_keeps_states_consistent():
     r = build({"b1": car(0, 0, vy=100), "b2": car(0, -4000), "o1": car(0, 3000), "o2": car(1000, 3000)}, (500, 500, 93))
     a = next(f for f in r["frames"] if abs(f["t"] - (T0 - 1)) < 1e-6)
     assert abs(a["cars"]["b1"]["y"] - (-100)) < 1e-6
+
+
+def test_async_reasoner_uses_the_same_validation():
+    import asyncio
+
+    async def transport(msg):
+        if msg["input"]["schema"] == rc.SCHEMA_A_REQ:
+            r = _ok_a(msg["input"])
+            r["takeaway"] = "You had a 90% chance here."
+            return r
+        return {"schema": rc.SCHEMA_B_RESP, "finding_id": msg["input"]["finding_id"], "feedback": "Fine read; it held up."}
+    out = asyncio.run(rc.run_reasoner_async(_finding(), transport))
+    assert out["stage_a"]["mode"] == "deterministic" and out["stage_a"]["rejections"]
