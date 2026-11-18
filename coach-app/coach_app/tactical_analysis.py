@@ -376,9 +376,10 @@ def assess_challenge(r: Reading, case_id: str) -> Finding:
             exposed = (not mate_goal_side) or spare_t < mate_t
         factors["teammate_exposed_1v2"] = exposed
         if exposed:
+            why = ("the teammate is not goal-side either" if not mate_goal_side
+                   else "the second opponent reaches a loose ball before the teammate")
             st.append(Statement("interpretation",
-                                "If this challenge is lost, the teammate is either up the field too or slower to the ball than the "
-                                "second opponent: the teammate may have to defend two attackers.",
+                                f"If this challenge is lost, {why}: the teammate may have to defend two attackers.",
                                 [spare.pid if spare else "opponents", "mate"], confidence="medium"))
     costly = None if f.boost is None else (f.boost < 30 and math.hypot(f.x, f.y + GOAL_Y) > 7000)
     factors["costly_recovery"] = costly
