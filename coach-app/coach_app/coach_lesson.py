@@ -376,3 +376,76 @@ def answer_evidence_followup(episode: dict[str, Any], question: str) -> dict[str
         "semantic_answer_verified": False,
         "model_called": False,
     }
+
+
+def lookup_episode_evidence(episode: dict[str, Any], evidence_refs: list[str]) -> dict[str, Any]:
+    """Resolve user-selected global citation IDs without any retrospective data.
+
+    Provides actual, anonymized, recorded source values for the frontend's
+    evidence inspector. H. prompts are *questions*, D. deltas are marked math
+    unverified, and U./UD. are missing information, never factual support.
+    """
+    if (not isinstance(evidence_refs, list) or not 1 <= len(evidence_refs) <= 20
+            or not all(isinstance(ref, str) and 1 <= len(ref) <= 160 for ref in evidence_refs)
+            or len(set(evidence_refs)) != len(evidence_refs)):
+        raise ValueError("Expected 1-20 unique global evidence references.")
+    packet = build_stage1_episode_packet(episode)
+    index: dict[str, dict[str, Any]] = {}
+    for node in packet["nodes"]:
+        nid = node["node_id"]
+        for source in node["packet"]["evidence"]:
+            ref = f"{nid}/{source['id']}"
+            index[ref] = {
+                "id": ref, "category": "observed_or_estimated_node_fact",
+                "node_id": nid, "decision_time_s": node["t0"],
+                "kind": source["kind"], "value": source["value"],
+                "unit": source["unit"], "source_time_s": source["source_time_s"],
+                "provenance": source["provenance"],
+                "meaning_verified": False,
+            }
+        for unknown in node["packet"]["unknowns"]:
+            ref = f"{nid}/{unknown['id']}"
+            index[ref] = {
+                "id": ref, "category": "unknown",
+                "node_id": nid, "decision_time_s": node["t0"],
+                "what": unknown["what"], "why": unknown["why"],
+                "factual_support": False,
+            }
+    for delta in packet["changes"]:
+        index[delta["id"]] = {
+            "id": delta["id"], "category": "derived_episode_change",
+            "value": delta["value"], "unit": delta["unit"],
+            "known_at_s": delta["known_at_s"], "source_refs": delta["refs"],
+            "verification": delta["verification"],
+            "meaning_verified": False,
+        }
+    for event in packet["timeline"]:
+        index[event["id"]] = {
+            **event, "category": "anonymized_predecision_event",
+            "meaning_verified": False,
+        }
+    for hypothesis in packet["possible_earlier_contributors"]:
+        index[hypothesis["id"]] = {
+            "id": hypothesis["id"], "category": "unverified_contributor_hypothesis",
+            "earlier_node": hypothesis["earlier_node"],
+            "evidence_refs": hypothesis["evidence_refs"],
+            "status": "hypothesis_unverified",
+            "established_cause": False,
+        }
+    for unknown in packet["unknowns"]:
+        if unknown["id"].startswith("UD."):
+            index[unknown["id"]] = {
+                "id": unknown["id"], "category": "unknown_episode_change",
+                "source_refs": unknown["refs"], "factual_support": False,
+            }
+    missing = [ref for ref in evidence_refs if ref not in index]
+    if missing:
+        raise ValueError("One or more source IDs do not exist in this predecision episode.")
+    return {
+        "schema": "CoachEvidenceLookupV0",
+        "stage": "predecision",
+        "stage1_packet_sha256": _packet_commitment(packet),
+        "records": _copy_json_safe([index[ref] for ref in evidence_refs]),
+        "retrospective_exposed": False,
+    }
+
