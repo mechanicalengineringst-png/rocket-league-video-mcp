@@ -140,6 +140,13 @@
           <p id="modelCoachStatus" class="small-copy model-coach-status" role="status" aria-live="polite">No model request has been made.</p>
           <div id="modelCoachResults" class="model-coach-results" aria-label="Accepted model suggestions and feedback"></div>
           <div id="modelCoachEvidence" class="model-coach-evidence" aria-label="Locally retrieved source evidence"></div>
+          <details class="model-spatial-details" id="modelCoachSpatialPanel">
+            <summary>Measured scene relationships (free, local, not coaching verdicts)</summary>
+            <p class="small-copy">Recorded spatial relationships at the selected decision: who is longitudinally goal-side of the ball, separations, and where car noses point. These are not predictions, possession, safety, or proof of the best play.</p>
+            <button type="button" class="button-mini" id="modelCoachSpatialBtn" disabled>Inspect source-backed geometry</button>
+            <p id="modelCoachSpatialStatus" class="small-copy" role="status" aria-live="polite">Select a real primary coaching decision to inspect local measurements.</p>
+            <div id="modelCoachSpatialResults" class="model-spatial-results" aria-label="Recorded scene relationships and missing measurements"></div>
+          </details>
         </div>
       </details>
       <details class="video-panel panel" id="videoPanel">

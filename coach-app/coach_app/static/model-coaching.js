@@ -134,6 +134,9 @@
       this.loading=false;
       this.status='No model request has been made.';
       this.evidenceSeq=0;
+      this.spatialSeq=0;
+      this.spatialLoading=false;
+      this.spatialStatus='Inspect the selected decision using local source-backed geometry.';
     }
     mount(){
       if(!$('modelCoachRunBtn'))return;
@@ -141,6 +144,7 @@
       $('modelCoachRefreshBtn').onclick=()=>this.refreshReadiness();
       $('modelCoachConsent').onchange=()=>this.render();
       $('modelCoachExportBtn').onclick=()=>this.exportReport();
+      if($('modelCoachSpatialBtn'))$('modelCoachSpatialBtn').onclick=()=>this.inspectSpatial();
       root.addEventListener('replay-lab:coaching-moment',()=>this.selectionChanged());
       root.addEventListener('replay-lab:replay-ready',()=>this.resetForReplay());
       this.selectionChanged();
@@ -157,6 +161,10 @@
     resetForReplay(){
       this.requestSeq++;
       this.evidenceSeq++;
+      this.spatialSeq++;
+      this.spatialLoading=false;
+      this.spatialStatus='Select a decision to inspect source-backed geometry.';
+      $('modelCoachSpatialResults')?.replaceChildren();
       this.abortController?.abort();
       this.abortController=null;
       this.results.clear();
@@ -171,6 +179,10 @@
       if(context.key!==this.activeKey){
         this.requestSeq++;
         this.evidenceSeq++;
+        this.spatialSeq++;
+        this.spatialLoading=false;
+        this.spatialStatus='Inspect the selected decision using local source-backed geometry.';
+        $('modelCoachSpatialResults')?.replaceChildren();
         this.abortController?.abort();
         this.abortController=null;
         this.loading=false;
@@ -259,6 +271,84 @@
       }
       this.render();
     }
+    async inspectSpatial(){
+      const context=this.getContext();
+      if(!context.request || !context.key || this.spatialLoading ||
+         this.activeKey!==context.key)return;
+      // Geometry is always local and deterministic, irrespective of model
+      // settings or model consent. No provider request is made here.
+      const request={...context.request, mode:'deterministic',
+        experimental_tactical_v1:false};
+      const seq=++this.spatialSeq, key=context.key, replay=context.selection.replay;
+      this.spatialLoading=true;
+      this.spatialStatus='Inspecting recorded pre-decision geometry locally…';
+      this.render();
+      let responseData=null;
+      try{
+        const res=await this.fetcher('/api/coach/scene-relations',{
+          method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify(request)
+        });
+        if(!res.ok)throw Error('local scene relations unavailable');
+        const body=await res.json();
+        const primary=body?.nodes?.[body.nodes.length-1];
+        if(body?.schema!=='RelationalInvariantsV0' ||
+           body?.stage!=='predecision' ||
+           body?.uses_future!==false ||
+           body?.calculates_tactical_merit!==false ||
+           body?.expert_calibrated!==false ||
+           body?.information_cutoff_s!==request.primary_t0 ||
+           primary?.t0_s!==request.primary_t0 ||
+           !Array.isArray(primary?.metrics) || !Array.isArray(primary?.unknowns) ||
+           primary.metrics.length>22 || primary.unknowns.length>24)throw Error('invalid geometry contract');
+        responseData=primary;
+      }catch(_){}
+      if(seq!==this.spatialSeq || this.activeKey!==key ||
+         this.getSelection()?.replay!==replay ||
+         this.getSelection()?.focusId!==request.player_id)return;
+      this.spatialLoading=false;
+      const holder=$('modelCoachSpatialResults');
+      holder?.replaceChildren();
+      if(!responseData){
+        this.spatialStatus='The local geometry request could not be verified. No positions or tactical verdicts were invented.';
+        this.render();return;
+      }
+      const metrics=responseData.metrics.filter(m=>
+        m && ['longitudinal_goal_side_of_ball','planar_ball_distance',
+              'teammate_planar_separation','teammate_lateral_separation',
+              'nose_to_ball_angle'].includes(m.metric) &&
+        typeof m.subject==='string' && m.subject.length<40 &&
+        (typeof m.value==='string' ||
+         (typeof m.value==='number' && Number.isFinite(m.value))) &&
+        Array.isArray(m.source_refs) && m.source_refs.length>=2 &&
+        m.source_refs.length<=3 &&
+        m.source_refs.every(r=>typeof r==='string' &&
+          /^N[1-4][/](?:E[.])[a-zA-Z0-9_.-]+$/.test(r)));
+      // Keep the visible panel compact. All model inputs use the same
+      // measured data, and these labels make its limitations inspectable.
+      for(const m of metrics){
+        const row=element('div','model-spatial-row');
+        const label=m.metric.replace(/_/g,' ');
+        const value=typeof m.value==='number' ? String(m.value) : m.value;
+        row.append(element('strong','',m.subject.replace(/_/g,' ')+': '+label));
+        row.append(element('span','',value+(m.unit?' '+m.unit:'')));
+        const refs=element('div','model-spatial-refs');
+        for(const ref of m.source_refs){
+          const b=element('button','button-mini model-source-btn',ref);
+          b.type='button';b.onclick=()=>this.inspectEvidence(ref);
+          refs.append(b);
+        }
+        row.append(refs);holder?.append(row);
+      }
+      if(responseData.unknowns.length){
+        holder?.append(element('p','small-copy',
+          String(responseData.unknowns.length)+' relationships could not be measured. Missing data is not a strategic conclusion.'));
+      }
+      this.spatialStatus=metrics.length ?
+        'Recorded coordinate relations only · not possession, recovery, safety or a coaching grade.' :
+        'This scene lacks fresh enough telemetry for trusted spatial relationships.';
+      this.render();
+    }
     async inspectEvidence(ref){
       const context=this.getContext();
       if(!context.request || !context.key || context.key!==this.activeKey)return;
@@ -341,6 +431,12 @@
       const ready=VALID_READINESS.has(this.readiness);
       const consent=$('modelCoachConsent')?.checked;
       const btn=$('modelCoachRunBtn');
+      if($('modelCoachSpatialBtn')){
+        $('modelCoachSpatialBtn').disabled=!request || this.spatialLoading;
+        $('modelCoachSpatialBtn').textContent=this.spatialLoading ?
+          'Measuring local geometry…':'Inspect source-backed geometry';
+      }
+      if($('modelCoachSpatialStatus'))$('modelCoachSpatialStatus').textContent=this.spatialStatus;
       btn.disabled=!request || !ready || !consent || this.loading;
       btn.textContent=this.loading?'Evaluating one decision…':'Generate AI coaching for this decision';
       $('modelCoachReadiness').textContent=readinessLabel(this.readiness);
