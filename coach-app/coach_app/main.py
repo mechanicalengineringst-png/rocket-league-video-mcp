@@ -200,14 +200,35 @@ async def decision_cases_endpoint(request: DecisionCaseRequest):
                 eval_res = evaluate_decision_case_heuristics(c)
                 item['evaluation'] = eval_res
             if request.analyze:
+                from .coaching_view import reconcile
                 from .tactical_analysis import analyze_case
-                item['analysis'] = analyze_case(c, request.replay).to_dict()
+                finding = analyze_case(c, request.replay)
+                item['analysis'] = finding.to_dict()
+                # One displayed interpretation; the rule verdict stays as a labelled baseline.
+                item['coaching'] = reconcile(finding, evaluate_decision_case_heuristics(c))
             output.append(item)
         result = {'cases': output, 'count': len(output), 'mode': 'opt_in_decision_engine'}
         if request.analyze and request.player_id:
+            from .choices import classify_choice, find_defender_candidates
+            from .coaching_view import reconcile
+            from .defender_decisions import assess_defender
+            from .strategic_state import build_state
             from .tactical_analysis import find_shot_opportunities, rank
             result['opportunities'] = [f.to_dict() for f in rank(find_shot_opportunities(request.replay, request.player_id),
                                                                  request.player_id)]
+            defender = []
+            for cand in find_defender_candidates(request.replay):
+                if cand.player_id != request.player_id:
+                    continue
+                st = build_state(request.replay, cand.t0, cand.player_id)
+                if st is None:
+                    continue
+                f = assess_defender(st, classify_choice(request.replay, cand.t0, cand.player_id),
+                                    f'def-{cand.player_id}-{cand.t0:.1f}')
+                defender.append({'finding': f.to_dict(), 'coaching': reconcile(f, None),
+                                 'eligibility': {'rule': cand.rule, 'values': cand.eligibility,
+                                                 'frames_used_through_s': cand.frames_used_through_s}})
+            result['defender_decisions'] = defender
         return result
     except (KeyError, ValueError, TypeError) as e:
         raise HTTPException(422, f'Could not process decision cases: {e}') from e

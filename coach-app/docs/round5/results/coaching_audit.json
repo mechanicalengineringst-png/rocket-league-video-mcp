@@ -1,0 +1,52 @@
+{
+ "case_verdicts": {
+  "first_man_challenge|abstain": 46,
+  "first_man_challenge|reinforce": 122,
+  "first_man_challenge|risk_hypothesis": 5,
+  "first_man_challenge|tradeoff": 233,
+  "kickoff_support|abstain": 232,
+  "last_man_defense|situation_brief": 374
+ },
+ "rule_vs_reading_stance": {
+  "first_man_challenge|rule=no_opinion|reading=abstain": 46,
+  "first_man_challenge|rule=no_opinion|reading=concern": 5,
+  "first_man_challenge|rule=no_opinion|reading=neutral": 233,
+  "first_man_challenge|rule=no_opinion|reading=support": 122,
+  "kickoff_support|rule=no_opinion|reading=abstain": 232,
+  "last_man_defense|rule=no_opinion|reading=describe": 374
+ },
+ "displayed": {
+  "first_man_challenge|abstain|abstain": 46,
+  "first_man_challenge|single_method|concern": 5,
+  "first_man_challenge|single_method|neutral": 233,
+  "first_man_challenge|single_method|support": 122,
+  "kickoff_support|abstain|abstain": 232,
+  "last_man_defense|describe|describe": 374
+ },
+ "defender_choice_by_verdict": {
+  "boost|situation_brief": 9,
+  "challenge|abstain": 92,
+  "challenge|reinforce": 103,
+  "challenge|risk_hypothesis": 60,
+  "challenge|tradeoff": 108,
+  "retreat|abstain": 4,
+  "retreat|reinforce": 6,
+  "shadow|abstain": 28,
+  "shadow|reinforce": 108,
+  "shadow|tradeoff": 4,
+  "unclear|situation_brief": 117
+ },
+ "defender_displayed": {
+  "concern": 60,
+  "support": 217,
+  "neutral": 112,
+  "abstain": 124,
+  "describe": 126
+ },
+ "truncation": {
+  "checked": 251,
+  "identical": 251,
+  "defender_checked": 639,
+  "defender_identical": 639
+ }
+}
