@@ -102,3 +102,42 @@ test('camera bounds enforce correct goal-to-goal and sidewall dimensions',()=>{
   assert.ok(camera.position.y >= 45, 'Y must not penetrate floor');
   polish.teardown();
 });
+
+test('follow camera maintains upright horizon during aerial flips and wall driving',()=>{
+  const cameraPlugin={getMode:()=>'follow',getBallCam:()=>true};
+  const polish=createCameraPolishPlugin({
+    getCameraPlugin:()=>cameraPlugin,
+    getFollowId:()=>'player-a',
+    getReplayLook:()=>false,
+  });
+  const camera=new THREE.PerspectiveCamera();
+  const carObj=new THREE.Object3D();
+  carObj.position.set(0, 500, 0); // Airborne
+  // Inverted upside-down car roll (e.g. ceiling shot or flip reset)
+  carObj.rotation.set(0, 0, Math.PI);
+  const model={frames:[{time:0}],players:[{id:'player-a',frames:[{}],cameraEvents:[]}]};
+  const state={currentTime:2.0,speed:1};
+  const ctx={
+    camera,
+    cars:[{id:'player-a',visible:true,object3d:carObj}],
+    player:{replay:model,getState:()=>state},
+  };
+
+  // Position camera behind and below inverted car, looking forward
+  camera.position.set(-250, 480, 0);
+  camera.lookAt(carObj.position);
+  // Apply a disorienting roll to camera
+  camera.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI * 0.8));
+  
+  polish.beforeRender(ctx);
+
+  // Measure camera right vector in world space:
+  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
+  // An upright horizon requires the right vector to lie in the horizontal plane (Y == 0)
+  assert.ok(Math.abs(right.y) < 1e-4, `camera right vector Y must be zero for level horizon, got ${right.y}`);
+  
+  // Camera up vector must point upward in world space (Y > 0)
+  const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
+  assert.ok(up.y > 0.5, `camera up vector must point upward, got ${up.y}`);
+  polish.teardown();
+});
