@@ -55,6 +55,10 @@ function setReplay(replay, opts={}){
   state.focusConfirmed=has(replay.primaryPlayerId)||has(last);
   state.focusId=has(replay.primaryPlayerId)?replay.primaryPlayerId:has(last)?last:(replay.players.find(p=>p.team===replay.primaryTeam)?.id||replay.players[0].id);
   state.selectedId=null;state.overrides.clear();state.reviewFeedback.clear();state.time=0;
+  // A new browser replay is NOT proof the running game loaded the same
+  // match. Invalidate human native-match confirmation on every upload/demo.
+  if ($('companionMatchConfirmed')) $('companionMatchConfirmed').checked=false;
+  updateNativeControls();
   $('replayTitle').textContent=replay.title; $('modeValue').textContent=replay.mode; $('durationValue').textContent=fmt(replay.duration-startTime());
   $('playerSelect').replaceChildren(...replay.players.map(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=`${p.name} — ${p.team.toUpperCase()}`;return o;}));
   $('playerSelect').value=state.focusId;
@@ -703,43 +707,68 @@ async function aiReview(){
   finally{$('aiBtn').textContent='Ask Gemini about selected moment';$('aiBtn').disabled=false;}
 }
 function addManualMarker(){if(!state.replay)return;const f=currentFrame();const id='manual-'+Date.now();const finding={id,t:f.t,type:'manual',title:'Review this decision',confidence:'unverified',evidence:'Manual marker at the current replay timestamp.',advice:'Inspect the opponent, ball height, timing and recent touches. A marker records a question, not a mistaken decision.',target:null};state.findings.push(finding);state.findings.sort((a,b)=>a.t-b.t);state.selectedId=id;$('flagsValue').textContent=state.findings.filter(f=>['manual','ai','contextual'].includes(f.type)).length;renderFindings();renderDetail();renderPitch();}
+// Port readiness is not the same as a connected, authenticated game.
+// WebSocket port 49124 is probe-only, not a supported command transport.
+let nativeTcpPortReady=false;
+function updateNativeControls(){
+  const consent=Boolean($('companionOptIn')?.checked);
+  const correctMatch=Boolean($('companionMatchConfirmed')?.checked);
+  const realReplay=Boolean(state.replay && state.replay.source!=='synthetic');
+  if ($('companionLoadBtn')) $('companionLoadBtn').disabled=!(consent && nativeTcpPortReady);
+  if ($('companionSyncBtn')) $('companionSyncBtn').disabled=
+    !(consent && nativeTcpPortReady && correctMatch && realReplay);
+}
+function nativeCommandMessage(text){
+  const status=$('companionCommandStatus');
+  if (status) status.textContent=text;
+}
 async function checkCompanionStatus() {
   const badge = $('companionBadge');
   const details = $('companionStatusDetails');
   const instr = $('companionInstructions');
-  const syncBtn = $('companionSyncBtn');
   if (!badge) return;
+  // A stale positive probe must not enable a command button.
+  nativeTcpPortReady=false;
+  updateNativeControls();
   try {
     const res = await fetch('/api/companion/status');
     if (!res.ok) throw new Error('Status probe returned ' + res.status);
     const data = await res.json();
-    if (data.available) {
-      badge.textContent = 'Port Ready';
-      badge.className = 'companion-status-badge online';
-      if (syncBtn) syncBtn.disabled = !$('companionOptIn')?.checked;
-      if (details) details.textContent = 'Local TCP port ' + data.port + ' is listening. No active command session.';
-      if (instr) instr.hidden = true;
+    nativeTcpPortReady=data.tcp_command_port_open===true ||
+      (data.tcp_command_port_open==null && data.available===true && data.port===49123);
+    const websocketOnly=!nativeTcpPortReady && data.websocket_probe_port_open===true;
+    if (nativeTcpPortReady) {
+      badge.textContent='TCP Port Detected';
+      badge.className='companion-status-badge online';
+      if (details) details.textContent='TCP 49123 is listening. This does not verify that Rocket League owns the port or accepted a command.';
+      if (instr) instr.hidden=true;
+    } else if (websocketOnly || data.available) {
+      badge.textContent='Probe Only';
+      badge.className='companion-status-badge offline';
+      if (details) details.textContent='WebSocket 49124 is listening, but WebSocket command transport is not implemented. TCP 49123 is required.';
+      if (instr) instr.hidden=true;
     } else {
-      badge.textContent = 'Offline';
-      badge.className = 'companion-status-badge offline';
-      if (syncBtn) syncBtn.disabled = true;
-      if (details) details.textContent = 'Ports 49123/49124 are not listening on loopback.';
+      badge.textContent='Offline';
+      badge.className='companion-status-badge offline';
+      if (details) details.textContent='Neither supported TCP command port 49123 nor probe port 49124 is listening.';
       if (instr) {
-        instr.hidden = false;
-        instr.textContent = data.instructions || 'Rocket League Stats API is not active.';
+        instr.hidden=false;
+        instr.textContent=data.instructions || 'Rocket League Stats API is not active.';
       }
     }
   } catch (err) {
-    badge.textContent = 'Offline';
-    badge.className = 'companion-status-badge offline';
-    if (details) details.textContent = 'Status error: ' + err.message;
+    nativeTcpPortReady=false;
+    badge.textContent='Offline';
+    badge.className='companion-status-badge offline';
+    if (details) details.textContent='Status probe failed. Inspect local server logs.';
   }
+  updateNativeControls();
 }
 
 async function sendNativeCompanionCommand(command, data) {
-  if (!$('companionOptIn')?.checked) {
-    alert('Enable "Native Game Commands (Opt-in)" before sending commands to Rocket League.');
-    return;
+  if (!$('companionOptIn')?.checked || !nativeTcpPortReady) {
+    nativeCommandMessage('Native commands require explicit opt-in and an observed TCP 49123 port. No command sent.');
+    return null;
   }
   try {
     const res = await fetch('/api/companion/command', {
@@ -748,14 +777,18 @@ async function sendNativeCompanionCommand(command, data) {
       body: JSON.stringify({ Command: command, Data: data })
     });
     if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || ('HTTP ' + res.status));
+      // Avoid displaying paths, secrets, user-supplied identifiers or raw
+      // native server response; status alone is enough for the UI.
+      throw new Error('HTTP '+res.status);
     }
     const result = await res.json();
-    console.log('Native companion command result:', result);
+    nativeCommandMessage(
+      command+' transmitted to TCP 49123. Verify the action in Rocket League; transmission is NOT execution.'
+    );
+    return result;
   } catch (e) {
-    console.warn('Native companion command failed:', e);
-    alert('Companion command failed: ' + e.message);
+    nativeCommandMessage('Native command failed ('+e.message+'). No game action has been verified.');
+    return null;
   }
 }
 
@@ -812,18 +845,38 @@ function wire(){
   const probeBtn = $('companionProbeBtn');
   if (probeBtn) probeBtn.onclick = checkCompanionStatus;
   const optIn = $('companionOptIn');
-  if (optIn) {
-    optIn.onchange = () => {
-      const syncBtn = $('companionSyncBtn');
-      if (syncBtn) syncBtn.disabled = !optIn.checked;
+  if (optIn) optIn.onchange=updateNativeControls;
+  const matchConfirmed = $('companionMatchConfirmed');
+  if (matchConfirmed) matchConfirmed.onchange=updateNativeControls;
+  const loadBtn=$('companionLoadBtn');
+  if (loadBtn) {
+    loadBtn.onclick=async()=>{
+      const identifier=String($('companionReplaySelector')?.value||'').trim();
+      if (!identifier || identifier.length>4096) {
+        nativeCommandMessage('Enter an explicit game-local replay filename or path. No command sent.');
+        return;
+      }
+      // Browser File objects expose no trustworthy source directory. Only
+      // this user-provided game-local identifier may be sent to LoadReplay.
+      const field=/[\\/]/.test(identifier)?'Path':'FileName';
+      if ($('companionMatchConfirmed')) $('companionMatchConfirmed').checked=false;
+      updateNativeControls();
+      await sendNativeCompanionCommand('LoadReplay',{[field]:identifier});
+      // Do NOT tick the confirmation: the game has not acknowledged success.
     };
   }
   const syncBtn = $('companionSyncBtn');
   if (syncBtn) {
-    syncBtn.onclick = () => {
-      sendNativeCompanionCommand('SeekReplay', { TimeSeconds: Number(state.time.toFixed(3)) });
+    syncBtn.onclick=async()=>{
+      if (!$('companionMatchConfirmed')?.checked ||
+          !state.replay || state.replay.source==='synthetic') {
+        nativeCommandMessage('Confirm the same real replay in Rocket League before seeking. No command sent.');
+        return;
+      }
+      await sendNativeCompanionCommand('SeekReplay',{TimeSeconds:Number(state.time.toFixed(3))});
     };
   }
+  updateNativeControls();
   checkCompanionStatus();
 
   setViewMode('split');

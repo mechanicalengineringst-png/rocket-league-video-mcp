@@ -40,3 +40,21 @@ def test_video_panel_never_claims_replay_contains_video():
     assert 'type="file" accept="video/mp4,video/webm,video/ogg"' in html
     assert 'id="alignVideo"' in html
     assert 'id="videoOffset"' in html
+
+
+def test_native_replay_load_and_seek_are_explicit_and_not_websocket_probe_driven():
+    html = (ROOT / "index.html").read_text(encoding="utf-8")
+    js = (ROOT / "app.js").read_text(encoding="utf-8")
+    assert 'id="companionReplaySelector"' in html
+    assert 'id="companionLoadBtn"' in html
+    assert 'id="companionMatchConfirmed"' in html
+    assert 'id="companionCommandStatus"' in html
+    assert 'id="companionOptIn"' in html
+    assert "tcp_command_port_open" in js
+    assert "websocket_probe_port_open" in js
+    assert "nativeTcpPortReady" in js
+    assert "sendNativeCompanionCommand('LoadReplay'" in js
+    assert "sendNativeCompanionCommand('SeekReplay'" in js
+    assert "companionMatchConfirmed" in js
+    assert "A new browser replay is NOT proof" in js
+    assert "transmission is NOT execution" in js

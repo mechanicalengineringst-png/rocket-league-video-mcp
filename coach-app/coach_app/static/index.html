@@ -123,8 +123,25 @@
             </label>
             <div class="companion-actions">
               <button id="companionProbeBtn" class="button-mini" type="button">Probe Ports 49123/49124</button>
-              <button id="companionSyncBtn" class="button-mini" type="button" disabled>Sync Game to Playhead</button>
             </div>
+            <label class="companion-path-label" for="companionReplaySelector">
+              Game-local replay filename or absolute path
+            </label>
+            <input id="companionReplaySelector" class="companion-path-input"
+              type="text" autocomplete="off" spellcheck="false" maxlength="4096"
+              placeholder="A replay name, or C:&#92;...&#92;match.replay" />
+            <p class="small-copy">This is the replay identifier visible to the installed game, not a browser upload. Sending it is a separate opt-in action. A transmitted command is not proof the game loaded the match.</p>
+            <div class="companion-actions">
+              <button id="companionLoadBtn" class="button-mini" type="button" disabled>Load Replay in Rocket League</button>
+            </div>
+            <label class="view-toggle">
+              <input type="checkbox" id="companionMatchConfirmed" />
+              <span>I have visually confirmed the same replay is loaded in Rocket League</span>
+            </label>
+            <div class="companion-actions">
+              <button id="companionSyncBtn" class="button-mini" type="button" disabled>Seek Game to Playhead</button>
+            </div>
+            <p class="small-copy" id="companionCommandStatus" role="status">Commands are disabled until both the server and this panel have been explicitly enabled. The actual game must confirm any load or seek.</p>
           </div>
           <div id="companionInstructions" class="companion-instructions" hidden></div>
           <div id="companionStatusDetails" class="companion-status-details small-copy"></div>

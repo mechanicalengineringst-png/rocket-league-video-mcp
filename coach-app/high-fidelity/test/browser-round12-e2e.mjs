@@ -68,7 +68,23 @@ try {
     const sel = document.getElementById('episodeSelect');
     return sel ? sel.options.length : 0;
   });
+  if (episodeCount < 1) throw new Error('No actual source-backed coaching moments mounted.');
   console.log(`Successfully mounted ${episodeCount} coaching review moments!`);
+
+  // 7b. A present iframe does NOT prove HD rendering; /hd can return an
+  // informative HTML setup placeholder when the local Vite bundle is absent.
+  // Require actual HD canvas AND successful multi-mesh stadium asset load.
+  // This test still cannot verify visual accuracy or native game camera.
+  const hd = page.frameLocator('#hdInlineFrame');
+  await hd.locator('#viewport canvas').waitFor({ state: 'visible', timeout: 60000 });
+  await hd.locator('#statusText').filter({hasText:'High-fidelity stadium loaded'})
+    .waitFor({state:'attached',timeout:90000});
+  const quality = await hd.locator('#fpsHint').textContent();
+  const meshes = Number(/3D meshes (\d+)/.exec(quality||'')?.[1]||0);
+  if (!(meshes > 1)) {
+    throw new Error('HD canvas exists but multi-mesh stadium assets are not confirmed loaded.');
+  }
+  console.log(`HD viewer rendered WebGL canvas with ${meshes} meshes; visual fidelity remains unverified.`);
 
   // 8. Test Tester Feedback functionality
   const usefulBtn = await page.waitForSelector('.feedback-btn.useful', { timeout: 10000 });
@@ -81,7 +97,15 @@ try {
 
   // 9. Jump to decision point
   await page.click('#jumpDecisionBtn');
-  console.log('Synchronized replay seek to decision point.');
+  // The iframe renderer is a separately decoded replay. Confirm it received
+  // parent seek data; DOM changes alone do not prove rendered pose/timestamp.
+  await page.waitForTimeout(800);
+  const embeddedTime = await hd.locator('#currentTime').textContent();
+  console.log('HD camera clock after coaching seek:', embeddedTime);
+  if (!embeddedTime || /^00:00\.00$/.test(embeddedTime)) {
+    throw new Error('HD iframe clock stayed at initial zero; split synchronization not established.');
+  }
+  console.log('Parent seek forwarded to independently decoded HD player (pixel-level parity still unverified).');
 
   // 10. Capture visual evidence
   await page.screenshot({ path: screenshotPath, fullPage: true });
