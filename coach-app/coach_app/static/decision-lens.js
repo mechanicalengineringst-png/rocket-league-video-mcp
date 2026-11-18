@@ -78,7 +78,8 @@
         focusSpeed:speedOf(focalCar),
         ballHeight:validBall ? ball.z : null
       },
-      complete:validPoint(focalCar) && validBall && validPoint(other) && opponentDistances.length > 0
+      complete:validPoint(focalCar) && validBall && validPoint(other) &&
+        opponents.length === 2 && opponentDistances.length === opponents.length
     };
   }
   function collectTrace(replay, start, end, playerId) {
