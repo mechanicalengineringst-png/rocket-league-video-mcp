@@ -1176,6 +1176,10 @@
             player_name: this.activeEpisode?.player_name || 'unselected',
             duration_s: global.state?.replay?.duration ?? null,
             total_episodes: this.episodes.length,
+            user_selected_review_moments: this.episodes.filter(
+              ep=>ep.selection_source==='manual').length,
+            automatically_discovered_review_moments: this.episodes.filter(
+              ep=>ep.selection_source==='automatic').length,
             is_demo: Boolean(this.isDemo)
           },
           reviewed_moments: this.episodes.map(ep => {
@@ -1184,6 +1188,8 @@
             return {
               episode_id: ep.episode_id,
               title: ep.title,
+              selection_source: ep.selection_source || (this.isDemo ? 'synthetic_demo' : 'unknown'),
+              manually_selected_is_proven_detection_failure: false,
               primary_t0: primary?.t0,
               tactical_stance: primary?.coaching?.stance,
               headline: primary?.coaching?.headline,
