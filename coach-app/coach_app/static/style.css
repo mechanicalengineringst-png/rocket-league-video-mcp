@@ -1154,3 +1154,22 @@
 .companion-actions{flex-wrap:wrap}
 .companion-actions .button-mini:disabled{opacity:.4;cursor:not-allowed}
 #companionCommandStatus{margin:0;padding:7px 9px;border-left:2px solid #38596c}
+
+/* Decision Lens V0: deliberately compact, not a second coaching verdict. */
+.decision-lens{margin-top:12px;min-width:0}
+.decision-lens>summary{cursor:pointer;display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-weight:750;letter-spacing:.02em}
+.lens-summary-status{font-size:11px;color:var(--muted);font-weight:450;letter-spacing:0}
+.lens-body{padding-top:10px;display:flex;flex-direction:column;gap:10px}
+.lens-actions{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.lens-actions .button-mini{min-height:31px}
+.lens-actions .button-mini:disabled{opacity:.42;cursor:not-allowed}
+.lens-actions .button-mini.active{border-color:#79dfca;color:#79dfca;background:#0e393a}
+.lens-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(126px,1fr));gap:8px}
+.lens-metric{background:#0a222f;border:1px solid #214558;border-radius:8px;min-width:0;padding:9px 10px;display:flex;flex-direction:column;gap:4px}
+.lens-metric span{font-size:10px;color:#a6bfcb;letter-spacing:.02em}
+.lens-metric strong{font-size:16px;font-variant-numeric:tabular-nums;color:#e3fbf6}
+.lens-metric .lens-detail{font-size:10px;color:#82adb7;font-weight:450}
+.lens-status{margin:0;border-left:2px solid #358d96;padding:7px 9px;background:#0a222c}
+.lens-legend{display:flex;flex-wrap:wrap;gap:8px;align-items:center;font-size:10px;color:#a9c8d0}
+.lens-legend i{display:inline-block;width:11px;height:11px;border:2px solid #91f0dc;border-radius:50%;vertical-align:-2px;margin-right:3px}
+.lens-legend .lens-future{border-style:dashed;border-color:#ffce86}
