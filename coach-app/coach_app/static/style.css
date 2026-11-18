@@ -1141,3 +1141,16 @@
   white-space:pre-wrap;
 }
 
+
+/* Native replay commands remain explicit user actions. Path text is private
+   and never included in exported coaching reports or JS console logs. */
+.companion-path-label{font-size:11px;font-weight:700;color:#cce5e8}
+.companion-path-input{
+  width:100%;min-width:0;max-width:100%;padding:9px 11px;
+  color:#dceef2;background:#071924;border:1px solid #315569;
+  border-radius:6px;font:12px/1.45 Consolas,monospace;
+}
+.companion-path-input:focus-visible{outline:2px solid #40c6bd;outline-offset:2px}
+.companion-actions{flex-wrap:wrap}
+.companion-actions .button-mini:disabled{opacity:.4;cursor:not-allowed}
+#companionCommandStatus{margin:0;padding:7px 9px;border-left:2px solid #38596c}
