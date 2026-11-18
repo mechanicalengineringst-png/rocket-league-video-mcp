@@ -127,6 +127,7 @@
       this.fetcher=fetcher||((...a)=>root.fetch(...a));
       this.readiness='checking';
       this.requestSeq=0;
+      this.readinessSeq=0;
       this.activeKey=null;
       this.abortController=null;
       this.results=new Map();
@@ -181,14 +182,15 @@
       }
     }
     async refreshReadiness(){
-      const seq=++this.requestSeq;
+      // Checking configuration must never invalidate a paid model response.
+      const seq=++this.readinessSeq;
       // This is a read-only preflight, never a model request.
       try{
         const res=await this.fetcher('/api/coach/model-readiness',
           {cache:'no-store'});
         if(res.ok){
           const data=await res.json();
-          if(seq!==this.requestSeq)return;
+          if(seq!==this.readinessSeq)return;
           this.readiness=data?.schema==='CoachModelReadinessV0' ?
             data.status : 'unavailable';
           this.render();
@@ -200,11 +202,11 @@
         // Pre-PR41 servers expose only optional_model_enabled.
         const res=await this.fetcher('/api/coach/capabilities',{cache:'no-store'});
         const data=res.ok?await res.json():null;
-        if(seq!==this.requestSeq)return;
+        if(seq!==this.readinessSeq)return;
         this.readiness=data?.optional_model_enabled===true ?
           'enabled_unverified' : 'disabled';
       }catch(_){
-        if(seq===this.requestSeq)this.readiness='unavailable';
+        if(seq===this.readinessSeq)this.readiness='unavailable';
       }
       this.render();
     }
