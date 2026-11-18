@@ -78,13 +78,40 @@ def find_review_candidates(replay: dict[str, Any], focus_id: str,
     return findings
 
 
-def compact_game_states(replay: dict[str, Any], focus_id: str, max_frames: int = 240) -> str:
-    """Produce bounded sparse numerical evidence for a single optional Gemini request."""
+def compact_game_states(replay: dict[str, Any], focus_id: str, max_frames: int = 240,
+                        *, selected_time: float | None = None, lookback_s: float = 3.0) -> str:
+    """Bounded numerical evidence. A selected decision never includes future frames.
+
+    The sparse full-match mode remains available for callers without a selected time.
+    This is still sampled positional evidence, not verified tactical reasoning.
+    """
+    if not isinstance(max_frames, int) or max_frames < 1:
+        raise ValueError('max_frames must be a positive integer.')
     players = {p['id']: p for p in replay['players']}
     if focus_id not in players:
         raise ValueError('Unknown player.')
     fs = replay['frames']
-    stride = max(1, math.ceil(len(fs) / max_frames))
+    if selected_time is not None:
+        if not isinstance(selected_time, (int, float)) or not math.isfinite(selected_time) or selected_time < 0:
+            raise ValueError('Selected time must be finite and nonnegative.')
+        if not isinstance(lookback_s, (int, float)) or not math.isfinite(lookback_s) or lookback_s <= 0:
+            raise ValueError('Review lookback must be finite and positive.')
+        start = max(0.0, selected_time - lookback_s)
+        fs = sorted((f for f in fs if isinstance(f, dict)
+                     and isinstance(f.get('t'), (int, float)) and math.isfinite(f['t'])
+                     and start <= f['t'] <= selected_time), key=lambda f: f['t'])
+        if not fs or selected_time - fs[-1]['t'] > 0.15:
+            raise ValueError('No sufficiently recent pre-decision frame for selected time.')
+        # Sample evenly, including the newest pre-t0 frame. Do not silently
+        # replace it with a later frame or scan unrelated moments.
+        if len(fs) > max_frames:
+            if max_frames == 1:
+                fs = [fs[-1]]
+            else:
+                fs = [fs[(i * (len(fs) - 1)) // (max_frames - 1)] for i in range(max_frames)]
+        stride = 1
+    else:
+        stride = max(1, math.ceil(len(fs) / max_frames))
     # Short aliases instead of platform ids: fewer tokens, no account ids sent to the
     # model, and - crucially - the roster tells the model who is on which team.
     alias = {p['id']: f'P{i + 1}' for i, p in enumerate(replay['players'])}
@@ -101,6 +128,9 @@ def compact_game_states(replay: dict[str, Any], focus_id: str, max_frames: int =
         'Coordinates: blue goal y=-5120, orange goal y=+5120; field x=+-4096.',
         'Columns: time | ball x,y,z;velocity-x,y | cars alias:x,y,z,boost,velocity-x,y,forward-x,y. Sampled telemetry, not video.',
     ]
+    if selected_time is not None:
+        lines.append(f'Pre-decision window: {max(0.0, selected_time - lookback_s):.2f}s '
+                     f'through {selected_time:.2f}s; no later frames or outcomes supplied.')
     for f in fs[::stride][:max_frames]:
         b = f['ball']
         def v(n: float | None) -> str:
