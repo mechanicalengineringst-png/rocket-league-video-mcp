@@ -4,23 +4,22 @@ Official developer API reference:
 https://www.rocketleague.com/developer/stats-api
 
 Connection Architecture:
-- Primary WebSocket Interface: ws://127.0.0.1:49124
-- Secondary Raw TCP Interface: 127.0.0.1:49123
-- Protocol Wire Format: UTF-8 JSON.
+- Implemented command transport: loopback TCP on port 49123.
+- WebSocket port 49124 is *probe-only*, until a real WebSocket handshake
+  and framed-client implementation has been tested against Rocket League.
+- Protocol Wire Format for TCP: newline-delimited UTF-8 JSON.
 - Command Schema:
   {
       "Command": "<CommandName>",
       "Data": { ... }
   }
-- Official PascalCase commands & schemas:
-  - "LoadReplay": {"Replay": "<str>"}
-  - "SeekReplay": {"TimeSeconds": <float>}
-  - "ChangePOV": {"Focus": "<str>", "Target": "<Optional[str]>"}
-    (Focus specifies player identifier or perspective: "Player", "Ball", "Fly")
-  - "SetGameSpeed": {"Speed": <float>}
-  - "SetMatchPaused": {"Paused": <bool>}
-  - "SetHUDVisibility": {"Visible": <bool>}
-  - "GetStatus": {}
+- Official commands are validated against the public API:
+  - LoadReplay: FileName or Path
+  - SeekReplay: TimeSeconds or Frame
+  - ChangePOV: Focus ("Ball" or numeric spectator shortcut) and/or Perspective
+  - SetGameSpeed: Speed
+  - SetMatchPaused: bPaused
+  - SetHUDVisibility: bVisible
 
 Safety & Sandbox Boundaries:
 - Read-only probing and socket transport only.
@@ -33,6 +32,7 @@ from __future__ import annotations
 import collections
 import json
 import logging
+import math
 import socket
 import threading
 import time
@@ -48,20 +48,19 @@ DEFAULT_PROBE_TIMEOUT = 0.5
 DEFAULT_COMMAND_TIMEOUT = 2.0
 
 SETUP_INSTRUCTIONS = (
-    "Rocket League Native Stats API is offline or not enabled.\n"
-    "To configure and enable native replay synchronization manually:\n"
-    "1. Locate your Rocket League configuration folder:\n"
-    "   %USERPROFILE%\\Documents\\My Games\\Rocket League\\TAGame\\Config\\TAStatsAPI.ini\n"
-    "2. Add or verify the following configuration section:\n"
-    "   [TAGame.MatchStatsExporter_TA]\n"
-    "   bEnableMatchStatsExporter=True\n"
-    "   ServerPort=49123\n"
-    "   WebSocketPort=49124\n"
-    "   RecordAllEvents=True\n"
-    "3. Add the launch argument in Steam or Epic Games Store:\n"
-    "   -statsapi\n"
-    "4. Launch Rocket League, load a match or replay, and re-check companion status.\n"
-    "Note: Replay Lab does not modify your game configuration or install software automatically."
+    "The local Rocket League Stats API is not confirmed available.\n"
+    "To enable it manually, before starting the game:\n"
+    "1. In Rocket League's installation directory, open "
+    "TAGame\\Config\\TAStatsAPI.ini "
+    "(or DefaultStatsAPI.ini if the first file doesn't exist).\n"
+    "2. Under [TAGame.MatchStatsExporter_TA], configure:\n"
+    "   PacketSendRate=30\n"
+    "   Port=49123\n"
+    "   WebPort=49124\n"
+    "3. Restart Rocket League, then use the local status probe again.\n"
+    "Changes to the INI while the game is running require restart. "
+    "Replay Lab never modifies your game configuration automatically.\n"
+    "An open port alone does not prove the listening process is Rocket League."
 )
 
 
@@ -71,6 +70,70 @@ class CompanionConnectionError(Exception):
 
 class CompanionProtocolError(ValueError):
     """Raised when an invalid command or parameter structure is supplied."""
+
+
+_POV_PERSPECTIVES = frozenset({
+    "Fly", "SoftAttach", "HardAttach", "PlayerView",
+    "AutoCam", "Camera_Director",
+})
+_COMMAND_FIELDS = {
+    "LoadReplay": frozenset({"FileName", "Path"}),
+    "SeekReplay": frozenset({"Frame", "TimeSeconds"}),
+    "ChangePOV": frozenset({"Focus", "Perspective"}),
+    "SetGameSpeed": frozenset({"Speed"}),
+    "SetHUDVisibility": frozenset({"bVisible"}),
+    "SetMatchPaused": frozenset({"bPaused"}),
+}
+
+
+def validate_native_command(command: str, data: Dict[str, Any]) -> Dict[str, Any]:
+    """Fail closed against undocumented native-game commands and fields.
+
+    Follow the published Psyonix Stats API, not a mock server's permissive
+    acceptance of arbitrary JSON. Return a copy to avoid caller mutation.
+    """
+    if command not in _COMMAND_FIELDS:
+        raise CompanionProtocolError("Unsupported native replay command.")
+    if not isinstance(data, dict) or not data or not set(data).issubset(_COMMAND_FIELDS[command]):
+        raise CompanionProtocolError("Unknown or missing native command fields.")
+    if command in ("LoadReplay", "SeekReplay"):
+        if len(data) != 1:
+            raise CompanionProtocolError("Supply exactly one replay selector.")
+    if command == "LoadReplay":
+        value = next(iter(data.values()))
+        if not isinstance(value, str) or not value.strip() or len(value) > 4096:
+            raise CompanionProtocolError("Replay file name or path must be a bounded string.")
+    if command == "SeekReplay":
+        if "Frame" in data:
+            if type(data["Frame"]) is not int or data["Frame"] < 0:
+                raise CompanionProtocolError("Replay frame must be a nonnegative integer.")
+        else:
+            value = data["TimeSeconds"]
+            if type(value) not in (int, float) or not math.isfinite(value) or value < 0:
+                raise CompanionProtocolError("Replay time must be finite and nonnegative.")
+    if command == "ChangePOV":
+        focus = data.get("Focus")
+        if focus is not None and not (
+            isinstance(focus, str) and
+            (focus == "Ball" or (focus.isascii() and focus.isdigit()))
+        ):
+            raise CompanionProtocolError(
+                "Focus must be 'Ball' or a numeric spectator shortcut string."
+            )
+        perspective = data.get("Perspective")
+        if perspective is not None and perspective not in _POV_PERSPECTIVES:
+            raise CompanionProtocolError("Unknown spectator Perspective.")
+        if focus is None and perspective is None:
+            raise CompanionProtocolError("ChangePOV needs Focus or Perspective.")
+    if command == "SetGameSpeed":
+        speed = data.get("Speed")
+        if type(speed) not in (float, int) or not math.isfinite(speed) or not 0 <= speed <= 8:
+            raise CompanionProtocolError("Replay speed must be finite and between 0 and 8.")
+    if command in ("SetHUDVisibility", "SetMatchPaused"):
+        key = "bVisible" if command == "SetHUDVisibility" else "bPaused"
+        if type(data.get(key)) is not bool:
+            raise CompanionProtocolError(f"{key} must be a boolean.")
+    return dict(data)
 
 
 @dataclass
@@ -98,6 +161,8 @@ class RocketLeagueCompanion:
         probe_timeout: float = DEFAULT_PROBE_TIMEOUT,
         command_timeout: float = DEFAULT_COMMAND_TIMEOUT,
     ):
+        if host not in ("127.0.0.1", "localhost", "::1"):
+            raise CompanionProtocolError("Native companion must stay on local loopback.")
         self.host = host
         self.tcp_port = tcp_port
         self.ws_port = ws_port
@@ -133,7 +198,7 @@ class RocketLeagueCompanion:
         ws_open = self.probe_port(self.ws_port)
 
         available = tcp_open or ws_open
-        recommended_port = self.ws_port if ws_open else (self.tcp_port if tcp_open else self.ws_port)
+        recommended_port = self.tcp_port if tcp_open else (self.ws_port if ws_open else self.tcp_port)
 
         return {
             "available": available,
@@ -141,7 +206,7 @@ class RocketLeagueCompanion:
             "websocket_port_49124_open": ws_open,
             "recommended_port": recommended_port,
             "host": self.host,
-            "message": "API online" if available else "API offline",
+            "message": "Port listening; Rocket League not authenticated" if available else "API offline",
             "instructions": "" if available else SETUP_INSTRUCTIONS,
         }
 
@@ -155,6 +220,13 @@ class RocketLeagueCompanion:
 
         self.disconnect()
         target_port = port or self.tcp_port
+        # A TCP connection to WebPort is not a WebSocket session. Do not claim
+        # that TCP JSON commands on 49124 are a working WebSocket transport.
+        if target_port == self.ws_port and self.ws_port != self.tcp_port:
+            logger.info("WebSocket command transport is not implemented.")
+            return False
+        if target_port != self.tcp_port:
+            raise CompanionProtocolError("Unsupported native companion port.")
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             sock.settimeout(self.probe_timeout)
@@ -250,6 +322,7 @@ class RocketLeagueCompanion:
         timeout: Optional[float] = None,
     ) -> Dict[str, Any]:
         """Send strict PascalCase command conforming to official stats API schema."""
+        data = validate_native_command(command, data if data is not None else {})
         if not self.is_connected():
             connected = self.connect()
             if not connected:
@@ -296,46 +369,52 @@ class RocketLeagueCompanion:
     # --- Official Documented Commands ---
 
     def load_replay(self, replay_id_or_path: str) -> Dict[str, Any]:
-        """Ask Rocket League to load a saved replay: {"Command": "LoadReplay", "Data": {"Replay": ...}}"""
-        if not replay_id_or_path:
+        """Load by FileName (saved game history) or Path (absolute/local path)."""
+        if not isinstance(replay_id_or_path, str) or not replay_id_or_path.strip():
             raise CompanionProtocolError("Replay identifier or path is required.")
-        return self.send_command("LoadReplay", {"Replay": str(replay_id_or_path)})
+        name = replay_id_or_path.strip()
+        field = "Path" if "/" in name or "\\" in name else "FileName"
+        return self.send_command("LoadReplay", {field: name})
 
     def seek_replay(self, seconds: float) -> Dict[str, Any]:
         """Seek replay to specified timestamp: {"Command": "SeekReplay", "Data": {"TimeSeconds": ...}}"""
-        t = round(max(0.0, float(seconds)), 3)
-        return self.send_command("SeekReplay", {"TimeSeconds": t})
+        if type(seconds) not in (int, float) or not math.isfinite(seconds) or seconds < 0:
+            raise CompanionProtocolError("Replay time must be finite and nonnegative.")
+        return self.send_command("SeekReplay", {"TimeSeconds": round(seconds, 3)})
 
-    def change_pov(self, focus: str, target: Optional[str] = None) -> Dict[str, Any]:
-        """Switch spectator POV using official Focus schema: {"Command": "ChangePOV", "Data": {"Focus": ...}}"""
-        if not focus:
-            raise CompanionProtocolError("Focus identifier or perspective is required (e.g. player id, 'Ball', 'Fly').")
-        data: Dict[str, Any] = {"Focus": str(focus)}
-        if target:
-            data["Target"] = str(target)
+    def change_pov(self, focus: Optional[str] = None,
+                   perspective: Optional[str] = None) -> Dict[str, Any]:
+        """Switch by numeric spectator shortcut or ball; optionally select camera."""
+        data: Dict[str, Any] = {}
+        if focus is not None:
+            data["Focus"] = focus
+        if perspective is not None:
+            data["Perspective"] = perspective
         return self.send_command("ChangePOV", data)
 
     def set_game_speed(self, multiplier: float) -> Dict[str, Any]:
         """Change playback rate: {"Command": "SetGameSpeed", "Data": {"Speed": ...}}"""
-        speed = max(0.1, min(5.0, float(multiplier)))
-        return self.send_command("SetGameSpeed", {"Speed": speed})
+        return self.send_command("SetGameSpeed", {"Speed": multiplier})
 
     def set_match_paused(self, paused: bool) -> Dict[str, Any]:
         """Pause or unpause replay: {"Command": "SetMatchPaused", "Data": {"Paused": ...}}"""
-        return self.send_command("SetMatchPaused", {"Paused": bool(paused)})
+        return self.send_command("SetMatchPaused", {"bPaused": paused})
 
     def set_hud_visibility(self, visible: bool) -> Dict[str, Any]:
         """Toggle native HUD visibility: {"Command": "SetHUDVisibility", "Data": {"Visible": ...}}"""
-        return self.send_command("SetHUDVisibility", {"Visible": bool(visible)})
+        return self.send_command("SetHUDVisibility", {"bVisible": visible})
 
     def observe_playback_state(self) -> Dict[str, Any]:
         """Retrieve current observed game state and clock."""
+        game = self._latest_state.get("Game", {})
+        game = game if isinstance(game, dict) else {}
+        elapsed = game.get("Elapsed") if game.get("bReplay") else None
         return {
             "connected": self.is_connected(),
             "latest_state": self._latest_state,
-            "reported_time_seconds": self._latest_state.get("TimeSeconds") or self._latest_state.get("CurrentTime"),
-            "is_paused": self._latest_state.get("IsPaused", False),
-            "game_speed": self._latest_state.get("GameSpeed", 1.0),
+            "reported_time_seconds": elapsed,
+            "is_paused": None,
+            "game_speed": None,
         }
 
     def measure_drift(self, expected_time_s: float) -> Optional[float]:
@@ -347,23 +426,22 @@ class RocketLeagueCompanion:
         return round(float(reported) - float(expected_time_s), 4)
 
     def get_status(self) -> CompanionStatus:
-        """Report connection state, API availability, and drift without mutating configuration."""
-        probe = self.detect_api_availability()
-        connected = self.is_connected()
-        if not connected and probe["available"]:
-            connected = self.connect(probe["recommended_port"])
+        """Port probe only: never open a persistent command socket on GET.
 
-        playback = self.observe_playback_state() if connected else {}
+        A listening port may belong to another program; success is not a
+        Rocket League handshake, and WebPort availability isn't WS support.
+        """
+        probe = self.detect_api_availability()
         return CompanionStatus(
             available=probe["available"],
-            connected=connected,
-            transport="tcp" if connected and self._active_port == self.tcp_port else (
-                "websocket" if connected else "none"
-            ),
+            connected=False,
+            transport="none",
             host=self.host,
-            port=self._active_port if connected else probe["recommended_port"],
-            game_state=self._latest_state,
-            reported_playback_time=playback.get("reported_time_seconds"),
-            recent_events_count=len(self._event_history),
-            instructions="" if probe["available"] else SETUP_INSTRUCTIONS,
+            port=probe["recommended_port"],
+            instructions=(
+                "Port(s) listening, but no authenticated Rocket League command "
+                "session has been established. TCP 49123 is the implemented "
+                "command transport; WebSocket 49124 is probe-only."
+                if probe["available"] else SETUP_INSTRUCTIONS
+            ),
         )
