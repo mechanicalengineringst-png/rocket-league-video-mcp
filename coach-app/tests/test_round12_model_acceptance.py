@@ -66,6 +66,13 @@ def local_model_stub(*, fenced=False, malformed=False):
             packet = json.loads(message.split("\n", 1)[1])
             assert packet["stage1_episode"]["schema"] == "Stage1EpisodePacketV0"
             assert packet["tactical_options"]["schema"] == "CoachTacticalContextV0"
+            assert packet["scene_relations"]["schema"] == "RelationalInvariantsV0"
+            assert packet["scene_relations"]["stage"] == "predecision"
+            assert packet["scene_relations"]["uses_future"] is False
+            assert packet["scene_relations"]["calculates_tactical_merit"] is False
+            assert packet["scene_relations"]["expert_calibrated"] is False
+            assert all(m["source_refs"] and all("/E." in x for x in m["source_refs"])
+                       for n in packet["scene_relations"]["nodes"] for m in n["metrics"])
             assert "PRIVATE_MATCH_SHOULD_NOT_LEAK" not in message
             assert "retrospective" not in packet["stage1_episode"]
             assert packet["stage1_episode"].get("retrospective_present") is False
