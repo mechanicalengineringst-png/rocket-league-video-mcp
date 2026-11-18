@@ -184,9 +184,9 @@ def test_unverified_tactical_language_is_not_certified_by_matching_numbers():
     )
     lesson = build_lesson_from_episode(episode(), model_draft=draft(c))
     accepted = [x for x in lesson["claims"] if x["author"] == "model_proposal"]
-    # A generic citation cannot prove natural-language tactical correctness.
-    # Until semantic review exists, it is explicitly a hypothesis.
-    assert all(x["review_status"] == "needs_semantic_review" for x in accepted)
+    # Numeric grounding cannot make guaranteed tactical outcomes true.
+    assert accepted == []
+    assert len(lesson["validation"]["rejected_model_claims"]) == 1
     assert lesson["validation"]["semantic_tactical_accuracy_verified"] is False
 
 
