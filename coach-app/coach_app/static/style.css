@@ -1239,3 +1239,35 @@
 .model-spatial-row>span{font-size:12px;color:#e8f8f6;font-variant-numeric:tabular-nums}
 .model-spatial-refs{width:100%;display:flex;flex-wrap:wrap;gap:4px}
 .model-spatial-refs .button-mini{font:10px Consolas,monospace}
+
+/* Round12E two-stage independent reviewer calibration.
+   Keep it collapsed by default and exclude masked results from layout. */
+[hidden]{display:none !important}
+.blind-review-panel{margin-top:12px;min-width:0;border-color:#386169}
+.blind-review-panel>summary{cursor:pointer;color:#dceef0;font-weight:750}
+.blind-review-summary{font-size:11px;color:#8bc1c8;font-weight:500;margin-left:8px}
+.blind-review-content{display:flex;flex-direction:column;gap:11px;padding-top:12px;min-width:0}
+.blind-review-content>.small-copy{margin:0;line-height:1.55}
+.blind-review-selection{margin:0;border-left:2px solid #519d98;background:#0b2b34;
+  padding:9px 11px;color:#d9f6ef;font-size:12px;overflow-wrap:anywhere}
+.blind-review-start{display:flex;flex-direction:column;gap:7px;align-items:flex-start}
+.blind-review-start>label,.blind-review-inputs>label{font-size:11px;font-weight:750;color:#bad4dc}
+.blind-review-start>select,.blind-review-inputs>select,
+.blind-review-inputs>textarea{width:100%;max-width:600px;border:1px solid #36606c;
+  border-radius:6px;background:#071f2a;color:#e4f1f2;padding:9px 10px;font-size:12px}
+.blind-review-inputs>textarea{resize:vertical;line-height:1.5;min-height:65px}
+.blind-review-stage{display:flex;flex-direction:column;gap:10px;border:1px solid #32656f;
+  border-radius:8px;padding:12px;background:#0b2934}
+.blind-review-stage-title{font-size:13px;color:#d0f4ea}
+.blind-review-stage>.small-copy{margin:0;line-height:1.5}
+.blind-review-inputs{display:flex;flex-direction:column;gap:6px;min-width:0}
+.blind-review-inputs>label:not(:first-child){margin-top:5px}
+.blind-post-actions{display:flex;flex-wrap:wrap;gap:7px}
+.blind-review-locked{font-size:12px;color:#c9edec;margin:0;border-left:2px solid #88cfc1;
+  background:#10343c;padding:8px 10px;overflow-wrap:anywhere}
+.blind-accent{background:#123e48;border:1px solid #60aca6;color:#dcf5ef;
+  padding:9px 12px;font-weight:750}
+.blind-accent:disabled{opacity:.5;cursor:not-allowed}
+.blind-review-status{margin:0;padding:8px 10px;background:#091f2b;border-left:2px solid #5c8791}
+.blind-review-footer{display:flex;gap:9px;flex-wrap:wrap;align-items:center;
+  justify-content:space-between;border-top:1px solid #31505c;padding-top:10px}
