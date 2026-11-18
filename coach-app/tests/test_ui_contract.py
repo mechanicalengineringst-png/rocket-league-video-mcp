@@ -131,3 +131,16 @@ def test_manual_overlooked_moment_can_be_requested_without_a_model():
     # A manual source-only review must never automatically pay a provider.
     assert "mode:'model'" not in manual
     assert "mode: 'model'" not in manual
+
+
+def test_scene_relationships_are_source_linked_local_and_not_grading():
+    html = (ROOT / "index.html").read_text(encoding="utf-8")
+    model = (ROOT / "model-coaching.js").read_text(encoding="utf-8")
+    assert 'id="modelCoachSpatialPanel"' in html
+    assert 'id="modelCoachSpatialBtn"' in html
+    assert 'id="modelCoachSpatialResults"' in html
+    assert "/api/coach/scene-relations" in model
+    assert "mode:'deterministic'" in model
+    assert "calculates_tactical_merit!==false" in model
+    assert "modelCoachSpatialResults" in model
+    assert "modelCoachConsent" in model
