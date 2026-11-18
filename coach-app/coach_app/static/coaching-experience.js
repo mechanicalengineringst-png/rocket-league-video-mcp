@@ -1079,11 +1079,31 @@
 
       for (const p of previews) {
         if (!p.lesson) continue;
-        const c = candidates.find(cand => cand.candidate_id === p.candidate_id) || {};
+        const c = candidates.find(cand => cand.candidate_id === p.candidate_id);
+        // Each preview has its OWN audited episode times. The surrounding
+        // review-bundle payload contains only max_candidates/preview_count;
+        // forwarding that payload as /api/coach/lesson or /evidence was
+        // invalid and prevented actual AI lessons from this fast path.
+        // Never synthesize times or silently use a different candidate.
+        if (!c || !Number.isFinite(c.primary_t0) ||
+            !Number.isFinite(c.episode_start_s) ||
+            !Array.isArray(c.decision_times) ||
+            c.decision_times.length < 2 || c.decision_times.length > 4 ||
+            !c.decision_times.every(Number.isFinite) ||
+            c.primary_t0 !== p.lesson?.decision?.t0_s ||
+            c.primary_t0 !== p.primary_t0) continue;
+        const episodeRequest = {
+          replay, player_id: playerId,
+          decision_times: [...c.decision_times],
+          episode_start_s: c.episode_start_s,
+          primary_t0: c.primary_t0,
+          mode: 'deterministic',
+          experimental_tactical_v1: Boolean(payload?.experimental_tactical_v1)
+        };
         const titleStr = c.situation_type
           ? (c.situation_type.replace(/_/g, ' ') + ' (' + p.primary_t0.toFixed(1) + 's)')
           : ('Review Moment @ ' + p.primary_t0.toFixed(1) + 's');
-        this.addVerifiedLesson(p.lesson, payload, {
+        this.addVerifiedLesson(p.lesson, episodeRequest, {
           candidate_id: p.candidate_id,
           title: titleStr,
           t0: p.primary_t0
