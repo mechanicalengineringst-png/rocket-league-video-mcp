@@ -122,17 +122,19 @@ claim that the product has passed real-browser, real-game, or expert testing.
    GitHub green does NOT mean browser-HD or live-game acceptance.
 10. [PR #46](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/46)
    **ChatGPT's substantive Round 12 Decision Lens V0 workspace**, stacked
-   on #44 (#43 -> #44 -> #46), head `14971b9`. Uses a verified
-   decision-time **floor sample (<=t0)** to show recorded focus/teammate/
-   opponent/ball positions, horizontal distances, boost, ball Z and speed;
-   one-click predecision approach and **bounded 5-second HD+2D loop**;
-   separately reveals **actual** postdecision car/ball trails/ghosts
-   without predicting alternatives or grading gameplay. Selecting a
-   source-backed coaching node pins t0; manual pin also available. Node
-   tests, static contracts, and real-replay Playwright checks were added;
-   **CI pending at this checkpoint**. Full docs:
+   on #44 (#43 -> #44 -> #46), exact head `4d83862`. Uses an
+   independently tested decision-time **floor sample (<=t0)** to show
+   recorded focus/teammate/opponent/ball positions, horizontal distances,
+   boost, ball Z and speed; one-click predecision approach and **bounded
+   5-second HD+2D loop**; separately reveals **actual** postdecision
+   car/ball trails/ghosts, with no invented alternative or gameplay grade.
+   Selecting a source-backed coaching node pins t0; manual pin is supported.
+   **CI VERIFIED:** 381 passed/13 skipped Python tests; **19/19 Node
+   camera/geometry/Decision Lens tests**; all three GitHub workflows green.
+   Enhanced Playwright HD+2D real replay checks exist but **not run on an
+   owner Windows replay here**; no native game acceptance. Full docs:
    `coach-app/docs/round12/DECISION_LENS_V0.md` on PR #46.
-   This is actual UX/product code, not a new tactical quality claim.
+   This is actual user-facing UX, not proof of high-rank coaching quality.
 11. [PR #45](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/45)
    **Claude's Round 12 tactical intelligence PR**, head `619914f`,
    stacked on Claude's earlier #40. Introduces an experimental,
