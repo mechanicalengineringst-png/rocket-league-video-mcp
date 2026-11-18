@@ -130,7 +130,7 @@ test('a local deterministic review is an explicit click and does not call a mode
         schema:'CoachLessonV0',mode:'deterministic_baseline',stage:'predecision',
         decision:{node_id:'N3',t0_s:req.primary_t0,
           episode_start_s:req.episode_start_s,status:'partial'},
-        claims:[{author:'deterministic',text:'Measured position'}],
+        claims:[{author:'deterministic_template',text:'Measured position'}],
         validation:{accepted_model_claims:0,
           future_outcomes_used:false,semantic_tactical_accuracy_verified:false}
       })};
