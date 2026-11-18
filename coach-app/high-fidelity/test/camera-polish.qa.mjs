@@ -1,9 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
-import {createCameraPolishPlugin} from '../src/camera-polish.js';
+import {createCameraPolishPlugin,makeUsableChasePose} from '../src/camera-polish.js';
 
 // This tests the actual camera object, not just a HUD label or mode enum.
+const MIN_TEST_CHASE_HEIGHT=225;
 // Native Ball/Car camera switches are immediate discontinuities; smoothing
 // between them would temporarily show an impossible viewpoint.
 test('recorded Ball Cam switch snaps rather than gliding between camera poses',()=>{
@@ -26,8 +27,8 @@ test('recorded Ball Cam switch snaps rather than gliding between camera poses',(
   ballCam=true;
   camera.position.set(500,200,300);
   polish.beforeRender(ctx);
-  assert.ok(camera.position.distanceTo(new THREE.Vector3(500,200,300)) < 1e-6,
-    'a native Ball Cam switch must cut to the new camera pose');
+  assert.ok(camera.position.distanceTo(new THREE.Vector3(500,200,300))<1e-6,
+    'a native camera switch must cut without interpolating when no car anchor exists');
   camera.position.set(1000,200,300);
   polish.beforeRender(ctx);
   assert.ok(camera.position.x>=500 && camera.position.x<1000,
@@ -61,8 +62,10 @@ test('vehicle teleport across goal reset cuts immediately instead of gliding acr
   state.currentTime=15.033; // Normal tick increment, but car jumped
   polish.beforeRender(ctx);
 
-  assert.ok(camera.position.distanceTo(new THREE.Vector3(-2300, 100, -2500)) < 1e-4,
-    'camera must snap immediately to respawn location rather than gliding across midfield');
+  assert.ok(camera.position.x<-2500 && camera.position.z===-2500,
+    'camera should immediately take the new elevated chase position at respawn');
+  assert.ok(camera.position.y>=carObj.position.y+MIN_TEST_CHASE_HEIGHT,
+    'follow camera is elevated enough to see the car and field');
   polish.teardown();
 });
 
@@ -139,5 +142,41 @@ test('follow camera maintains upright horizon during aerial flips and wall drivi
   // Camera up vector must point upward in world space (Y > 0)
   const up = new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion);
   assert.ok(up.y > 0.5, `camera up vector must point upward, got ${up.y}`);
+  polish.teardown();
+});
+
+test('low back-tire follow camera is elevated and backed off before rendering',()=>{
+  const camera=new THREE.PerspectiveCamera();
+  const a=new THREE.Vector3(0,17,0);
+  camera.position.set(-120,36,60);
+  camera.lookAt(0,20,0);
+  makeUsableChasePose(camera,a);
+  assert.ok(camera.position.y>=242,'eye must be higher than the tire line');
+  assert.ok(Math.hypot(camera.position.x,camera.position.z)>=600,
+    'minimum horizontal distance keeps the vehicle from filling the view');
+  const dir=new THREE.Vector3();camera.getWorldDirection(dir);
+  assert.ok(dir.y<0,'elevated chase eye should look down toward the field');
+});
+test('ball orbit camera is leveled rather than left at an arbitrary roll',()=>{
+  const mode={getMode:()=> 'ballOrbit',getBallCam:()=>true};
+  const polish=createCameraPolishPlugin({getCameraPlugin:()=>mode,getFollowId:()=>null,getReplayLook:()=>false});
+  const camera=new THREE.PerspectiveCamera();
+  camera.position.set(100,550,750);camera.lookAt(0,0,0);
+  camera.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,0,1),0.4));
+  polish.beforeRender({camera,player:{getState:()=>({currentTime:0}),replay:{}}});
+  const right=new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion);
+  assert.ok(Math.abs(right.y)<0.0001,'ball orbit horizon must stay horizontal');
+});
+
+test('follow camera resolves car anchor when selected ID and rendered ID differ in type',()=>{
+  const cp={getMode:()=> 'follow',getBallCam:()=>false};
+  const polish=createCameraPolishPlugin({getCameraPlugin:()=>cp,getFollowId:()=> '42',getReplayLook:()=>false});
+  const cam=new THREE.PerspectiveCamera();
+  const car=new THREE.Object3D();car.position.set(0,17,0);
+  cam.position.set(-130,45,0);cam.lookAt(car.position);
+  polish.beforeRender({camera:cam,cars:[{id:42,visible:true,object3d:car}],
+    player:{replay:{frames:[{time:0}],players:[]},getState:()=>({currentTime:1,speed:1})}});
+  assert.ok(cam.position.y>=242,'numeric renderer ID must still produce elevated follow');
+  assert.ok(Math.hypot(cam.position.x,cam.position.z)>=600);
   polish.teardown();
 });

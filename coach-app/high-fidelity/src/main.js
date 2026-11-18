@@ -1,8 +1,7 @@
 import {
   createPlayer, createCameraPlugin, createNameTagPlugin,
   createBoostPadsPlugin, createScoredTextPlugin,
-  createBoostPickupAnimationPlugin,
-  fromReplayPlayerPlugin, setPlayerAssetBase,
+  setPlayerAssetBase,
 } from '@rlrml/player';
 import * as THREE from 'three';
 import { formatTime, clampTime, timelineMarkers } from './time.js';
@@ -11,7 +10,7 @@ import {
   cameraSwitchMoments, displayCameraMode,
 } from './camera-timeline.js';
 import {
-  validateExternalControl, resolveFocusedPlayer,
+  validateExternalControl, resolveFocusedPlayer, findSelectedPlayer,
   shouldCorrectReplayTime, safeSessionId,
 } from './external-sync.js';
 import { createCameraPolishPlugin } from './camera-polish.js';
@@ -26,6 +25,12 @@ const shell = $('dropZone');
 const surface = $('loadingSurface');
 const upload = $('fileInput');
 const viewer = $('viewport');
+// The HD viewer is shared by standalone replay mode and the embedded 3D
+// half of Replay Lab's tactical split view.
+const embedded = new URLSearchParams(location.search).get('embedded') === '1';
+if (embedded) document.body.classList.add('embedded');
+const syncHost = () => window.parent !== window ? window.parent :
+  (window.opener && window.opener !== window ? window.opener : null);
 
 const assetBase = import.meta.env.DEV ? '/' : import.meta.env.BASE_URL;
 setPlayerAssetBase(assetBase);
@@ -159,7 +164,7 @@ function enableControls(enabled) {
 }
 
 function currentPlayer() {
-  return player?.adapter?.playerList?.find(p => p.id === $('playerSelect').value) ?? null;
+  return findSelectedPlayer(player?.adapter?.playerList,$('playerSelect').value);
 }
 function currentCameraTrack() {
   const p=currentPlayer();
@@ -177,8 +182,7 @@ function switchCamera(mode) {
     if(picked) player.setAttachedPlayer(picked.id);
   }else{
     player.setCameraViewMode('free');
-    if(mode==='orbit') cameraPlugin.release();
-    else cameraPlugin.setMode(mode);
+    cameraPlugin.setMode(mode);
   }
   invalidateCamera();
   for(const button of document.querySelectorAll('.cam')){
@@ -389,7 +393,6 @@ async function loadFile(file, preferredName = null, sessionId = null) {
         createNameTagPlugin(),
         createBoostPadsPlugin(),
         createScoredTextPlugin(),
-        fromReplayPlayerPlugin(createBoostPickupAnimationPlugin()),
         cameraStateSource, // native source overrides stale adapter BEFORE camera renders
         cameraPlugin,
         cameraPolish, // must run AFTER native camera plugin
@@ -423,17 +426,20 @@ async function loadFile(file, preferredName = null, sessionId = null) {
     enableControls(true);
     $('ballCamSelect').disabled = false;
     $('hitboxToggle').checked = false;
-    $('trailToggle').checked = true;
+    $('trailToggle').checked = false;
+    next.setBoostPickupAnimationEnabled?.(false);
     setFieldDecorStyle(next,$('fieldDecorSelect').value);
     const sceneQA=applySceneQuality(next,$('qualitySelect').value);
     $('fpsHint').textContent='3D meshes '+sceneQA.meshes+
       ' · filtered textures '+sceneQA.textures;
     setLoading(false);
+    loading = false; // Parent controls can now be applied immediately on hd-loaded.
     updateHud(true);
-    if (bridgeSessionId && window.opener) {
-      window.opener.postMessage({ type: 'replay-lab:hd-loaded', sessionId: bridgeSessionId }, location.origin);
+    if (bridgeSessionId && syncHost()) {
+      syncHost().postMessage({ type: 'replay-lab:hd-loaded', sessionId: bridgeSessionId }, location.origin);
     }
-    next.play();
+    if (embedded) next.pause(); // Parent main timeline owns play/pause.
+    else next.play();
   } catch (error) {
     if (seq !== loadSequence) return;
     console.error('[Replay Lab HD] Replay failed to load', error);
@@ -441,8 +447,8 @@ async function loadFile(file, preferredName = null, sessionId = null) {
     setStatus('Failed to open replay • ' + message, true);
     setLoading(true, 'Replay could not be loaded', 'Try another .replay or inspect the browser console for a parsing/asset error.');
     $('loadError').textContent = message;
-    if (bridgeSessionId && window.opener) {
-      window.opener.postMessage({ type: 'replay-lab:hd-load-error', sessionId: bridgeSessionId }, location.origin);
+    if (bridgeSessionId && syncHost()) {
+      syncHost().postMessage({ type: 'replay-lab:hd-load-error', sessionId: bridgeSessionId }, location.origin);
     }
   } finally {
     if (seq === loadSequence) loading = false;
@@ -474,10 +480,8 @@ $('fxStyle').addEventListener('change', () => {
   if(player) effectRefiner?.update(player);
 });
 $('hitboxToggle').addEventListener('change', e => player?.setHitboxWireframesEnabled(e.target.checked));
-$('trailToggle').addEventListener('change', e => { 
-  // The bridged native pickup particle plugin observes this state.
-  player?.setBoostPickupAnimationEnabled(e.target.checked);
-});
+// Boost pads themselves remain visible; numeric pickup popups are deliberately disabled.
+
 $('playBtn').addEventListener('click', () => {
   if (!player) return;
   if (player.getState().playing) player.pause(); else player.play();
@@ -601,9 +605,9 @@ function applyParentReplayControl(data) {
 // The parent Replay Lab can transfer an already-selected File without
 // uploading it again, using a strict same-origin postMessage handshake.
 window.addEventListener('message', event => {
-  if (event.origin !== location.origin || event.source !== window.opener) return;
+  if (event.origin !== location.origin || event.source !== syncHost()) return;
   if (event.data?.type === 'replay-lab:hd-ping') {
-    window.opener?.postMessage({ type: 'replay-lab:hd-ready', instanceId: hdInstanceId }, location.origin);
+    syncHost()?.postMessage({ type: 'replay-lab:hd-ready', instanceId: hdInstanceId }, location.origin);
     return;
   }
   if (event.data?.type === 'replay-lab:hd-control') {
@@ -616,8 +620,8 @@ window.addEventListener('message', event => {
   void loadFile(file, typeof event.data.preferredPlayer === 'string'
     ? event.data.preferredPlayer : null, event.data.sessionId);
 });
-if (window.opener && window.opener !== window) {
-  window.opener.postMessage({ type: 'replay-lab:hd-ready', instanceId: hdInstanceId }, location.origin);
+if (syncHost()) {
+  syncHost().postMessage({ type: 'replay-lab:hd-ready', instanceId: hdInstanceId }, location.origin);
 }
 
 function hudLoop() {

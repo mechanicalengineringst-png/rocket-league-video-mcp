@@ -6,14 +6,14 @@
  */
 (function () {
   'use strict';
-  const button = document.getElementById('openHdReplay');
+  const iframe = document.getElementById('hdInlineFrame');
   const upload = document.getElementById('fileInput');
   const select = document.getElementById('playerSelect');
   const dropZone = document.getElementById('uploadZone');
-  if (!button || !upload) return;
+  if (!iframe || !upload) return;
 
   let replayFile = null;
-  let hdWindow = null;
+  const hdWindow = () => iframe.contentWindow;
   let sessionId = null;
   let loaded = false;
   let loadInFlight = false;
@@ -34,7 +34,7 @@
     return 'session-' + Array.from(a, x => x.toString(16).padStart(8, '0')).join('');
   }
   function linked() {
-    return hdWindow && !hdWindow.closed;
+    return !!hdWindow() && !hdWindow().closed;
   }
   function preferredName() {
     const selected = select?.selectedOptions?.[0]?.textContent || '';
@@ -47,7 +47,7 @@
     loaded = false;
     loadInFlight = true;
     lastPost = null;
-    hdWindow.postMessage({
+    hdWindow().postMessage({
       type: 'replay-lab:hd-load', sessionId,
       file: replayFile, preferredPlayer: preferredName(),
     }, location.origin);
@@ -75,7 +75,7 @@
       time, playing: !!lastState.playing, speed,
       focusName: lastState.focusName, focusTeam: lastState.focusTeam,
     };
-    hdWindow.postMessage(packet, location.origin);
+    hdWindow().postMessage(packet, location.origin);
     lastPost = packet;
     lastPostAt = now;
   }
@@ -96,15 +96,12 @@
   upload.addEventListener('change', e => captureFile(e.target?.files?.[0]), true);
   dropZone?.addEventListener('drop', e => captureFile(e.dataTransfer?.files?.[0]), true);
 
-  button.addEventListener('click', () => {
-    hdWindow = window.open('/hd', 'replay-lab-high-fidelity');
-    if (!linked()) return;
-    hdWindow.focus();
-    // Ready is sent both on page creation and when pinging an existing tab.
-    hdWindow.postMessage({ type: 'replay-lab:hd-ping' }, location.origin);
+  iframe.addEventListener('load', () => {
+    loadInFlight = false; loaded = false; sessionId = null;
+    hdInstanceId = null;
+    hdWindow()?.postMessage({type:'replay-lab:hd-ping'},location.origin);
   });
   window.addEventListener('replay-lab:replay-ready', e => {
-    // Only trust state created AFTER current upload was fully parsed.
     awaitingReplayReady = !!e.detail?.synthetic;
     if (awaitingReplayReady) lastState = null;
   });
@@ -114,7 +111,7 @@
     forward();
   });
   window.addEventListener('message', e => {
-    if (e.origin !== location.origin || !linked() || e.source !== hdWindow ||
+    if (e.origin !== location.origin || !linked() || e.source !== hdWindow() ||
         !e.data || typeof e.data !== 'object') return;
     if (e.data.type === 'replay-lab:hd-ready') {
       // A freshly reloaded HD window has a new page instance ID. Previous

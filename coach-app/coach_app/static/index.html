@@ -45,32 +45,19 @@
       <div class="stage-top">
         <div><div class="eyebrow">REPLAY VIEWER</div><h2 id="replayTitle">Load a replay to begin</h2></div>
         <div class="view-tabs" role="tablist" aria-label="Replay visualization mode">
-          <button id="viewTab2d" class="tab-btn active" type="button" role="tab" aria-selected="true">2D Map</button>
-          <button id="viewTab3d" class="tab-btn" type="button" role="tab" aria-selected="false">3D Arena</button>
-          <button id="viewTabSplit" class="tab-btn" type="button" role="tab" aria-selected="false">Split View</button>
-          <button id="openHdReplay" class="tab-btn" type="button" title="Open new high-fidelity replay engine in a separate tab">HD 3D Beta ↗</button>
+          <button id="viewTabHd" class="tab-btn" type="button" role="tab" aria-selected="false">HD 3D</button>
+          <button id="viewTab2d" class="tab-btn" type="button" role="tab" aria-selected="false">Tactical 2D</button>
+          <button id="viewTabSplit" class="tab-btn active" type="button" role="tab" aria-selected="true">HD + Map</button>
         </div>
       </div>
       <div class="view-controls panel" aria-label="Replay field display controls">
         <span class="control-title">VIEW OPTIONS</span>
         <label class="view-toggle"><input type="checkbox" id="showFacing" checked /> Car facing (nose)</label>
-        <label class="view-toggle"><input type="checkbox" id="showTrail" /> My recent path (2s)</label>
-        <label class="view-toggle"><input type="checkbox" id="showBallTrail" /> Ball path (1.5s)</label>
         <label class="view-toggle"><input type="checkbox" id="showBoostPads" checked /> Boost pads</label>
-        <span id="boostPadDataStatus" class="pad-coverage" role="status">Pad pickup data unavailable — state unknown</span>
       </div>
-      <div class="pitch-shell" id="pitchShell">
-        <div class="pitch-badge" id="pitchBadge">REPLAY FIELD · POSITIONAL VIEW</div>
-        <div id="controls3d" class="controls-3d" hidden>
-          <span class="cam-label">CAMERA:</span>
-          <button id="camOrbit" class="button-mini active" type="button">Orbit</button>
-          <button id="camTactical" class="button-mini" type="button">Tactical</button>
-          <button id="camFollow" class="button-mini" type="button">Chase Car</button>
-          <button id="camPOV" class="button-mini" type="button" title="Close third-person camera, not an exact in-game POV">Close Chase</button>
-          <button id="camBall" class="button-mini" type="button">Ball Cam</button>
-          <button id="camReset" class="button-mini" type="button">Reset</button>
-        </div>
-        <div id="viewport3d" class="viewport-3d" hidden></div>
+      <div class="pitch-shell split-mode" id="pitchShell">
+        <iframe id="hdInlineFrame" class="hd-inline" src="/hd?embedded=1" title="Replay Lab high-fidelity 3D viewer" allow="fullscreen" allowfullscreen></iframe>
+        <div class="pitch-badge" id="pitchBadge">TACTICAL MAP · LIVE POSITION</div>
         <svg id="field" viewBox="0 0 760 970" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Rocket League field diagram with player, ball and route overlays">
           <defs><linearGradient id="pitchGradient" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#132d38"/><stop offset="50%" stop-color="#102732"/><stop offset="100%" stop-color="#0c2837"/></linearGradient><filter id="glow"><feGaussianBlur stdDeviation="5" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs>
           <rect x="36" y="31" width="688" height="908" rx="96" fill="url(#pitchGradient)" stroke="#47707a" stroke-width="2"/>
@@ -90,7 +77,7 @@
         </svg>
       </div>
       <div class="playback panel">
-        <div class="playback-head"><div><strong id="timeValue">00:00</strong><span id="timelineHelp">Replay time (including stoppages)</span></div><span id="boostValue">BOOST —</span></div>
+        <div class="playback-head"><div><strong id="timeValue">00:00</strong><span id="timelineHelp">Replay time</span></div></div>
         <div class="timeline-row">
           <button id="backBtn" disabled class="button-mini" type="button" aria-label="Back 2 seconds">−2s</button>
           <button id="playBtn" disabled class="play" type="button" aria-label="Play or pause">▶</button>
@@ -135,18 +122,11 @@
       <div class="eyebrow">SELECTED MOMENT</div>
       <div id="selectedDetail"><p class="muted">Select a moment to inspect its evidence and uncertainty.</p></div>
       <div class="section-line"></div>
-      <div class="eyebrow">GAME CLOCK</div>
-      <div id="sceneInspector" aria-live="off" class="scene-inspector"><p class="muted">Load a replay to see the match clock.</p></div>
-      <details id="recentActionsPanel" class="recent-actions-panel"><summary>Recent touches</summary><div id="recentActionsList" class="touch-list"><p class="muted">Open a replay to inspect touches.</p></div></details>
-      <div class="disclaimer"><strong>Evidence before confidence.</strong> Top-down motion alone cannot prove a flick, missed demo, player's intent, or a correct challenge. Inspect the replay view or a matching gameplay recording when available.</div>
     </aside>
   </main>
   <div class="toast" id="toast" role="alert" aria-live="polite"></div>
-  <script src="/static/vendor/three.min.js"></script>
-  <script src="/static/vendor/OrbitControls.js"></script>
   <script src="/static/viewer3d-math.js"></script>
   <script src="/static/boost-pad-state.js"></script>
-  <script src="/static/viewer3d.js"></script>
   <script src="/static/app.js" defer></script>
   <script src="/static/hd-bridge.js" defer></script>
 </body>

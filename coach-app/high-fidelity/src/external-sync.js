@@ -40,6 +40,18 @@ export function resolveFocusedPlayer(players, name, team) {
   return match.length === 1 ? match[0] : null;
 }
 
+
+/** DOM select values are strings. Player adapter IDs may be numeric; matching
+ * them strictly without normalization silently leaves Follow Player detached.
+ * Duplicate IDs are ambiguous, so never guess which car to follow.
+ */
+export function findSelectedPlayer(players, selectValue) {
+  if(!Array.isArray(players)||selectValue==null)return null;
+  const id=String(selectValue);
+  const matched=players.filter(p=>p&&p.id!=null&&String(p.id)===id);
+  return matched.length===1?matched[0]:null;
+}
+
 export function shouldCorrectReplayTime(target, actual, playing) {
   if (!Number.isFinite(actual) || !Number.isFinite(target)) return false;
   // Gentle drift check while both clocks play: avoid constant seek jitter.

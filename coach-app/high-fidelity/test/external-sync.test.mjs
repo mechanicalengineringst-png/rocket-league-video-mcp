@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  validateExternalControl, resolveFocusedPlayer,
+  validateExternalControl, resolveFocusedPlayer, findSelectedPlayer,
   shouldCorrectReplayTime, safeSessionId,
 } from '../src/external-sync.js';
 
@@ -66,4 +66,13 @@ test('session IDs are bounded to opaque simple tokens',()=>{
   assert.equal(safeSessionId('<script>'),false);
   assert.equal(safeSessionId('abc'),false);
   assert.equal(safeSessionId('x'.repeat(101)),false);
+});
+
+test('HTML option strings match numeric adapter player IDs without guessing',()=>{
+  const roster=[{id:42,name:'Blue',team:0},{id:'orange-1',name:'Orange',team:1}];
+  assert.equal(findSelectedPlayer(roster,'42'),roster[0]);
+  assert.equal(findSelectedPlayer(roster,'orange-1'),roster[1]);
+  assert.equal(findSelectedPlayer(roster,'missing'),null);
+  assert.equal(findSelectedPlayer([{id:42},{id:'42'}],'42'),null,
+    'duplicate cross-type IDs must not attach to an arbitrary car');
 });

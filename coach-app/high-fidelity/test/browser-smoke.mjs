@@ -16,7 +16,9 @@ const output=path.resolve('test-artifacts');
 mkdirSync(output,{recursive:true});
 const browser=await chromium.launch({
   headless:true,
-  executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',
+  // In CI use the Chromium Playwright just installed; local Windows can opt
+  // into a custom executable, but a hardcoded C: path breaks Linux runners.
+  ...(process.env.PLAYWRIGHT_CHROMIUM_PATH ? {executablePath:process.env.PLAYWRIGHT_CHROMIUM_PATH} : {}),
   args:[
     '--enable-webgl',
     '--use-angle=swiftshader',
@@ -57,8 +59,8 @@ try{
   assert.ok(players>=2,'Real replay should have at least two player tracks');
   const canvas=await page.locator('#viewport canvas').evaluate(c=>({width:c.width,height:c.height}));
   assert.ok(canvas.width>100 && canvas.height>100,'Renderer should mount nonzero canvas');
-  await page.locator('[data-camera="orbit"]').click();
-  assert.equal(await page.locator('#cameraLabel').textContent(),'ORBIT CAM');
+  await page.locator('[data-camera="ballOrbit"]').click();
+  assert.equal(await page.locator('#cameraLabel').textContent(),'BALL ORBIT');
   await page.locator('[data-camera="follow"]').click();
   const label=await page.locator('#cameraLabel').textContent();
   assert.match(label,/BALL CAM|CAR CAM|REAR LOOK|CAMERA UNKNOWN/);
@@ -79,7 +81,7 @@ try{
   // Camera label alone could be UI theater: assert the actual replay engine
   // switched its CameraManager state using decoded native toggle events.
   const firstOff=page.locator('#cameraEventList button.off').first();
-  if(await firstOff.count()) {
+  if(await firstOff.count() && await firstOff.isVisible()) {
     await firstOff.click(); await page.waitForTimeout(320);
     const off=await page.evaluate(()=>window.__rlReplayLabQA?.effectiveCameraState());
     console.log('HD_REAL_CAMERA_OFF_STATE',JSON.stringify(off));
