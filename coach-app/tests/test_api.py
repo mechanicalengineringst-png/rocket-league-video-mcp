@@ -10,6 +10,9 @@ def test_health_and_ui():
     assert html.status_code==200
     assert 'REPLAY LAB' in html.text
     assert client.get('/static/app.js').status_code==200
+    companion_status = client.get('/api/companion/status')
+    assert companion_status.status_code == 200
+    assert 'available' in companion_status.json()
 
 
 def test_upload_validations():

@@ -290,3 +290,29 @@ async def ai_review(request: Request):
     except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError) as e:
         # Never echo a secret or raw upstream error payload to the browser.
         raise HTTPException(502, 'Gemini analysis did not complete. Check server logs/quota and retry later.') from e
+
+
+@app.get('/api/companion/status')
+def get_companion_status():
+    from dataclasses import asdict
+    from coach_app.companion import RocketLeagueCompanion
+    comp = RocketLeagueCompanion()
+    status = comp.get_status()
+    return asdict(status)
+
+
+@app.post('/api/companion/command')
+def post_companion_command(payload: dict):
+    from coach_app.companion import RocketLeagueCompanion, CompanionConnectionError, CompanionProtocolError
+    cmd = payload.get('Command')
+    data = payload.get('Data', {})
+    if not cmd:
+        raise HTTPException(400, 'Command field is required')
+    comp = RocketLeagueCompanion()
+    try:
+        res = comp.send_command(cmd, data, wait_response=True, timeout=1.0)
+        return res
+    except CompanionConnectionError as e:
+        raise HTTPException(503, str(e)) from e
+    except CompanionProtocolError as e:
+        raise HTTPException(400, str(e)) from e
