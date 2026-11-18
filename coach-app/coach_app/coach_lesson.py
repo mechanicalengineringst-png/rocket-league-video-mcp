@@ -224,7 +224,7 @@ def _checked_draft_claim(claim: dict[str, Any], packet: dict[str, Any]) -> tuple
 
     # Even if all cited measurements are correct, a persuasive sentence can
     # be tactically false. This is a numeric contradiction screen ONLY.
-    cleaned = re.sub(r"\b\d+v\d+\b|\b\d+(?:st|nd|rd|th)\b", "", text, flags=re.I)
+    cleaned = re.sub(r"\b50\s*/\s*50\b|\b\d+v\d+\b|\b\d+(?:st|nd|rd|th)\b", "", text, flags=re.I)
     numeric_values = [p["stated_value"] for p in checked if _finite(p["stated_value"])]
     for token in NUMBER_IN_PROSE.findall(cleaned):
         if not any(math.isclose(float(token), v, abs_tol=1e-8) for v in numeric_values):
