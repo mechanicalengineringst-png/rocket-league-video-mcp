@@ -310,8 +310,8 @@
       // 3. Car Facing Cone
       if (node.car_state.forward) {
         const fwd = node.car_state.forward;
-        const tipX = carSvgX + fwd[0] * 35;
-        const tipY = carSvgY + fwd[1] * 35;
+        const tipX = carSvgX - fwd[0] * 35;
+        const tipY = carSvgY - fwd[1] * 35;
 
         const arrow = document.createElementNS('http://www.w3.org/2000/svg', 'line');
         arrow.setAttribute('x1', carSvgX);
@@ -767,6 +767,10 @@
         chatList.append(typing);
       }
 
+      // Chat messages are re-rendered on every response: rebind citations here.
+      chatList.querySelectorAll('.citation-tag').forEach(tag => {
+        tag.onclick = () => this.inspectEvidenceReference(tag.getAttribute('data-citation-id'));
+      });
       chatList.scrollTop = chatList.scrollHeight;
     }
 
@@ -800,7 +804,7 @@
         hypothesis: 'HYPOTHETICAL EXPLORATION',
         unknown: 'UNOBSERVABLE FACTOR',
         retrospective: 'STAGE 2 RETROSPECTIVE (Hindsight)'
-      }[kindClass] || 'OBSERVED TELEMETRY';
+      }[kindClass] || 'UNVERIFIED SOURCE CLASSIFICATION';
 
       modal.innerHTML = `
         <div class="evidence-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="modalEvidenceTitle">
