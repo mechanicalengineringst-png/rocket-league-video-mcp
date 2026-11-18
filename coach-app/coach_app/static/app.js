@@ -574,7 +574,7 @@ function decisionLensMetric(label, value, description=''){
   return box;
 }
 function fmtUnits(n,suffix='u'){
-  return Number.isFinite(n) ? '≈'+Math.round(n/25)*25 .toLocaleString('en-US')+' '+suffix : 'Unknown';
+  return Number.isFinite(n) ? '≈'+(Math.round(n/25)*25).toLocaleString('en-US')+' '+suffix : 'Unknown';
 }
 function updateDecisionLensClock(){
   const label=$('lensSummary'),lens=state.decisionLens;
@@ -591,7 +591,7 @@ function renderDecisionLensPanel(){
     'lensAfterBtn','lensClearBtn'];
   for(const id of ids){const b=$(id);if(b)b.disabled=!windowData;}
   if($('lensPinBtn'))$('lensPinBtn').disabled=!hasReplay;
-  if($('lensAfterBtn'))$('lensAfterBtn').disabled=!windowData?.after || !lens.revealed;
+  if($('lensAfterBtn'))$('lensAfterBtn').disabled=!windowData?.after || !lens?.revealed;
   if($('lensRevealBtn')) {
     $('lensRevealBtn').disabled=!windowData?.after;
     $('lensRevealBtn').textContent=lens?.revealed?'Hide actual +2s':'Reveal actual +2s';
