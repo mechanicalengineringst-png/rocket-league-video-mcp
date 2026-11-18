@@ -33,6 +33,7 @@ class EpisodeLessonRequest(BaseModel):
     episode_start_s: float
     primary_t0: float
     mode: Literal["deterministic", "model"] = "deterministic"
+    experimental_tactical_v1: bool = False
 
     @field_validator("replay")
     @classmethod
@@ -138,6 +139,9 @@ def coach_capabilities():
         "automatic_episode_selection": False,
         "source_backed_candidate_discovery": "EpisodeCandidatesV0",
         "candidate_discovery_is_tactical_grading": False,
+        "experimental_decision_state_v1": "explicit_opt_in_deterministic_only",
+        "experimental_v1_expert_validated": False,
+        "experimental_v1_default_enabled": False,
         "tactical_accuracy_expert_verified": False,
     }
 
@@ -164,6 +168,10 @@ async def coach_candidates_endpoint(request: Request):
 async def coach_lesson_endpoint(request: Request):
     """Build a lesson from a manually selected 5-20s 2v2 sequence."""
     req = await _read_json_request(request, EpisodeLessonRequest)
+    # V1 has not demonstrated expert merit. Compare it locally and explicitly;
+    # never forward its inferred stances or branch consequences to a model.
+    if req.experimental_tactical_v1 and req.mode != "deterministic":
+        raise HTTPException(422, "Experimental V1 is available for deterministic lessons only.")
     # No model call unless the explicit request AND server gates are both open.
     if req.mode == "model" and not model_enabled():
         raise HTTPException(403, "Optional coaching model is disabled by default.")
@@ -174,7 +182,10 @@ async def coach_lesson_endpoint(request: Request):
             draft = await propose_coach_draft(packet)
         else:
             draft = None
-        return await run_in_threadpool(build_lesson_from_episode, episode, model_draft=draft)
+        return await run_in_threadpool(
+            build_lesson_from_episode, episode, model_draft=draft,
+            experimental_tactical_v1=req.experimental_tactical_v1,
+        )
     except CoachModelDisabled as e:
         raise HTTPException(503, str(e)) from e
     except (CoachModelError, CoachDraftError) as e:
