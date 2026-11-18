@@ -1173,6 +1173,10 @@
               feedback_time: fb.updated_at || null
             };
           }),
+          // Distinguish deterministic review from explicit source-checked
+          // model hypotheses; export only locally when tester clicks Export.
+          // Never serialize provider keys, remote endpoints or raw replay.
+          model_coaching_reviews: global.modelCoachingUI?.exportSummary?.() || [],
           diagnostics: {
             bundle_status: this.bundle?.status || 'direct_lesson_queries',
             experimental_v1: Boolean(this.useExperimentalV1),
