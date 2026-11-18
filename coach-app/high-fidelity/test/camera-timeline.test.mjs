@@ -168,8 +168,7 @@ test('long native camera histories support many smooth seeks without rescanning 
     const frame=Math.min(timeIndex,1199);
     const got=recordedCameraAt(player,timeIndex);
     assert.equal(got.ballCam,frame%2===0, 'same historical state on backwards seek');
-    assert.equal(got.behind,Math.floor(frame/5)*5%5===0 &&
-      (Math.floor(frame/5)*5<=frame), 'latest rear toggle remains on');
+    assert.equal(got.behind,frame%5===0, 'latest rear toggle remains accurate');
   }
   assert.equal(reads,initialReads,'per-render lookup must not rescan source event array');
 });
