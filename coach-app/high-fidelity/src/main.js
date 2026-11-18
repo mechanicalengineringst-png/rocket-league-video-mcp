@@ -427,7 +427,7 @@ async function loadFile(file, preferredName = null, sessionId = null) {
     $('ballCamSelect').disabled = false;
     $('hitboxToggle').checked = false;
     $('trailToggle').checked = false;
-    next.setBoostPickupAnimationEnabled(false);
+    next.setBoostPickupAnimationEnabled?.(false);
     setFieldDecorStyle(next,$('fieldDecorSelect').value);
     const sceneQA=applySceneQuality(next,$('qualitySelect').value);
     $('fpsHint').textContent='3D meshes '+sceneQA.meshes+
