@@ -92,7 +92,7 @@ def validate_native_command(command: str, data: Dict[str, Any]) -> Dict[str, Any
     Follow the published Psyonix Stats API, not a mock server's permissive
     acceptance of arbitrary JSON. Return a copy to avoid caller mutation.
     """
-    if command not in _COMMAND_FIELDS:
+    if not isinstance(command, str) or command not in _COMMAND_FIELDS:
         raise CompanionProtocolError("Unsupported native replay command.")
     if not isinstance(data, dict) or not data or not set(data).issubset(_COMMAND_FIELDS[command]):
         raise CompanionProtocolError("Unknown or missing native command fields.")
@@ -121,7 +121,9 @@ def validate_native_command(command: str, data: Dict[str, Any]) -> Dict[str, Any
                 "Focus must be 'Ball' or a numeric spectator shortcut string."
             )
         perspective = data.get("Perspective")
-        if perspective is not None and perspective not in _POV_PERSPECTIVES:
+        if perspective is not None and (
+            not isinstance(perspective, str) or perspective not in _POV_PERSPECTIVES
+        ):
             raise CompanionProtocolError("Unknown spectator Perspective.")
         if focus is None and perspective is None:
             raise CompanionProtocolError("ChangePOV needs Focus or Perspective.")
@@ -397,11 +399,11 @@ class RocketLeagueCompanion:
         return self.send_command("SetGameSpeed", {"Speed": multiplier})
 
     def set_match_paused(self, paused: bool) -> Dict[str, Any]:
-        """Pause or unpause replay: {"Command": "SetMatchPaused", "Data": {"Paused": ...}}"""
+        """Pause or unpause replay using the official bPaused field."""
         return self.send_command("SetMatchPaused", {"bPaused": paused})
 
     def set_hud_visibility(self, visible: bool) -> Dict[str, Any]:
-        """Toggle native HUD visibility: {"Command": "SetHUDVisibility", "Data": {"Visible": ...}}"""
+        """Toggle native HUD visibility using the official bVisible field."""
         return self.send_command("SetHUDVisibility", {"bVisible": visible})
 
     def observe_playback_state(self) -> Dict[str, Any]:
