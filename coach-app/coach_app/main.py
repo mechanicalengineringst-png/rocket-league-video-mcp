@@ -303,6 +303,10 @@ def get_companion_status():
 
 @app.post('/api/companion/command')
 def post_companion_command(payload: dict):
+    # This route can control a running game; never enable it merely because a
+    # local socket is listening. User must explicitly opt in for the session.
+    if os.getenv('REPLAY_LAB_ENABLE_NATIVE_COMMANDS') != '1':
+        raise HTTPException(403, 'Native game commands are disabled by default.')
     from coach_app.companion import RocketLeagueCompanion, CompanionConnectionError, CompanionProtocolError
     cmd = payload.get('Command')
     data = payload.get('Data', {})
@@ -310,7 +314,7 @@ def post_companion_command(payload: dict):
         raise HTTPException(400, 'Command field is required')
     comp = RocketLeagueCompanion()
     try:
-        res = comp.send_command(cmd, data, wait_response=True, timeout=1.0)
+        res = comp.send_command(cmd, data, wait_response=False)  # Sent does not mean executed
         return res
     except CompanionConnectionError as e:
         raise HTTPException(503, str(e)) from e

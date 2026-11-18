@@ -156,3 +156,14 @@ def test_decision_cases_endpoint_input_validations():
     resp = client.post('/api/decision-cases', json={'replay': long_replay})
     assert resp.status_code == 422
 
+
+
+def test_native_companion_command_route_is_opt_in(monkeypatch):
+    # Merely visiting the local web app must not grant arbitrary control
+    # over a running Rocket League process.
+    monkeypatch.delenv("REPLAY_LAB_ENABLE_NATIVE_COMMANDS", raising=False)
+    response = client.post('/api/companion/command', json={
+        'Command': 'SetMatchPaused', 'Data': {'bPaused': True},
+    })
+    assert response.status_code == 403
+    assert 'disabled' in response.text.lower()
