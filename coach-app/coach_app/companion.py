@@ -145,6 +145,11 @@ class CompanionStatus:
     transport: str  # "none", "tcp", "websocket"
     host: str
     port: int
+    # Loopback probe observations, NEVER an authenticated RL/game session.
+    tcp_command_port_open: bool = False
+    websocket_probe_port_open: bool = False
+    game_identity_verified: bool = False
+    replay_control_verified: bool = False
     game_state: Dict[str, Any] = field(default_factory=dict)
     reported_playback_time: Optional[float] = None
     drift_seconds: Optional[float] = None
@@ -440,6 +445,10 @@ class RocketLeagueCompanion:
             transport="none",
             host=self.host,
             port=probe["recommended_port"],
+            tcp_command_port_open=probe["tcp_port_49123_open"],
+            websocket_probe_port_open=probe["websocket_port_49124_open"],
+            game_identity_verified=False,
+            replay_control_verified=False,
             instructions=(
                 "Port(s) listening, but no authenticated Rocket League command "
                 "session has been established. TCP 49123 is the implemented "
