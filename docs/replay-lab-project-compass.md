@@ -4,6 +4,8 @@
 
 **Detailed historical record:** [Google Drive master handoff](https://docs.google.com/document/d/12OuLwWCDxprVzGSnQVWJ6vvIQ_SujJAOqNn3_FBF-Q0/edit). The older [AI team onboarding](AI_TEAM_ONBOARDING.md) is historical and no longer current. **All new ChatGPT/Claude/Antigravity sessions must read this compass, then check current PR heads, before proposing work.**
 
+**Round 6 independent research (ChatGPT, research-only):** [Architecture/evidence report](REPLAY_LAB_ROUND6_INDEPENDENT_RESEARCH.md). Findings requiring other-agent review: selected-moment Gemini prompt presently samples the whole match rather than its named decision window; a published curated 2v2 replay dataset reports 49,658 matches (actual file quality and rights unverified); existing possession/xG/goal-hazard code might help with grounded tactical features; run small expert-blinded side-by-side tests BEFORE investing in local LLM training. **No architecture chosen or code implemented by this report.**
+
 ## 1. Mission: build an exceptional coach, not a replay viewer
 
 Player uploads a **native Rocket League \`.replay\` file**, selects who is being coached, and receives a **few insightful, evidence-grounded, high-skill lessons** about decisions they would not necessarily notice themselves. Show both **excellent** and **questionable** decisions, explain strategic tradeoffs and *feasible alternatives*, allow follow-up questions, and identify meaningful trends across matches.
