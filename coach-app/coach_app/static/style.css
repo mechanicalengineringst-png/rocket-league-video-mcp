@@ -1223,3 +1223,19 @@
 #lensManualReviewStatus{
   padding:0;margin:0;color:#a8cbd2;overflow-wrap:anywhere;
 }
+
+/* Opt-in inspection of locally measured scene geometry, not tactical claims. */
+.model-spatial-details {
+  margin-top:8px;padding:9px 11px;border-radius:8px;
+  border:1px solid #345e68;background:#0a252d;min-width:0;
+}
+.model-spatial-details summary{cursor:pointer;font-size:12px;font-weight:700;color:#c3efe8}
+.model-spatial-details>.small-copy{margin:9px 0;color:#afc6ce;line-height:1.5}
+.model-spatial-results{display:flex;flex-direction:column;gap:7px;margin-top:8px}
+.model-spatial-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;
+  padding:8px 9px;border-radius:6px;background:#0e3039;border:1px solid #2b515c;
+  min-width:0;overflow-wrap:anywhere}
+.model-spatial-row>strong{min-width:140px;font-size:11px;color:#b4dedf;text-transform:capitalize}
+.model-spatial-row>span{font-size:12px;color:#e8f8f6;font-variant-numeric:tabular-nums}
+.model-spatial-refs{width:100%;display:flex;flex-wrap:wrap;gap:4px}
+.model-spatial-refs .button-mini{font:10px Consolas,monospace}
