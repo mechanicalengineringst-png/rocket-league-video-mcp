@@ -247,10 +247,12 @@
       heading=norm(h);
     }
 
+    // Authentic Rocket League tournament camera profiles (scale 0.01 = 100 uu):
+    // Standard pro profile: FOV 110, Distance 270, Height 100, Angle -3° to -4°.
     const configs={
-      follow:{distance:7.4,height:3.45,fov:84,targetHeight:1.15},
-      pov:{distance:3.65,height:1.88,fov:94,targetHeight:1.0},
-      ball:{distance:6.4,height:3.10,fov:92,targetHeight:1.05}
+      follow:{distance:5.8,height:2.40,fov:86,targetHeight:0.85},
+      pov:{distance:2.70,height:1.02,fov:105,targetHeight:0.65},
+      ball:{distance:2.85,height:1.10,fov:108,targetHeight:0.65}
     };
     const cfg=configs[mode];
 
@@ -258,7 +260,7 @@
     // Blend camera up vector with car's roof vector so on walls the camera
     // pushes out into the arena instead of clipping through the wall or floor.
     const onWall = basis.up[1] < 0.75;
-    const camUp = onWall ? norm(add(scale([0,1,0], 0.4), scale(basis.up, 0.6))) : [0,1,0];
+    const camUp = onWall ? norm(add(scale([0,1,0], 0.35), scale(basis.up, 0.65))) : [0,1,0];
 
     let position=add(sub(center,scale(heading,cfg.distance)),scale(camUp,cfg.height));
     let target=add(center,scale(camUp,cfg.targetHeight));
@@ -272,12 +274,12 @@
       position=add(sub(center,scale(dirToBall,cfg.distance)),scale(camUp,cfg.height));
       const between=sub(position,target);
       const distance=Math.hypot(...between);
-      if(distance<3.0){
-        position=add(target,scale(norm(between,scale(heading,-1)),3.0));
+      if(distance<2.5){
+        position=add(target,scale(norm(between,scale(heading,-1)),2.5));
       }
     }
     // Arena boundaries: keep outside floor and below ceiling
-    position[1]=Math.max(0.85,Math.min(19.2,position[1]));
+    position[1]=Math.max(0.45,Math.min(19.2,position[1]));
     return {position,target,heading,fov:cfg.fov,basis,camUp,ballRadius:RADIUS};
   }
 

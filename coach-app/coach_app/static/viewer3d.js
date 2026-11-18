@@ -519,7 +519,26 @@
       pipeR.position.set(0.38, 0.45, -1.25);
       group.add(pipeL, pipeR);
 
-      // 4 Wheels
+      // Dynamic boost flames (pulsed during boost expenditure or supersonic flight)
+      const flameGeo = new THREE.ConeGeometry(0.16, 0.85, 12);
+      const flameMat = new THREE.MeshBasicMaterial({
+        color: isBlue ? 0x00e5ff : 0xff9800,
+        transparent: true,
+        opacity: 0.9
+      });
+      const flameL = new THREE.Mesh(flameGeo, flameMat);
+      flameL.rotation.x = -Math.PI / 2;
+      flameL.position.set(-0.38, 0.45, -1.72);
+      flameL.visible = false;
+      group.add(flameL);
+
+      const flameR = new THREE.Mesh(flameGeo, flameMat);
+      flameR.rotation.x = -Math.PI / 2;
+      flameR.position.set(0.38, 0.45, -1.72);
+      flameR.visible = false;
+      group.add(flameR);
+
+      // 4 Wheels with rotation spin and front steering pivot groups
       const wheelGeo = new THREE.CylinderGeometry(0.32, 0.32, 0.28, 14);
       const wheelMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.8 });
       const wheelPos = [
@@ -528,17 +547,41 @@
         [-0.85, 0.32, -0.75],
         [0.85, 0.32, -0.75]
       ];
+      const wheels = [];
       wheelPos.forEach(([wx, wy, wz]) => {
+        const isFront = wz > 0;
+        const pivotGroup = new THREE.Group();
+        pivotGroup.position.set(wx, wy, wz);
+        group.add(pivotGroup);
+
+        const spinGroup = new THREE.Group();
+        pivotGroup.add(spinGroup);
+
         const wheel = new THREE.Mesh(wheelGeo, wheelMat);
         wheel.rotation.z = Math.PI / 2;
-        wheel.position.set(wx, wy, wz);
-        group.add(wheel);
+        spinGroup.add(wheel);
+
         const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.20,0.20,0.295,20),
           new THREE.MeshStandardMaterial({color:0x9aa9ae,metalness:0.85,roughness:0.25}));
         rim.rotation.z = Math.PI/2;
-        rim.position.set(wx, wy, wz);
-        group.add(rim);
+        spinGroup.add(rim);
+
+        wheels.push({ pivotGroup, spinGroup, isFront, isLeft: wx < 0, wx, wz });
       });
+
+      // Ground tire skid mark geometry on turf
+      const MAX_SKID_SEGS = 48;
+      const skidPositions = new Float32Array(MAX_SKID_SEGS * 6);
+      const skidGeo = new THREE.BufferGeometry();
+      skidGeo.setAttribute('position', new THREE.BufferAttribute(skidPositions, 3));
+      const skidMat = new THREE.LineBasicMaterial({
+        color: 0x061116,
+        transparent: true,
+        opacity: 0.55,
+        depthWrite: false
+      });
+      const skidMesh = new THREE.LineSegments(skidGeo, skidMat);
+      this.scene.add(skidMesh);
 
       // Realistic orientation cues (front headlights / rear tail lamps)
       // replace the floating directional nose arrow.
@@ -589,7 +632,12 @@
       this.scene.add(stalk);
       this.scene.add(shadow);
 
-      return { group, halo, stalk, shadow, player };
+      return {
+        group, halo, stalk, shadow, player,
+        flameL, flameR, wheels,
+        skidMesh, skidGeo, skidPositions, skidSegments: [],
+        wheelAngle: 0, lastBoost: null, lastPos: null
+      };
     }
 
     setCameraMode(mode) {
@@ -763,6 +811,85 @@
         // Ground shadow
         carEntry.shadow.visible = true;
         carEntry.shadow.position.set(cx, 0.03, cz);
+
+        // Kinetic fidelity: wheel spin, front wheel steering, boost exhaust & tire tracks
+        let speed = 0;
+        if (carData.velocity && Array.isArray(carData.velocity)) {
+          speed = Math.hypot(carData.velocity[0], carData.velocity[1]) * 0.01;
+        } else if (carEntry.lastPos) {
+          speed = Math.hypot(cx - carEntry.lastPos[0], cz - carEntry.lastPos[2]) / 0.033;
+        }
+
+        const onGround = cy <= 0.42;
+
+        // 1. Wheel spin (rotates around local X-axis based on linear velocity)
+        if (onGround && speed > 0.05 && carEntry.wheels) {
+          carEntry.wheelAngle = (carEntry.wheelAngle || 0) + (speed * 0.035) / 0.32;
+          carEntry.wheels.forEach(w => {
+            if (w.spinGroup) w.spinGroup.rotation.x = carEntry.wheelAngle;
+          });
+        }
+
+        // 2. Front wheel steering (turns front wheels up to +/- 22 degrees)
+        let steerAngle = 0;
+        if (typeof carData.steer === 'number') {
+          steerAngle = carData.steer * (Math.PI / 8);
+        } else if (carEntry.lastYaw !== undefined && carData.rotation && carData.rotation[2] !== undefined) {
+          const dyaw = carData.rotation[2] - carEntry.lastYaw;
+          steerAngle = Math.max(-Math.PI / 8, Math.min(Math.PI / 8, dyaw * 4.0));
+        }
+        if (carEntry.wheels) {
+          carEntry.wheels.filter(w => w.isFront).forEach(w => {
+            if (w.pivotGroup) w.pivotGroup.rotation.y = steerAngle;
+          });
+        }
+        if (carData.rotation) carEntry.lastYaw = carData.rotation[2];
+
+        // 3. Dynamic boost flames
+        const isSupersonic = speed > 21.0;
+        const boostSpent = carEntry.lastBoost !== null && (carEntry.lastBoost - (carData.boost ?? 0) > 0.02);
+        const isBoosting = boostSpent || (carData.boost > 0 && speed > 15.0);
+        if (carEntry.flameL && carEntry.flameR) {
+          if (isBoosting || isSupersonic) {
+            carEntry.flameL.visible = true;
+            carEntry.flameR.visible = true;
+            const flicker = 0.85 + 0.35 * Math.random() + (isSupersonic ? 0.4 : 0);
+            carEntry.flameL.scale.set(flicker, flicker * (isSupersonic ? 1.6 : 1.2), flicker);
+            carEntry.flameR.scale.set(flicker, flicker * (isSupersonic ? 1.6 : 1.2), flicker);
+          } else {
+            carEntry.flameL.visible = false;
+            carEntry.flameR.visible = false;
+          }
+        }
+        carEntry.lastBoost = typeof carData.boost === 'number' ? carData.boost : null;
+
+        // 4. Ground tire tracks (emitted when sliding / sharp steering on turf)
+        if (carEntry.skidMesh && carEntry.skidPositions) {
+          const isDrifting = onGround && Math.abs(steerAngle) > 0.10 && speed > 5.0;
+          if (isDrifting && carEntry.lastPos) {
+            const seg = [
+              cx, 0.025, cz,
+              carEntry.lastPos[0], 0.025, carEntry.lastPos[2]
+            ];
+            carEntry.skidSegments.push(seg);
+            if (carEntry.skidSegments.length > 48) carEntry.skidSegments.shift();
+          } else if (carEntry.skidSegments.length > 0) {
+            carEntry.skidSegments.shift(); // decay
+          }
+          const posAttr = carEntry.skidMesh.geometry.attributes.position;
+          let idx = 0;
+          for (const s of carEntry.skidSegments) {
+            for (let i = 0; i < 6; i++) {
+              posAttr.array[idx++] = s[i];
+            }
+          }
+          for (let i = idx; i < posAttr.array.length; i++) {
+            posAttr.array[i] = 0;
+          }
+          posAttr.needsUpdate = true;
+        }
+
+        carEntry.lastPos = [cx, cy, cz];
       });
 
       // Camera placement is solved independently from the car mesh; the close
@@ -795,6 +922,13 @@
       if (this.animationId) {
         cancelAnimationFrame(this.animationId);
       }
+      this.carObjects.forEach(carEntry => {
+        if (carEntry.skidMesh) {
+          this.scene.remove(carEntry.skidMesh);
+          if (carEntry.skidMesh.geometry) carEntry.skidMesh.geometry.dispose();
+          if (carEntry.skidMesh.material) carEntry.skidMesh.material.dispose();
+        }
+      });
       if (this.renderer && this.renderer.domElement && this.renderer.domElement.parentElement) {
         this.renderer.domElement.parentElement.removeChild(this.renderer.domElement);
       }

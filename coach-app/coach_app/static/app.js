@@ -76,14 +76,43 @@ function setReplay(replay, opts={}){
     loadDecisionCasesForCoaching(replay, state.focusId);
   }
 }
-function makeCoachLessonRequest(replay, playerId, decisionCase) {
-  // Source cases choose the primary moment; context nodes are explicitly selected
-  // nearby timestamps, not automatically inferred prior mistakes.
+function makeCoachLessonRequest(replay, playerId, decisionCase, allCases = []) {
+  // Source cases choose the primary commitment moment.
+  // Instead of arbitrary randomly-spaced timestamps, we select an explicit
+  // approach lead-in context timestamp (or a real earlier candidate case if one
+  // exists in the 5-20s window), eliminating false causal claims.
   const t0 = Number(decisionCase.t0 ?? decisionCase.timestamp);
   const first = Number(replay.frames?.[0]?.t ?? 0);
   if (!Number.isFinite(t0) || t0 - first < 5.05 || t0 > replay.duration) return null;
-  const episodeStart = +(t0 - 5).toFixed(3);
-  const decisionTimes = [t0 - 3.2, t0 - 1.5, t0].map(t => +t.toFixed(3));
+
+  // Check if there is an actual prior candidate case for this player within 3.0s - 15.0s
+  const earlierCase = (allCases || []).find(other => {
+    if (other === decisionCase) return false;
+    const ot = Number(other.t0 ?? other.timestamp);
+    return Number.isFinite(ot) && ot >= t0 - 15.0 && ot <= t0 - 3.0;
+  });
+
+  let decisionTimes;
+  let episodeStart;
+  if (earlierCase) {
+    const et = Number(earlierCase.t0 ?? earlierCase.timestamp);
+    decisionTimes = [+et.toFixed(3), +t0.toFixed(3)];
+    episodeStart = +Math.max(first, et - 2.0).toFixed(3);
+  } else {
+    // Single approach lead-in context timestamp (t0 - 2.0s)
+    const approachContext = +(t0 - 2.0).toFixed(3);
+    decisionTimes = [approachContext, +t0.toFixed(3)];
+    episodeStart = +Math.max(first, t0 - 5.0).toFixed(3);
+  }
+
+  // Ensure window is between 5.0 and 20.0 seconds as required by EpisodeEvidenceV0
+  const windowLength = +t0.toFixed(3) - episodeStart;
+  if (windowLength < 5.0) {
+    episodeStart = +(+t0.toFixed(3) - 5.0).toFixed(3);
+  } else if (windowLength > 20.0) {
+    episodeStart = +(+t0.toFixed(3) - 19.5).toFixed(3);
+  }
+
   if (decisionTimes.some(t => t < episodeStart || !Number.isFinite(t))) return null;
   return {
     replay, player_id: playerId, decision_times: decisionTimes,
@@ -109,9 +138,10 @@ async function loadDecisionCasesForCoaching(replay, playerId) {
     if (!res.ok) throw new Error('Candidate decision extraction unavailable (' + res.status + ').');
     const data = await res.json();
     let count = 0;
-    for (const c of (data.cases || []).slice(0, 5)) {
+    const cases = data.cases || [];
+    for (const c of cases.slice(0, 5)) {
       if (state.replay !== replay || state.focusId !== playerId) return;
-      const payload = makeCoachLessonRequest(replay, playerId, c);
+      const payload = makeCoachLessonRequest(replay, playerId, c, cases);
       if (!payload) continue;
       try {
         const lessonRes = await fetch('/api/coach/lesson', {

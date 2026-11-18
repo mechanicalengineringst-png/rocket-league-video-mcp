@@ -114,11 +114,11 @@
         return {
           node_id: moment.node_id, t0: nodeTime, is_primary: isPrimary,
           information_cutoff_s: nodeTime,
-          label: isPrimary ? 'Primary source-backed decision' : 'Earlier context timestamp (not individually graded)',
-          summary: isPrimary ? 'Decision-time evidence and uncalibrated tactical possibilities.'
-            : 'Context timestamp selected near a source case; not a proven contributing choice.',
+          label: isPrimary ? `Decision Point (t0 = ${nodeTime.toFixed(1)}s)` : `Approach Lead-In (${nodeTime.toFixed(1)}s)`,
+          summary: isPrimary ? 'Tactical options and constraints evaluated at the commitment moment.'
+            : 'Pre-decision approach window. Temporal context for viewing momentum and positioning — not graded as a separate choice or cause.',
           coaching: isPrimary ? {
-            headline: 'Source-backed tactical possibilities — not expert validated',
+            headline: 'Source-backed tactical options — uncalibrated baseline',
             stance: 'neutral', confidence: 'hypothesis',
             assessment: 'Backend verdict: ' + (lesson.assessment?.grade || 'undetermined')
               + '. The tactical option menu is an uncalibrated hypothesis, not a proven recommendation.',
@@ -129,14 +129,14 @@
               question: 'Could an earlier setup have affected this decision?',
               not_established: 'Unverified causal hypothesis. Consult its supporting evidence.'
             })),
-            takeaway: 'No expert-calibrated takeaway yet. Inspect options, constraints and uncertainty.',
+            takeaway: 'No expert-calibrated takeaway yet. Inspect options, constraints and uncertainty below.',
             unknowns: [...(lesson.not_observable || []), ...(lesson.uncertainties || []).map(u => u.what || 'Unknown input')]
           } : {
-            headline: 'Context only; no independently verified tactical grade.',
+            headline: 'Approach Context Window (No independent tactical grade)',
             stance: 'neutral', confidence: 'hypothesis',
-            assessment: 'A selected earlier timestamp is not by itself evidence of a contributing mistake.',
+            assessment: 'Pre-decision approach state. This observation window reveals the car\'s approach angle, speed, and boost before commitment — it is NOT a prior mistake or cause.',
             feasible_alternatives: [], observed_evidence: [], earlier_contributors: [],
-            unknowns: [], takeaway: 'Review this timestamp in the replay before attributing causation.'
+            unknowns: [], takeaway: 'Use this approach window to observe momentum and positioning leading into t0.'
           }
         };
       });
@@ -511,11 +511,11 @@
             <div class="stepper-header">
               <span class="stepper-title">DECISION SEQUENCE (${ep.nodes.length} Moments)</span>
               <div class="stepper-nav-buttons">
-                <button id="stepPrevBtn" class="button-mini" type="button" title="Navigate to earlier decision">
-                  ⏮ Earlier Choice
+                <button id="stepPrevBtn" class="button-mini" type="button" title="Navigate to previous moment">
+                  ⏮ Previous Moment
                 </button>
-                <button id="stepNextBtn" class="button-mini" type="button" title="Navigate to later decision">
-                  Later Choice ⏭
+                <button id="stepNextBtn" class="button-mini" type="button" title="Navigate to next moment">
+                  Next Moment ⏭
                 </button>
               </div>
             </div>
@@ -536,7 +536,7 @@
                   ` : ''}
                   <button class="step-node ${isActive ? 'active' : ''} ${isPrimary ? 'primary-node' : 'context-node'}"
                           data-node-id="${n.node_id}" type="button">
-                    <span class="node-id-tag">${n.node_id}${isPrimary ? ' (Primary)' : ''}</span>
+                    <span class="node-id-tag">${n.node_id} · ${isPrimary ? 'Decision Point' : 'Approach Context'}</span>
                     <span class="node-time">${n.t0.toFixed(1)}s</span>
                     <span class="node-label">${escapeHTML(n.label)}</span>
                   </button>
@@ -547,10 +547,10 @@
             <!-- Replay Sync Stepping Bar -->
             <div class="replay-step-bar">
               <span class="step-label">REPLAY VIEW JUMP:</span>
-              <button id="jumpBeforeBtn" class="button-mini" type="button">⏪ -2s Setup</button>
-              <button id="jumpDecisionBtn" class="button-mini active-target" type="button">🎯 Decision (t0 = ${node.t0.toFixed(1)}s)</button>
-              <button id="jumpActionBtn" class="button-mini" type="button">⏩ +1s Action</button>
-              <button id="jumpOutcomeBtn" class="button-mini" type="button">🏁 +3s Outcome</button>
+              <button id="jumpBeforeBtn" class="button-mini" type="button" title="Jump to approach lead-in">⏪ -2s Approach</button>
+              <button id="jumpDecisionBtn" class="button-mini active-target" type="button" title="Jump directly to commitment point">🎯 Decision Point (t0 = ${node.t0.toFixed(1)}s)</button>
+              <button id="jumpActionBtn" class="button-mini" type="button" title="Jump to initial follow-through">⏩ +1s Follow-Through</button>
+              <button id="jumpOutcomeBtn" class="button-mini" type="button" title="Jump to outcome (hindsight)">🏁 +3s Outcome</button>
             </div>
           </div>
 
