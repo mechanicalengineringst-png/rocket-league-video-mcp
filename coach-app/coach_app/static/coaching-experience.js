@@ -16,11 +16,16 @@
 
   // Helper selector
   const $ = id => document.getElementById(id);
+  const escapeHTML = value => String(value ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
 
   class CoachingExperienceController {
     constructor() {
-      this.episodes = (global.ReplayLabCoachingFixtures && global.ReplayLabCoachingFixtures.FIXTURES) || [];
-      this.activeEpisode = this.episodes[0] || null;
+      this.episodes = [];
+      this.isDemo = false;
+      this.liveStatus = 'Load a real replay to inspect source-backed coaching, or explicitly select the simulated demo.';
+      this.activeEpisode = null;
       this.activeNode = (this.activeEpisode && this.activeEpisode.nodes[this.activeEpisode.nodes.length - 1]) || null;
       this.stage1Locked = true;
       this.inspectedEvidence = null;
@@ -51,6 +56,103 @@
       }
       this.render();
       this.bindEvents();
+    }
+
+    resetForReplay(demo = false) {
+      this.isDemo = Boolean(demo);
+      this.episodes = this.isDemo
+        ? [...(global.ReplayLabCoachingFixtures?.FIXTURES || [])] : [];
+      this.activeEpisode = this.episodes[0] || null;
+      this.activeNode = this.activeEpisode?.nodes?.find(n => n.is_primary) || null;
+      this.stage1Locked = true;
+      this.inspectedEvidence = null;
+      this.liveStatus = this.isDemo
+        ? 'SIMULATED DEMONSTRATION ONLY — all match situations and coaching text are examples.'
+        : 'Waiting for source-backed analysis of the selected player.';
+      this.initDefaultChat();
+      this.render();
+    }
+
+    setLiveStatus(message) {
+      if (this.isDemo) return;
+      this.liveStatus = String(message || 'Live coaching unavailable.');
+      if (!this.activeEpisode) this.render();
+    }
+
+    addVerifiedLesson(lesson, request, decisionCase = {}) {
+      if (!lesson || lesson.schema !== 'CoachLessonV0'
+          || lesson.stage !== 'predecision' || !request) return;
+      const decision = lesson.decision || {};
+      const time = Number(decision.t0_s);
+      if (!Number.isFinite(time)) return;
+      const primaryId = decision.node_id || 'N3';
+      const tactics = lesson.tactical_options || {};
+      const allClaims = [...(lesson.claims || []), ...(tactics.claims || [])];
+      const references = [...new Set(allClaims.flatMap(c => c.evidence_refs || []))]
+        .filter(ref => typeof ref === 'string' && ref.length <= 160).slice(0, 30);
+      const evidence = references.map(id => ({
+        id, kind: 'reference', label: id, value: 'Open verified source',
+        provenance: 'backend_reference', description: 'Value is retrieved from /api/coach/evidence'
+      }));
+      const choices = (tactics.options || []).map(o => ({
+        id: 'option-' + String(o.action || 'unknown'),
+        action: String(o.action || 'unknown').replace(/_/g, ' '),
+        feasibility: o.physical_feasibility || 'unknown',
+        feasibility_label: o.physical_feasibility || 'unknown',
+        risk_level: 'unknown',
+        pros: 'Uncalibrated rule stance: ' + (o.strategic_stance || 'not assessed'),
+        cons: 'Limit sources: ' + [...(o.limiting_claims || []), ...(o.severe_limit_claims || [])].join(', ')
+          + '. Counterfactual ball trajectories and expected value are not simulated.',
+        description: 'Rule-derived option, not a validated best move. ' +
+          'Supporting sources: ' + (o.supporting_claims || []).join(', ')
+      }));
+      const prior = decision.other_decisions || [];
+      const moments = [...prior, {node_id: primaryId, t0_s: time}];
+      const nodes = moments.map((moment, i) => {
+        const isPrimary = moment.node_id === primaryId;
+        const nodeTime = Number(moment.t0_s);
+        return {
+          node_id: moment.node_id, t0: nodeTime, is_primary: isPrimary,
+          information_cutoff_s: nodeTime,
+          label: isPrimary ? 'Primary source-backed decision' : 'Earlier context timestamp (not individually graded)',
+          summary: isPrimary ? 'Decision-time evidence and uncalibrated tactical possibilities.'
+            : 'Context timestamp selected near a source case; not a proven contributing choice.',
+          coaching: isPrimary ? {
+            headline: 'Source-backed tactical possibilities — not expert validated',
+            stance: 'neutral', confidence: 'hypothesis',
+            assessment: 'Backend verdict: ' + (lesson.assessment?.grade || 'undetermined')
+              + '. The tactical option menu is an uncalibrated hypothesis, not a proven recommendation.',
+            feasible_alternatives: choices,
+            observed_evidence: evidence,
+            earlier_contributors: (lesson.earlier_factors || []).map(h => ({
+              id: h.hypothesis_id, earlier_node: h.earlier_node,
+              question: 'Could an earlier setup have affected this decision?',
+              not_established: 'Unverified causal hypothesis. Consult its supporting evidence.'
+            })),
+            takeaway: 'No expert-calibrated takeaway yet. Inspect options, constraints and uncertainty.',
+            unknowns: [...(lesson.not_observable || []), ...(lesson.uncertainties || []).map(u => u.what || 'Unknown input')]
+          } : {
+            headline: 'Context only; no independently verified tactical grade.',
+            stance: 'neutral', confidence: 'hypothesis',
+            assessment: 'A selected earlier timestamp is not by itself evidence of a contributing mistake.',
+            feasible_alternatives: [], observed_evidence: [], earlier_contributors: [],
+            unknowns: [], takeaway: 'Review this timestamp in the replay before attributing causation.'
+          }
+        };
+      });
+      const replayPlayer = request.replay?.players?.find(p => p.id === request.player_id);
+      const ep = {
+        schema: 'CoachLessonV0', source: 'backend_stage1',
+        episode_id: 'backend-' + request.player_id + '-' + String(time),
+        title: String(decisionCase.title || 'Replay tactical decision'),
+        subtitle: 'SOURCE-BACKED / PREDECISION / UNCALIBRATED',
+        player_id: request.player_id, player_name: replayPlayer?.name || 'Selected player',
+        backendRequest: request,
+        window: {start_s: request.episode_start_s, end_s: time,
+          length_s: time - request.episode_start_s, stage1_horizon_s: time},
+        nodes, retrospective: null
+      };
+      this.addLiveEpisode(ep);
     }
 
     /**
@@ -123,6 +225,7 @@
      */
     stepTime(deltaSeconds) {
       if (!this.activeNode) return;
+      if (deltaSeconds > 0 && this.stage1Locked) return;
       const targetTime = Math.max(0, this.activeNode.t0 + deltaSeconds);
       if (typeof global.chooseTime === 'function') {
         global.chooseTime(targetTime);
@@ -150,8 +253,8 @@
       // Pitch coordinate mapper (Rocket League coords to SVG viewBox 760x970)
       // X: [-4096, 4096] -> [58, 702]
       // Y: [-5120, 5120] -> [50, 920] (Blue is negative Y in RL, bottom in SVG)
-      const toSvgX = x => 380 + (x / 4096) * 322;
-      const toSvgY = y => 485 + (y / 5120) * 435;
+      const toSvgX = x => 380 - (x / 4096) * 322;
+      const toSvgY = y => 485 - (y / 5120) * 435;
 
       const carPos = node.car_state.position;
       const carSvgX = toSvgX(carPos[0]);
@@ -228,6 +331,8 @@
      * Unlock or toggle Stage 2 Retrospective Outcome
      */
     toggleStage1Firewall() {
+      // There is no trusted server-side Stage 2 contract for uploaded replays.
+      if (!this.isDemo) return;
       this.stage1Locked = !this.stage1Locked;
       this.render();
     }
@@ -389,7 +494,7 @@
     render() {
       if (!this.container) return;
       if (!this.activeEpisode) {
-        this.container.innerHTML = '<div class="coaching-empty">Select or load a replay to launch Coaching Lab.</div>';
+        this.container.innerHTML = '<div class="coaching-empty">' + escapeHTML(this.liveStatus) + '</div>';
         return;
       }
 
@@ -403,16 +508,16 @@
           <div class="coaching-top-bar">
             <div class="episode-selector-row">
               <div class="episode-title-block">
-                <span class="coaching-badge">TACTICAL COACHING LAB</span>
-                <h3 class="episode-heading">${ep.title}</h3>
-                <span class="episode-sub">${ep.subtitle} · Player: <strong>${ep.player_name}</strong></span>
+                <span class="coaching-badge">${this.isDemo ? 'SIMULATED DEMONSTRATION — NOT YOUR REPLAY' : 'SOURCE-BACKED COACHING / UNCALIBRATED'}</span>
+                <h3 class="episode-heading">${escapeHTML(ep.title)}</h3>
+                <span class="episode-sub">${escapeHTML(ep.subtitle)} · Player: <strong>${escapeHTML(ep.player_name)}</strong></span>
               </div>
               <div class="episode-dropdown-wrap">
                 <label for="episodeSelect" class="sr-only">Select Episode</label>
                 <select id="episodeSelect" class="episode-select">
                   ${this.episodes.map(e => `
                     <option value="${e.episode_id}" ${e.episode_id === ep.episode_id ? 'selected' : ''}>
-                      ${e.title} (${e.window.length_s.toFixed(1)}s)
+                      ${escapeHTML(e.title)} (${e.window.length_s.toFixed(1)}s)
                     </option>
                   `).join('')}
                 </select>
@@ -427,13 +532,15 @@
                   <strong>${this.stage1Locked ? 'STAGE 1: PRE-DECISION COGNITION' : 'STAGE 2: RETROSPECTIVE OUTCOME UNLOCKED'}</strong>
                   <p class="firewall-desc">
                     ${this.stage1Locked
-                      ? 'Information strictly cut off at t0 (' + node.t0.toFixed(1) + 's). Hindsight outcomes are quarantined.'
+                      ? (this.isDemo
+                          ? 'Demo analysis is predecision; simulated outcomes stay hidden.'
+                          : 'Server evidence is limited to decision-time data. No verified retrospective contract is available.')
                       : 'Hindsight outcome visible. WARNING: Post-t0 events never prove decision quality.'}
                   </p>
                 </div>
               </div>
-              <button id="toggleFirewallBtn" class="button-mini ${this.stage1Locked ? 'btn-unlock' : 'btn-lock'}" type="button">
-                ${this.stage1Locked ? '🔓 Reveal Retrospective' : '🔒 Lock Pre-Decision'}
+              <button id="toggleFirewallBtn" class="button-mini ${this.stage1Locked ? 'btn-unlock' : 'btn-lock'}" type="button" ${this.isDemo ? '' : 'disabled'}>
+                ${this.isDemo ? (this.stage1Locked ? '🔓 Reveal Simulated Outcome' : '🔒 Hide Simulated Outcome') : 'Retrospective unavailable'}
               </button>
             </div>
           </div>
@@ -470,7 +577,7 @@
                           data-node-id="${n.node_id}" type="button">
                     <span class="node-id-tag">${n.node_id}${isPrimary ? ' (Primary)' : ''}</span>
                     <span class="node-time">${n.t0.toFixed(1)}s</span>
-                    <span class="node-label">${n.label}</span>
+                    <span class="node-label">${escapeHTML(n.label)}</span>
                   </button>
                 `;
               }).join('')}
@@ -498,7 +605,7 @@
                 ${(ep.retrospective.events || []).map(ev => `
                   <div class="retro-event-item">
                     <span class="retro-time">${ev.t.toFixed(1)}s</span>
-                    <span class="retro-desc">${ev.label}</span>
+                    <span class="retro-desc">${escapeHTML(ev.label)}</span>
                   </div>
                 `).join('')}
               </div>
@@ -525,13 +632,13 @@
                     </span>
                   </div>
                 </div>
-                <h4 class="assessment-headline">${coaching.headline || node.label}</h4>
-                <p class="assessment-desc">${coaching.assessment || node.summary}</p>
+                <h4 class="assessment-headline">${escapeHTML(coaching.headline || node.label)}</h4>
+                <p class="assessment-desc">${escapeHTML(coaching.assessment || node.summary)}</p>
 
                 <!-- Actionable Takeaway -->
                 <div class="takeaway-box">
                   <div class="takeaway-title">💡 ACTIONABLE TAKEAWAY</div>
-                  <p class="takeaway-text">${coaching.takeaway || 'Evaluate your recovery route and spacing relative to your teammate.'}</p>
+                  <p class="takeaway-text">${escapeHTML(coaching.takeaway || 'Evaluate your recovery route and spacing relative to your teammate.')}</p>
                 </div>
               </div>
 
@@ -546,13 +653,13 @@
                   ${(coaching.feasible_alternatives || []).length > 0 ? (coaching.feasible_alternatives || []).map(alt => `
                     <div class="alt-item risk-${alt.risk_level || 'medium'}">
                       <div class="alt-item-header">
-                        <strong class="alt-action">${alt.action}</strong>
-                        <span class="feasibility-badge badge-${alt.feasibility}">${alt.feasibility_label}</span>
+                        <strong class="alt-action">${escapeHTML(alt.action)}</strong>
+                        <span class="feasibility-badge badge-${alt.feasibility}">${escapeHTML(alt.feasibility_label)}</span>
                       </div>
-                      <p class="alt-desc">${alt.description}</p>
+                      <p class="alt-desc">${escapeHTML(alt.description)}</p>
                       <div class="alt-tradeoffs">
-                        <div class="tradeoff-pro">✓ <strong>Pro:</strong> ${alt.pros}</div>
-                        <div class="tradeoff-con">✗ <strong>Risk:</strong> ${alt.cons}</div>
+                        <div class="tradeoff-pro">✓ <strong>Pro:</strong> ${escapeHTML(alt.pros)}</div>
+                        <div class="tradeoff-con">✗ <strong>Risk:</strong> ${escapeHTML(alt.cons)}</div>
                       </div>
                     </div>
                   `).join('') : `
@@ -579,8 +686,8 @@
                             </button>
                           ` : ''}
                         </div>
-                        <p class="hyp-question">${h.question}</p>
-                        <small class="hyp-caveat">${h.not_established}</small>
+                        <p class="hyp-question">${escapeHTML(h.question)}</p>
+                        <small class="hyp-caveat">${escapeHTML(h.not_established)}</small>
                       </div>
                     `).join('')}
                   </div>
@@ -604,7 +711,7 @@
                             title="Click to inspect telemetry details">
                       <span class="chip-id">${ev.id}</span>
                       <strong class="chip-label">${ev.label}</strong>
-                      <span class="chip-val">${ev.value}</span>
+                      <span class="chip-val">${escapeHTML(ev.value)}</span>
                     </button>
                   `).join('')}
                 </div>
@@ -613,7 +720,7 @@
                 <details class="unknowns-details">
                   <summary>Disclosed Unobservable Factors (${(coaching.unknowns || []).length})</summary>
                   <ul class="unknowns-list">
-                    ${(coaching.unknowns || []).map(u => `<li>${u}</li>`).join('')}
+                    ${(coaching.unknowns || []).map(u => `<li>${escapeHTML(u)}</li>`).join('')}
                   </ul>
                 </details>
               </div>
