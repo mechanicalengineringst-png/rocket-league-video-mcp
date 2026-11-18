@@ -123,6 +123,39 @@ Response shape (abbreviated; values depend on actual source):
 
 Response codes: `403` model server disabled, `503` model enabled but missing configuration, `502` provider/structured-response failure, `413` request too large, `415` not JSON, `422` malformed replay or unsafe episode.
 
+### POST /api/coach/evidence
+
+Read-only evidence inspector for Antigravity's interactive citation display. The request is identical to `/api/coach/lesson`, plus `evidence_refs: ["N3/E.focus.boost", "D.N1-N2.focus.boost", "H.1"]` (1–20 unique references). `mode` must remain `deterministic`; this endpoint NEVER calls an AI model.
+
+Response:
+
+~~~json
+{
+  "schema": "CoachEvidenceLookupV0",
+  "stage": "predecision",
+  "stage1_packet_sha256": "...",
+  "records": [
+    {
+      "id": "N3/E.focus.boost",
+      "category": "observed_or_estimated_node_fact",
+      "node_id": "N3",
+      "decision_time_s": 10.0,
+      "kind": "observation",
+      "value": 10.0,
+      "unit": "boost",
+      "source_time_s": 10.0,
+      "provenance": ["replay_sample", "freshness_unverified"],
+      "meaning_verified": false
+    }
+  ],
+  "retrospective_exposed": false
+}
+~~~
+
+Supported citation types: `N#/E.` and `N#/C.` observed/derived facts, `N#/U.` unavailable facts, `D.` derived changes, `T.` anonymized context events, `H.` unverified earlier-contributor prompts, and `UD.` missing change inputs. Each record explicitly marks its source nature. `D.` quantities carry `derived_value_needs_independent_math_check`, not fabricated precision. `H.` records include `established_cause:false`.
+
+Every requested ID must actually occur in the reconstructed sanitized episode. Retrospective `N#/R.`, hidden source/player identities and nonexistent IDs are denied (422). Never expose raw local paths or the original episode source metadata.
+
 ### POST /api/coach/followup
 
 Same request as the lesson, plus `question` (1–500 characters). `mode` must be `deterministic` in V0.
