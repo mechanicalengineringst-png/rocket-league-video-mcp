@@ -42,7 +42,12 @@ def test_capabilities_advertises_review_bundle_and_companion():
 def test_real_replay_review_bundle_pipeline(real_replay):
     """Verify one-call review bundle generates source-checked leads and lesson previews."""
     client = TestClient(app)
-    player_id = "Steam:76561198994872471"
+    # Source-backed selection: no hard-coded account IDs in a public test.
+    # Rank, player identity and tactical quality are NOT inferred from the fixture.
+    candidates = [p.get("id") for p in real_replay.get("players", [])
+                  if isinstance(p, dict) and p.get("team") == "blue"]
+    assert len(candidates) == 2 and all(isinstance(pid, str) and pid for pid in candidates)
+    player_id = candidates[0]
 
     bundle_req = {
         "replay": real_replay,
