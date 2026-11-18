@@ -1001,7 +1001,7 @@ function wire(){
   zone.ondragover=e=>{e.preventDefault();zone.classList.add('dragging');};
   zone.ondragleave=()=>zone.classList.remove('dragging');
   zone.ondrop=e=>{e.preventDefault();zone.classList.remove('dragging');loadFile(e.dataTransfer.files[0]);};
-  $('playerSelect').onchange=e=>{clearDecisionLens();state.focusId=e.target.value;state.focusConfirmed=true;if(state.replay?.source!=='synthetic')remembered.set(state.focusId);state.overrides.clear();refreshFindings();chooseTime(state.time);window.coachingController?.resetForReplay(state.replay?.source==='synthetic');if(state.replay?.source!=='synthetic')loadDecisionCasesForCoaching(state.replay,state.focusId);};
+  $('playerSelect').onchange=e=>{clearDecisionLens();window.modelCoachingUI?.resetForReplay();state.focusId=e.target.value;state.focusConfirmed=true;if(state.replay?.source!=='synthetic')remembered.set(state.focusId);state.overrides.clear();refreshFindings();chooseTime(state.time);window.coachingController?.resetForReplay(state.replay?.source==='synthetic');if(state.replay?.source!=='synthetic')loadDecisionCasesForCoaching(state.replay,state.focusId);};
   $('timeRange').oninput=e=>{stopPlay();cancelDecisionLensLoop();chooseTime(Number(e.target.value));};
   $('playBtn').onclick=togglePlay;
   $('backBtn').onclick=()=>{stopPlay();cancelDecisionLensLoop();chooseTime(state.time-2);};
@@ -1041,6 +1041,14 @@ function wire(){
   if (typeof CoachingExperienceController !== 'undefined') {
     window.coachingController = new CoachingExperienceController();
     window.coachingController.mount('coachingExperienceContainer');
+  }
+  // One explicitly authorized model request per selected source-backed
+  // primary episode; deterministic coaching remains the free default.
+  if (globalThis.ReplayLabModelCoaching?.ModelCoachingController) {
+    window.modelCoachingUI = new ReplayLabModelCoaching.ModelCoachingController(
+      () => ({replay:state.replay, focusId:state.focusId,
+        focusConfirmed:state.focusConfirmed,coach:window.coachingController}));
+    window.modelCoachingUI.mount();
   }
   // Decision Lens is a real replay tool, separate from coaching verdicts.
   if($('lensPinBtn'))$('lensPinBtn').onclick=()=>{

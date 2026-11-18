@@ -24,7 +24,10 @@ jobs:
           node --check coach-app/coach_app/static/app.js
           node --check coach-app/coach_app/static/decision-lens.js
           node --check coach-app/coach_app/static/coaching-experience.js
+          node --check coach-app/coach_app/static/model-coaching.js
       - name: Test coordinate transforms and cameras
         run: node --test coach-app/tests/test_viewer_math.cjs
       - name: Test recorded decision lens, temporal evidence and looping
         run: node --test coach-app/high-fidelity/test/decision-lens.test.mjs
+      - name: Test real model coaching opt-in UI and per-episode request mapping
+        run: node --test coach-app/high-fidelity/test/model-coaching-ui.test.mjs

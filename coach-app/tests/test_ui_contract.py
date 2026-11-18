@@ -86,3 +86,26 @@ def test_decision_lens_is_real_interactive_review_not_a_fake_tactical_verdict():
     assert "coachingGradeAssigned:false" in source
     assert 'future_recording_separate' in source
     assert "outcome" not in html.split('id="decisionLensPanel">',1)[1].split('</details>',1)[0].lower()
+
+
+def test_real_model_coaching_ui_has_explicit_consent_and_no_fake_fallback():
+    html = (ROOT / "index.html").read_text(encoding="utf-8")
+    model = (ROOT / "model-coaching.js").read_text(encoding="utf-8")
+    app = (ROOT / "app.js").read_text(encoding="utf-8")
+    coach = (ROOT / "coaching-experience.js").read_text(encoding="utf-8")
+    assert '<script src="/static/model-coaching.js"></script>' in html
+    for name in (
+        "modelCoachPanel", "modelCoachRunBtn", "modelCoachConsent",
+        "modelCoachRefreshBtn", "modelCoachStatus", "modelCoachReadiness",
+        "modelCoachSelected", "modelCoachResults", "modelCoachEvidence",
+        "modelCoachExportBtn",
+    ):
+        assert f'id="{name}"' in html
+    assert "ReplayLabModelCoaching.ModelCoachingController" in app
+    assert "mode:'model', experimental_tactical_v1:false" in model
+    assert "future_outcomes_used !== false" in model
+    assert "semantic_tactical_accuracy_verified !== false" in model
+    assert "No model request has been made" in model
+    assert "source" in model.lower() and "evidence_refs" in model
+    assert "model_coaching_reviews" in coach
+    assert "candidate_id" in coach and "episodeRequest" in coach

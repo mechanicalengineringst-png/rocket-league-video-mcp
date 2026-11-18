@@ -14,7 +14,7 @@ from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field, field_validator
 
 from .coach_lesson import CoachDraftError, answer_evidence_followup, build_lesson_from_episode, lookup_episode_evidence
-from .coach_model import CoachModelDisabled, CoachModelError, model_enabled, propose_coach_draft
+from .coach_model import CoachModelDisabled, CoachModelError, model_enabled, model_readiness, propose_coach_draft
 from .episode_evidence import EpisodeError, build_episode_evidence
 from .episode_discovery import DiscoveryError, discover_episode_candidates
 from .episode_stage1 import build_stage1_episode_packet
@@ -140,6 +140,7 @@ def coach_capabilities():
         "followup": "CoachFollowupV0",
         "local_deterministic_available": True,
         "optional_model_enabled": model_enabled(),
+        "model_configuration_status": model_readiness()["status"],
         "model_requires_request_opt_in": True,
         "stage": "predecision",
         "automatic_episode_selection": False,
@@ -153,6 +154,12 @@ def coach_capabilities():
         "experimental_v1_default_enabled": False,
         "tactical_accuracy_expert_verified": False,
     }
+
+
+@router.get("/api/coach/model-readiness")
+def coach_model_readiness_endpoint():
+    """Safe, read-only settings check; does NOT contact an AI provider."""
+    return model_readiness()
 
 
 @router.post("/api/coach/candidates")
