@@ -182,7 +182,12 @@ def build_stage1_episode_packet(episode: dict[str, Any]) -> dict[str, Any]:
             continue
         if not uid.startswith("UD.") or uid in fact_ids | change_ids | timeline_ids:
             raise Stage1PacketError("Unknown item has unsupported or conflicting ID.")
-        refs = _refs(unknown.get("refs"), unknown_ids, "unknown", allow_empty=True)
+        raw_refs = unknown.get("refs")
+        # The episode builder may repeat U.frame for multiple missing inputs.
+        # Deduplicate *only* uncertainty references (never facts/citations).
+        if isinstance(raw_refs, list) and all(isinstance(r, str) for r in raw_refs):
+            raw_refs = list(dict.fromkeys(raw_refs))
+        refs = _refs(raw_refs, unknown_ids, "unknown", allow_empty=True)
         # The actual field is unknown; an unknown cannot establish a positive fact.
         unknowns.append({"id": uid, "refs": refs,
                          "kind": "missing_source_for_derived_change"})
