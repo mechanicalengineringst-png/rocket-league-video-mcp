@@ -14,6 +14,7 @@ from urllib.parse import urlsplit
 import httpx
 
 from .episode_stage1 import SCHEMA as EPISODE_PACKET_SCHEMA
+from .relational_invariants import build_relational_invariants
 from .stage1_packet import _copy_json_safe
 from .tactical_coach_adapter import build_verified_tactical_context
 
@@ -27,6 +28,17 @@ controller inputs, teammate comms, opponent intent, flip availability, an
 optimal action, an expected-value probability, or an unseen future result.
 Do not assume that aggression is bad or that retreat is always good.
 Physical reachability does not prove a tactical choice is desirable.
+The optional RelationalInvariantsV0 scene_relations packet is mathematically
+computed from primary/earlier pre-decision car and ball positions: longitudinal
+goalward ordering, planar separation, and nose-to-ball angle. It gives NO
+possession, recovery, safety, camera awareness, intercept times, future events
+or tactical merit. When it abstains because positions are missing/stale, do
+not infer the relation. Use the geometry to avoid reversing spatial directions,
+not as a new oracle that selects the best action. Do not put derived scene
+numbers in your claims: the claim verifier currently checks predicates ONLY
+against original N#/E. measurements, not against these computed summaries.
+A qualitative relationship needs the ORIGINAL source E.position/E.forward
+citations, never fabricated geometry citation IDs.
 More than one action may be defensible. The accompanying TacticalOptionsV0
 context is a verified-citation but UNCALIBRATED menu: its stances are not an
 expert ground truth or predictions of action outcome. Use specific supporting
@@ -56,7 +68,9 @@ Return ONLY a JSON object with the exact structure:
    }
  ]
 }
-The supplied JSON contains stage1_episode plus tactical_options. For every
+The supplied JSON contains stage1_episode, tactical_options, and
+scene_relations. Scene relations are uncalibrated local coordinate math.
+For every
 alternative or tactical interpretation, prefer tactical_claim_ids from the
 provided verified tactical claim menu, and never invent these IDs. Any cited
 tactical claim must be associated with the same decision and be supported by
@@ -182,9 +196,12 @@ async def propose_coach_draft(predecision_packet: dict) -> dict:
     try:
         safe_packet = _copy_json_safe(predecision_packet)
         tactical_context = build_verified_tactical_context(safe_packet)
-        # Build context locally: no caller-supplied tactical claims or retro can enter.
+        scene_relations = build_relational_invariants(safe_packet)
+        # Geometry comes only from the same audited Stage1 episode. No
+        # caller-supplied summaries, personal info, outcome or raw replay.
         payload_str = json.dumps({"stage1_episode": safe_packet,
-                                  "tactical_options": tactical_context},
+                                  "tactical_options": tactical_context,
+                                  "scene_relations": scene_relations},
                                  sort_keys=True, separators=(",", ":"), ensure_ascii=True)
     except (TypeError, ValueError) as e:
         raise CoachModelError("Coaching evidence is not safe to serialize.") from e
