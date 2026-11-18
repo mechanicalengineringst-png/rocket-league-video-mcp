@@ -76,7 +76,7 @@ def _check_predicate(predicate: dict, cited: set[str],
         return None, "Predicate citation is absent, unknown or retrospective."
     if not isinstance(path, list) or any(type(p) not in (str, int) for p in path):
         return None, "Predicate value_path must be a list of keys/indices."
-    if relation not in RELATIONS:
+    if not isinstance(relation, str) or relation not in RELATIONS:
         return None, "Only eq, gte and lte predicate relations are supported."
     if type(stated) not in (str, bool, int, float) or (_finite_number(stated) is False
                                                       and type(stated) in (int, float)):
@@ -167,7 +167,7 @@ def verify_stage1_claims(packet: dict[str, Any], claims: list[dict[str, Any]]) -
         seen_claims.add(claim_id)
 
         claim_type = claim.get("epistemic_type")
-        if claim_type not in CLAIM_TYPES:
+        if not isinstance(claim_type, str) or claim_type not in CLAIM_TYPES:
             errors.append("Unsupported epistemic_type.")
         if claim.get("temporal_scope") != "PRE_DECISION":
             errors.append("Stage 1 cannot judge post-decision or timeless claims as predecision facts.")
