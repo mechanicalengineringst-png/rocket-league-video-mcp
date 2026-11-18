@@ -155,6 +155,7 @@ class DecisionCaseRequest(BaseModel):
     replay: dict[str, Any]
     player_id: str | None = None
     evaluate: bool = False
+    analyze: bool = False  # opt-in t0-only tactical reading (coach_app.tactical_analysis)
 
     @field_validator('replay')
     @classmethod
@@ -198,10 +199,55 @@ async def decision_cases_endpoint(request: DecisionCaseRequest):
             if request.evaluate:
                 eval_res = evaluate_decision_case_heuristics(c)
                 item['evaluation'] = eval_res
+            if request.analyze:
+                from .tactical_analysis import analyze_case
+                item['analysis'] = analyze_case(c, request.replay).to_dict()
             output.append(item)
-        return {'cases': output, 'count': len(output), 'mode': 'opt_in_decision_engine'}
+        result = {'cases': output, 'count': len(output), 'mode': 'opt_in_decision_engine'}
+        if request.analyze and request.player_id:
+            from .tactical_analysis import find_shot_opportunities, rank
+            result['opportunities'] = [f.to_dict() for f in rank(find_shot_opportunities(request.replay, request.player_id),
+                                                                 request.player_id)]
+        return result
     except (KeyError, ValueError, TypeError) as e:
         raise HTTPException(422, f'Could not process decision cases: {e}') from e
+
+
+class CoachQuestionRequest(BaseModel):
+    replay: dict[str, Any]
+    player_id: str
+    case_id: str
+    question_type: str
+    question: str = ''
+    model_answer: dict[str, Any] | None = None  # optional; validated against the packet, never trusted as-is
+
+    @field_validator('replay')
+    @classmethod
+    def validate_replay_structure(cls, v: Any) -> dict[str, Any]:
+        return DecisionCaseRequest.validate_replay_structure(v)
+
+
+@app.post('/api/coach-question')
+async def coach_question_endpoint(request: CoachQuestionRequest):
+    """Answer a question about one reviewed moment from deterministic evidence only.
+
+    No model is called here. A caller may pass a model's answer; it is checked
+    against the evidence packet and replaced by the deterministic answer if it
+    breaks the contract (coach_app.coaching_qa).
+    """
+    try:
+        from .coaching_qa import answer
+        from .decision_cases import extract_all_decision_cases
+        from .tactical_analysis import review_replay
+
+        cases = extract_all_decision_cases(request.replay)
+        findings = review_replay(request.replay, cases, request.player_id)
+        target = next((f for f in findings if f.case_id == request.case_id), None)
+        if target is None:
+            raise HTTPException(404, 'No reviewed moment with that case_id for this player.')
+        return answer(target, request.question_type, request.question, request.model_answer, history=findings)
+    except (KeyError, ValueError, TypeError) as e:
+        raise HTTPException(422, f'Could not answer: {e}') from e
 
 
 @app.post('/api/ai-review')

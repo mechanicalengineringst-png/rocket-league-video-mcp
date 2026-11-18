@@ -176,9 +176,12 @@ def test_scenario_4_unsupported_challenge_flagged_as_risk():
 
     finding = evaluate_decision_case_heuristics(case)
     assert finding is not None
-    assert finding["assessment"] == "tactical_risk"
-    assert finding["type"] == "tactical_risk"
-    assert "without defensive depth" in finding["title"].lower()
+    # Changed deliberately: one depth fact is not enough to call a challenge a mistake
+    # (an aggressive challenge with the teammate forward can be correct). The finding is
+    # surfaced as a tradeoff to inspect, and never cites the later challenge as evidence.
+    assert finding["assessment"] == "tradeoff"
+    assert "no teammate behind" in finding["title"].lower()
+    assert "challenge_approach" not in finding["cited_evidence"]
 
 
 # Scenario 5: Structured Prompt Generation with Sanitized Pre-Decision Context
