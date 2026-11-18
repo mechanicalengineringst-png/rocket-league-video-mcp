@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Replay Lab · Commitment Timing Review</title>
+  <style>
+    :root{color-scheme:dark;font:14px/1.5 system-ui,-apple-system,Segoe UI,sans-serif;--bg:#08101e;--surface:#101e2c;--surface2:#142637;--line:#294158;--ink:#ecf4fb;--muted:#adc4d5;--aqua:#74e5c7;--warning:#f4c682}
+    *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 90% -20%,#244360,transparent 42%),var(--bg);color:var(--ink)}
+    .wrap{max-width:1220px;margin:auto;padding:24px 18px 50px}h1{font-size:clamp(25px,4vw,39px);line-height:1.1;letter-spacing:-.035em;margin:5px 0 12px}h2{font-size:20px;margin:0 0 12px}
+    h3{font-size:16px;margin:0 0 8px}p{color:var(--muted);margin:6px 0 14px}
+    .kicker{color:var(--aqua);font-size:12px;text-transform:uppercase;letter-spacing:.15em;font-weight:800}
+    .intro{max-width:810px}.grid{display:grid;grid-template-columns:294px minmax(0,1fr);align-items:start;gap:18px;margin-top:24px}
+    .panel{border:1px solid var(--line);background:var(--surface);border-radius:14px;padding:20px}
+    .panel2{border:1px solid var(--line);background:var(--surface2);border-radius:12px;padding:16px;margin:16px 0}
+    .stack{display:flex;flex-direction:column;gap:12px}.row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    .spread{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .label{font-size:12px;color:var(--muted);font-weight:750;display:block;margin:14px 0 6px}
+    input[type=text],select,textarea{width:100%;padding:10px 12px;border:1px solid #45627d;border-radius:8px;color:var(--ink);background:#0c1725;font:inherit}
+    textarea{min-height:76px;resize:vertical}select{appearance:auto}
+    .btn{background:#213a4d;color:var(--ink);border:1px solid #3c6175;border-radius:9px;padding:10px 12px;cursor:pointer;font:inherit;font-weight:700}
+    .btn:hover:not(:disabled){background:#31516b}.btn.primary{background:var(--aqua);color:#073126;border-color:var(--aqua)}
+    .btn:disabled{opacity:.45;cursor:not-allowed}.btn:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #9ee8ff;outline-offset:2px}
+    .full{width:100%}.file{display:none}.hint{font-size:12px;color:var(--muted)}
+    .warn{background:#30291c;border-left:3px solid var(--warning);padding:12px 15px;border-radius:4px 8px 8px 4px;color:#f3dcb2;line-height:1.5;font-size:13px;margin-top:14px}
+    .progress{height:8px;border-radius:8px;background:#23364b;overflow:hidden;margin:6px 0 10px}.progress>div{background:var(--aqua);height:100%;width:0;transition:width .15s}
+    .video{display:block;width:100%;background:#05070b;border:1px solid #304d63;border-radius:9px;max-height:440px;aspect-ratio:16/9;object-fit:contain}
+    .info{border:1px solid var(--line);padding:9px 12px;border-radius:8px;color:var(--muted);font-size:13px}
+    .time{font-variant-numeric:tabular-nums;font-weight:750;color:var(--aqua)}.buttons{display:flex;gap:8px;flex-wrap:wrap}
+    .markgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .mark{background:#0a1726;border:1px solid #34546b;padding:12px;border-radius:9px;display:flex;flex-direction:column;gap:9px}
+    .mark strong{font-variant-numeric:tabular-nums;color:var(--aqua);font-size:16px}
+    .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .status{padding:10px 12px;border:1px solid #267c69;background:#123b33;border-radius:8px;color:#b9f2de;font-size:13px;margin-top:12px}
+    .status.error{border-color:#99505c;background:#39212a;color:#ffd7df}
+    .hidden{display:none!important}hr{border:0;border-top:1px solid var(--line);margin:18px 0}
+    .pill{font-size:12px;color:var(--muted);background:#192d40;border:1px solid var(--line);padding:5px 9px;border-radius:99px}
+    .endnav{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-top:20px}
+    @media(max-width:900px){.grid{grid-template-columns:1fr}}
+    @media(max-width:540px){.markgrid,.two{grid-template-columns:1fr}.wrap{padding:15px 10px}.panel{padding:14px}}
+  </style>
+</head>
+<body>
+<main class="wrap">
+  <div class="kicker">Replay Lab / evidence research</div>
+  <h1>Commitment timing review</h1>
+  <p class="intro">Determine <strong>when a choice stopped being realistically reversible</strong>, not whether the player won the challenge. Review a cropped replay clip, label the observed choice, and mark a plausible interval. The original detector's prediction and trigger time stay hidden.</p>
+  <div class="grid">
+    <aside class="stack">
+      <section class="panel">
+        <h2>Local study setup</h2>
+        <label class="label" for="reviewer">Reviewer code</label>
+        <input id="reviewer" type="text" maxlength="60" autocomplete="off" placeholder="reviewer-a">
+        <label class="label">1. Load your review packet</label>
+        <input class="file" id="packetFile" type="file" accept=".json,application/json">
+        <button class="btn full" id="choosePackets" type="button">Choose primary/secondary_packets.json</button>
+        <label class="label">2. Select your anonymous video clips</label>
+        <input class="file" id="videoFiles" type="file" accept=".mp4,.webm,video/mp4,video/webm" multiple>
+        <button class="btn full" id="chooseVideos" type="button">Choose clip files (multiple)</button>
+        <p id="videoCount" class="hint">No local video files selected</p>
+        <hr>
+        <div class="spread"><strong>Progress</strong><span id="progressText" class="hint">0 / 0</span></div>
+        <div class="progress"><div id="progressBar"></div></div>
+        <input class="file" id="savedFile" type="file" accept=".json,application/json">
+        <button class="btn full" id="chooseSaved" type="button" disabled>Import saved annotations</button>
+        <button class="btn full" id="exportDraft" type="button" disabled>Export draft JSON</button>
+        <button class="btn primary full" id="exportFinal" type="button" disabled>Export final JSON</button>
+      </section>
+      <div class="warn">
+        <strong>Timing only.</strong> Do not score the decision's quality or infer intent from the outcome. If there is no identifiable point of commitment, choose <em>Not reliably observable</em>. Do not consult the model's predicted label or trigger while reviewing.
+      </div>
+      <p class="hint">Everything stays in this browser. Files aren't uploaded or stored online. Export a draft before refreshing, and send your completed JSON privately to the study coordinator.</p>
+    </aside>
+    <section class="panel">
+      <div id="start">
+        <span class="kicker">Before your first clip</span>
+        <h2>Load a blinded review packet</h2>
+        <p>Ask the coordinator for <strong>primary_packets.json</strong> (40 clips) or <strong>secondary_packets.json</strong> (20 overlapping clips), plus the anonymous video files named <code>T00001.mp4</code>, and so on.</p>
+        <p>Select the packet first, then all video files. You'll review the same situations without seeing the detector's original trigger time, its chosen label, player account IDs or later match result.</p>
+        <p class="hint">The video exporter must separately remove score changes, goal outcomes, winner banners, identifying names and other possible future hints. This page cannot verify a clip is truly outcome-masked.</p>
+      </div>
+      <div id="workspace" class="hidden">
+        <div class="spread">
+          <span id="caseID" class="kicker">T00001</span><span id="caseCounter" class="pill">1 / 40</span>
+        </div>
+        <p id="focusHint" class="hint"></p>
+        <video id="clip" class="video" controls playsinline preload="metadata"></video>
+        <div class="row" style="margin-top:10px">
+          <span id="playhead" class="time">0.000 s</span>
+          <button type="button" class="btn" id="stepBack">−0.05 s</button>
+          <button type="button" class="btn" id="stepForward">+0.05 s</button>
+          <span class="hint">Step controls assist precise annotation; they don't imply 20/60-fps sampling</span>
+        </div>
+        <div id="missingVideo" class="status error hidden"></div>
+        <hr>
+        <h3>What choice was actually taken?</h3>
+        <div class="two">
+          <div>
+            <label class="label" for="choice">Observed behavior</label>
+            <select id="choice">
+              <option value="">Choose one…</option><option value="challenge">Challenge</option>
+              <option value="shadow">Shadow / delay</option><option value="fake">Fake challenge</option>
+              <option value="other">Other / mixed maneuver</option><option value="unclear">Unclear behavior</option>
+            </select>
+          </div>
+          <div>
+            <label class="label" for="confidence">Confidence in your assessment</label>
+            <select id="confidence">
+              <option value="">Choose confidence…</option><option value="low">Low</option>
+              <option value="medium">Medium</option><option value="high">High</option>
+            </select>
+          </div>
+        </div>
+        <hr>
+        <h3>When did the choice become difficult to reverse?</h3>
+        <p class="hint">Pause near the moment, then click each marker button. Use a range if different frames could plausibly represent commitment. The interval is relative to the clip's own start—not the original match clock.</p>
+        <div class="markgrid">
+          <div class="mark">
+            <label>Earliest plausible point</label><strong id="earliestLabel">Not marked</strong>
+            <button class="btn" type="button" id="markEarliest">Mark at current playhead</button>
+          </div>
+          <div class="mark">
+            <label>Latest plausible point</label><strong id="latestLabel">Not marked</strong>
+            <button class="btn" type="button" id="markLatest">Mark at current playhead</button>
+          </div>
+        </div>
+        <label class="row" style="margin:17px 0">
+          <input type="checkbox" id="unobservable">
+          <strong>Not reliably observable from this clip</strong>
+        </label>
+        <label class="label" for="note">Optional explanation</label>
+        <textarea id="note" maxlength="2000" placeholder="What made the timing ambiguous? Was another maneuver still feasible?"></textarea>
+        <button type="button" class="btn primary" id="save">Save this review</button>
+        <div id="caseStatus" class="status hidden" role="status"></div>
+        <div class="endnav">
+          <button type="button" class="btn" id="prev">Previous clip</button>
+          <span id="savedStatus" class="hint"></span>
+          <button type="button" class="btn" id="next">Next clip</button>
+        </div>
+      </div>
+      <div id="globalStatus" class="status hidden" role="status"></div>
+    </section>
+  </div>
+</main>
+<script src="./commitment_review_core.js"></script>
+<script>
+(function(){
+  "use strict";
+  const core = window.ReplayCommitmentReviewCore;
+  const $ = name => document.getElementById(name);
+  const state = {packets:[],files:Object.create(null),answers:Object.create(null),
+    drafts:Object.create(null),idx:0,currentUrl:null};
+  const packetById = () => Object.fromEntries(state.packets.map(p=>[p.review_id,p]));
+  function msg(message,error=false,local=false){
+    const box=$(local?"caseStatus":"globalStatus");box.textContent=message;
+    box.classList.remove("hidden");box.classList.toggle("error",error);
+  }
+  function hide(){ $("caseStatus").classList.add("hidden");$("globalStatus").classList.add("hidden"); }
+  function text(id,value){ $(id).textContent=String(value); }
+  function count(){return state.packets.filter(p=>!!state.answers[p.review_id]).length;}
+  function hasUnsavedEdits(){
+    return Object.keys(state.drafts).some(id =>
+      JSON.stringify(state.drafts[id])!==JSON.stringify(state.answers[id]));
+  }
+  function refresh(){
+    const n=state.packets.length,c=count();
+    text("progressText",c+" / "+n);
+    $("progressBar").style.width=n?(100*c/n)+"%":"0%";
+    $("chooseSaved").disabled=!n;
+    $("exportDraft").disabled=!c||hasUnsavedEdits();
+    $("exportFinal").disabled=!n||c!==n||hasUnsavedEdits();
+    $("prev").disabled=state.idx===0;
+    $("next").disabled=state.idx>=n-1;
+    $("reviewer").disabled=c>0;
+  }
+  function saveLocal(name,value){
+    const blob=new Blob([JSON.stringify(value,null,2)+"\n"],{type:"application/json"});
+    const url=URL.createObjectURL(blob),a=document.createElement("a");
+    a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),2000);
+  }
+  function code(){return core.reviewerCode($("reviewer").value.trim());}
+  function currentPacket(){return state.packets[state.idx];}
+  function snapDraft(){
+    const packet=currentPacket();if(!packet)return;
+    const old=state.drafts[packet.review_id]||state.answers[packet.review_id]||{};
+    state.drafts[packet.review_id]={
+      choice:$("choice").value,
+      mark_type:$("unobservable").checked?"unobservable":"interval",
+      earliest_s:$("unobservable").checked?null:(old.earliest_s??null),
+      latest_s:$("unobservable").checked?null:(old.latest_s??null),
+      confidence:$("confidence").value,note:$("note").value
+    };
+  }
+  function showMarks(){
+    const packet=currentPacket();if(!packet)return;
+    const r=state.drafts[packet.review_id]||state.answers[packet.review_id]||{};
+    text("earliestLabel",typeof r.earliest_s==="number"?r.earliest_s.toFixed(3)+" s":"Not marked");
+    text("latestLabel",typeof r.latest_s==="number"?r.latest_s.toFixed(3)+" s":"Not marked");
+    const off=$("unobservable").checked;
+    $("markEarliest").disabled=off;$("markLatest").disabled=off;
+  }
+  function unloadVideo(){
+    $("clip").pause();$("clip").removeAttribute("src");$("clip").load();
+    if(state.currentUrl){URL.revokeObjectURL(state.currentUrl);state.currentUrl=null;}
+  }
+  function render(){
+    refresh();hide();
+    if(!state.packets.length){$("workspace").classList.add("hidden");$("start").classList.remove("hidden");return;}
+    $("workspace").classList.remove("hidden");$("start").classList.add("hidden");
+    const packet=currentPacket(),id=packet.review_id;
+    text("caseID",id);text("caseCounter",(state.idx+1)+" / "+state.packets.length);
+    text("focusHint",packet.focus_hint);
+    text("savedStatus",state.answers[id]?"Saved":"Not yet saved");
+    unloadVideo();
+    const file=state.files[packet.clip_file];
+    if(file){
+      state.currentUrl=URL.createObjectURL(file);$("clip").src=state.currentUrl;
+      $("missingVideo").classList.add("hidden");
+    }else{
+      msg("Missing local video file: "+packet.clip_file+
+        ". Use 'Choose clip files (multiple)' to select it.",true,true);
+      $("clip").removeAttribute("src");
+    }
+    const r=state.drafts[id]||state.answers[id]||{};
+    $("choice").value=r.choice||"";
+    $("confidence").value=r.confidence||"";
+    $("unobservable").checked=r.mark_type==="unobservable";
+    $("note").value=r.note||"";
+    showMarks();text("playhead","0.000 s");
+  }
+  $("clip").addEventListener("timeupdate",()=>{
+    text("playhead",$("clip").currentTime.toFixed(3)+" s");
+  });
+  $("clip").addEventListener("loadedmetadata",()=>{
+    const pkt=currentPacket(),actual=$("clip").duration;
+    if(pkt&&Number.isFinite(actual)&&Math.abs(actual-pkt.clip_duration_s)>.5)
+      msg("Warning: clip duration differs from packet by more than 0.5 s. "+
+        "Confirm the correct video was selected before reviewing.",true,true);
+  });
+  function currentMark(which){
+    const packet=currentPacket(),clip=$("clip");
+    if(!packet||!state.files[packet.clip_file]){
+      msg("Load this clip before marking its timestamps.",true,true);return;
+    }
+    snapDraft();
+    const r=state.drafts[packet.review_id];
+    r[which]=Math.round(clip.currentTime*1000)/1000;
+    showMarks();text("savedStatus","Unsaved changes");refresh();
+  }
+  $("markEarliest").addEventListener("click",()=>currentMark("earliest_s"));
+  $("markLatest").addEventListener("click",()=>currentMark("latest_s"));
+  for(const field of ["choice","confidence","note","unobservable"]){
+    $(field).addEventListener("change",()=>{
+      snapDraft();showMarks();text("savedStatus","Unsaved changes");refresh();
+    });
+  }
+  for(const [id,shift] of [["stepBack",-.05],["stepForward",.05]]){
+    $(id).addEventListener("click",()=>{
+      const video=$("clip");
+      if(!Number.isFinite(video.duration))return;
+      video.pause();video.currentTime=Math.max(0,Math.min(video.duration,video.currentTime+shift));
+      text("playhead",video.currentTime.toFixed(3)+" s");
+    });
+  }
+  $("save").addEventListener("click",()=>{
+    try{
+      const who=code(),packet=currentPacket();
+      if(!state.files[packet.clip_file])throw Error("Select this clip's video before saving");
+      snapDraft();
+      const answer=state.drafts[packet.review_id];
+      const record={review_id:packet.review_id,rater_id:who,...answer};
+      core.validateAnswer(record,packet);
+      state.answers[packet.review_id]=answer;
+      delete state.drafts[packet.review_id];
+      refresh();text("savedStatus","Saved");
+      msg("Review saved locally. Export JSON before closing this page.",false,true);
+    }catch(err){msg(err.message,true,true);}
+  });
+  function go(delta){
+    snapDraft();state.idx=Math.max(0,Math.min(state.packets.length-1,state.idx+delta));render();
+  }
+  $("prev").addEventListener("click",()=>go(-1));
+  $("next").addEventListener("click",()=>go(1));
+  for(const [button,file] of [["choosePackets","packetFile"],
+    ["chooseVideos","videoFiles"],["chooseSaved","savedFile"]]){
+    $(button).addEventListener("click",()=>$(file).click());
+  }
+  async function jsonFile(file){
+    if(!file)return null;if(file.size>1024*1024)throw Error("JSON file exceeds 1 MB");
+    return JSON.parse(await file.text());
+  }
+  $("packetFile").addEventListener("change",async e=>{
+    try{
+      const packets=core.validatePackets(await jsonFile(e.target.files[0]));
+      state.packets=packets;state.idx=0;state.answers=Object.create(null);
+      state.drafts=Object.create(null);$("reviewer").disabled=false;
+      render();msg("Loaded "+packets.length+" blinded clips.",false);
+    }catch(err){msg(err.message,true);}
+    e.target.value="";
+  });
+  $("videoFiles").addEventListener("change",e=>{
+    try{
+      const videos=Object.create(null);
+      for(const file of e.target.files){
+        if(!/\.(mp4|webm)$/i.test(file.name))throw Error("Only MP4 or WebM clips supported");
+        videos[file.name]=file;
+      }
+      state.files=videos;
+      text("videoCount",Object.keys(videos).length+" local clip files selected");
+      render();
+    }catch(err){msg(err.message,true);}
+    e.target.value="";
+  });
+  $("savedFile").addEventListener("change",async e=>{
+    try{
+      const restored=core.restore(state.packets,await jsonFile(e.target.files[0]),code());
+      state.answers=restored;state.drafts=Object.create(null);
+      render();msg("Saved annotations restored.");
+    }catch(err){msg(err.message,true);}
+    e.target.value="";
+  });
+  function download(complete){
+    try{
+      const who=code();
+      if(hasUnsavedEdits())throw Error("Save current edits before exporting. Draft annotations are not automatically included.");
+      const rows=core.compile(state.packets,state.answers,who,complete);
+      saveLocal("replay-lab-commitment-"+who+"-"+(complete?"final":"draft")+".json",rows);
+      msg((complete?"Final":"Draft")+" reviewer JSON exported. Share privately.");
+    }catch(err){msg(err.message,true);}
+  }
+  $("exportDraft").addEventListener("click",()=>download(false));
+  $("exportFinal").addEventListener("click",()=>download(true));
+  refresh();
+})();
+</script>
+</body>
+</html>

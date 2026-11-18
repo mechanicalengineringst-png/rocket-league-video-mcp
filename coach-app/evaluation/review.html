@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>Replay Lab · Blind Review</title>
+  <style>
+    :root { color-scheme:dark; --bg:#0a1020; --card:#101b2e; --card2:#142238;
+      --line:#2a4059; --ink:#edf4ff; --muted:#adbed2; --accent:#5de1bd;
+      --warn:#f9c87c; --bad:#ff8792; --ring:#89d7ff; font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,sans-serif; }
+    * {box-sizing:border-box} body {margin:0;background:radial-gradient(ellipse at 83% 0,#17304b 0,transparent 35%),var(--bg);color:var(--ink);min-height:100vh}
+    a {color:var(--accent)} button,input,textarea {font:inherit} button {cursor:pointer}
+    button:focus-visible,input:focus-visible,textarea:focus-visible {outline:3px solid var(--ring);outline-offset:2px}
+    button:disabled {cursor:not-allowed;opacity:.48}
+    .shell {max-width:1200px;margin:0 auto;padding:24px 20px 60px}
+    .top {display:flex;align-items:center;gap:16px;justify-content:space-between;flex-wrap:wrap;margin-bottom:26px}
+    .brand {font-weight:850;letter-spacing:.09em;font-size:13px;color:var(--accent)}
+    h1 {font-size:clamp(28px,5vw,44px);line-height:1.08;letter-spacing:-.045em;margin:9px 0 8px}
+    h2 {font-size:21px;margin:0 0 6px;letter-spacing:-.018em}
+    h3 {font-size:15px;margin:0 0 8px}
+    p {color:var(--muted);line-height:1.52;margin:8px 0}
+    .eyebrow {text-transform:uppercase;letter-spacing:.12em;font-size:11px;font-weight:800;color:var(--accent)}
+    .pill {border:1px solid var(--line);border-radius:100px;padding:8px 13px;color:var(--muted);font-size:12px}
+    .lead {max-width:740px}
+    .grid {display:grid;grid-template-columns:310px minmax(0,1fr);gap:18px;align-items:start;margin-top:26px}
+    .panel {background:var(--card);border:1px solid var(--line);border-radius:15px;padding:22px;box-shadow:0 10px 30px #0002}
+    .panel.subtle {background:var(--card2)}
+    .row {display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+    .stack {display:flex;flex-direction:column;gap:13px}
+    label.input-label {display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:7px}
+    input[type=text],input[type=number],textarea {width:100%;background:#0b1526;border:1px solid #41607c;border-radius:9px;padding:11px 12px;color:var(--ink)}
+    input[type=number] {max-width:130px} textarea {resize:vertical;min-height:82px}
+    .btn {border:1px solid var(--line);padding:10px 13px;color:var(--ink);background:#1b3046;border-radius:9px;font-weight:700;font-size:13px}
+    .btn:hover:not(:disabled) {background:#28435e}
+    .btn.primary {background:var(--accent);color:#05251b;border-color:var(--accent)}
+    .btn.primary:hover:not(:disabled) {background:#91f7d6}
+    .btn.danger {border-color:#6f4a53;color:var(--bad)}
+    .full {width:100%} .mini {font-size:12px;color:var(--muted)}
+    .step {display:flex;gap:10px;margin:8px 0;align-items:center;font-size:13px;color:var(--muted)}
+    .step strong {display:inline-flex;width:24px;height:24px;align-items:center;justify-content:center;border-radius:50%;background:#254c55;color:#a7ffee}
+    .step.current {color:var(--ink);font-weight:700}
+    .muted {color:var(--muted)}
+    .progress-track {height:8px;background:#273c51;border-radius:8px;overflow:hidden}
+    .progress-fill {height:100%;width:0%;background:linear-gradient(90deg,#44cca7,#83eacb);transition:width .15s}
+    .nav {display:flex;align-items:center;justify-content:space-between;margin-top:24px;gap:12px}
+    .casebar {display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px}
+    .evidence {border-left:3px solid #3f9c99;background:#112339;margin:10px 0;padding:13px 16px;border-radius:3px 9px 9px 3px}
+    .evidence .small {font-size:12px;color:var(--accent);margin-bottom:5px;font-weight:700;overflow-wrap:anywhere}
+    .evidence .claim {font-size:14px;line-height:1.55;white-space:pre-wrap;overflow-wrap:anywhere}
+    .evidence .source {font-size:11px;color:var(--muted);margin-top:7px}
+    fieldset {border:0;padding:0;margin:20px 0} legend {font-weight:800;margin-bottom:9px}
+    .verdicts {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+    .choice {padding:12px;text-align:left;background:#192b42;border:1px solid #38526d;border-radius:9px;color:var(--ink);font-size:13px;font-weight:750}
+    .choice small {display:block;color:var(--muted);margin-top:6px;font-size:11px;font-weight:400;line-height:1.35}
+    .choice[aria-pressed=true] {border:2px solid var(--accent);background:#1a403e;padding:11px}
+    .feedback {padding:10px 12px;border-radius:8px;font-size:13px;margin-top:14px;color:#c8f7e8;background:#153632;border:1px solid #2f6e5d}
+    .feedback.error {color:#ffd6dc;background:#381e28;border-color:#8e4955}
+    .two-col {display:grid;grid-template-columns:1fr 1fr;gap:12px}
+    .advice {background:#0b182b;border:1px solid #36506b;border-radius:10px;padding:15px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.55}
+    .status {font-weight:800;color:var(--accent)} .callout {border-left:3px solid var(--warn);padding:10px 14px;background:#302719;color:#f7dba9;font-size:13px;line-height:1.5;border-radius:3px 8px 8px 3px}
+    .hidden {display:none !important} .separator {border:0;border-top:1px solid var(--line);margin:20px 0}
+    .file-btn {display:block;text-align:center}
+    footer {font-size:12px;color:#9eb1c7;margin-top:25px;max-width:800px}
+    @media(max-width:860px){.grid{grid-template-columns:1fr}.shell{padding:18px 12px 44px}.panel{padding:17px}}
+    @media(max-width:460px){.verdicts,.two-col{grid-template-columns:1fr}.nav{flex-wrap:wrap}}
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="top">
+      <div><div class="brand">REPLAY LAB / RESEARCH</div><h1>Blind tactical review</h1>
+        <p class="lead">Judge the play before its outcome, then assess anonymous coaching feedback. Everything stays on this device; no model API or network connection is used.</p>
+      </div>
+      <span class="pill">Offline · Experimental</span>
+    </header>
+    <div class="grid">
+      <aside class="stack">
+        <section class="panel">
+          <h2>Review setup</h2>
+          <p class="mini">Choose a reviewer code, not your real name. Keep your decision and model assessments independent.</p>
+          <label class="input-label" for="rater">Reviewer code</label>
+          <input id="rater" type="text" maxlength="60" autocomplete="off" spellcheck="false" placeholder="reviewer-01">
+          <hr class="separator">
+          <div class="step current"><strong>1</strong> Decision-only review</div>
+          <input id="decisionsFile" type="file" accept=".json,application/json" class="hidden">
+          <button id="loadDecisions" type="button" class="btn full">Load decision packets</button>
+          <input id="savedDecisionsFile" type="file" accept=".json,application/json" class="hidden">
+          <button id="resumeDecisions" type="button" class="btn full" disabled>Import saved decisions</button>
+          <div class="row"><button id="saveDecisionsDraft" type="button" class="btn" disabled>Save draft</button>
+            <button id="freezeDecisions" type="button" class="btn primary" disabled>Finalize &amp; export</button></div>
+          <p class="mini" id="decisionProgress">No packets loaded</p>
+          <div class="progress-track"><div id="decisionBar" class="progress-fill"></div></div>
+          <hr class="separator">
+          <div class="step"><strong>2</strong> Anonymous feedback review</div>
+          <p class="mini">Locked until you finish and export Stage 1. Model identity is never shown.</p>
+          <input id="qualityFile" type="file" accept=".json,application/json" class="hidden">
+          <button id="loadQuality" type="button" class="btn full" disabled>Load coaching outputs</button>
+          <input id="savedQualityFile" type="file" accept=".json,application/json" class="hidden">
+          <button id="resumeQuality" type="button" class="btn full" disabled>Import saved ratings</button>
+          <div class="row"><button id="saveQualityDraft" type="button" class="btn" disabled>Save draft</button>
+            <button id="exportQuality" type="button" class="btn primary" disabled>Finalize &amp; export</button></div>
+          <p class="mini" id="qualityProgress">Not started</p>
+          <div class="progress-track"><div id="qualityBar" class="progress-fill"></div></div>
+        </section>
+        <div class="callout">Do not watch the later goal, 50/50 outcome, or the model's answer before finishing Stage 1. Two independent reviewers should complete this process separately.</div>
+      </aside>
+      <section id="reviewPanel" class="panel" aria-live="polite">
+        <div id="empty">
+          <div class="eyebrow">Start here</div>
+          <h2>Load your blinded review cases</h2>
+          <p>Ask the coordinator for <strong>decision_packets.json</strong>. You will see anonymized evidence about what was observable before each decision, without a model prediction or later outcome.</p>
+          <p>After reviewing every decision, export your answers before opening <strong>quality_packets.json</strong>.</p>
+          <p class="mini">No replay renderer is embedded in this standalone tool. If you use replay footage, stop at the displayed decision time and hide the eventual outcome.</p>
+        </div>
+        <div id="workspace" class="hidden">
+          <div class="casebar"><span id="phase" class="eyebrow">Stage 1</span><span id="counter" class="pill">1 / 1</span></div>
+          <h2 id="caseTitle"></h2>
+          <p id="caseSubtitle"></p>
+          <div id="caseQuestion" class="callout"></div>
+          <div id="caseEvidence"></div>
+          <div id="decisionForm">
+            <fieldset><legend>How would you assess the decision at this moment?</legend>
+              <div id="verdictButtons" class="verdicts">
+                <button type="button" class="choice" data-verdict="sound" aria-pressed="false">Sound decision<small>Reasonable in context, whatever happens next</small></button>
+                <button type="button" class="choice" data-verdict="risk" aria-pressed="false">Tactical risk<small>Questionable given the information available now</small></button>
+                <button type="button" class="choice" data-verdict="tradeoff" aria-pressed="false">Legitimate tradeoff<small>Multiple defensible approaches exist</small></button>
+                <button type="button" class="choice" data-verdict="indeterminate" aria-pressed="false">Indeterminate<small>Insufficient evidence to judge reliably</small></button>
+              </div>
+            </fieldset>
+            <label class="input-label" for="decisionNote">Optional note (reasoning or missing evidence)</label>
+            <textarea id="decisionNote" maxlength="2000" placeholder="What information mattered? What would change your judgment?"></textarea>
+          </div>
+          <div id="qualityForm" class="hidden">
+            <div class="eyebrow">Anonymous system assessment</div>
+            <p id="qualityAssessment" class="status"></p>
+            <h3 id="modelTitle"></h3>
+            <div id="modelAdvice" class="advice"></div>
+            <p class="mini" id="modelCitations"></p>
+            <fieldset>
+              <legend>Evaluate this anonymous coaching output</legend>
+              <div class="two-col">
+                <div><label class="input-label" for="factualErrors">Factual errors</label><input id="factualErrors" type="number" min="0" max="100" step="1" placeholder="0"></div>
+                <div><label class="input-label" for="unsupportedClaims">Unsupported claims</label><input id="unsupportedClaims" type="number" min="0" max="100" step="1" placeholder="0"></div>
+              </div>
+              <p class="mini">Factual errors contradict known data. Unsupported claims are not established by available evidence, even if they sound plausible.</p>
+              <div class="verdicts">
+                <button type="button" class="choice" id="usefulYes" aria-pressed="false">Useful feedback<small>Specific, fair and actionable</small></button>
+                <button type="button" class="choice" id="usefulNo" aria-pressed="false">Not useful<small>Generic, unfair, unclear or ungrounded</small></button>
+              </div>
+              <label class="input-label" for="qualityNote" style="margin-top:14px">Optional explanation</label>
+              <textarea id="qualityNote" maxlength="2000"></textarea>
+              <button type="button" id="saveQualityAnswer" class="btn primary">Save this rating</button>
+            </fieldset>
+          </div>
+          <div id="caseStatus" class="feedback hidden" role="status"></div>
+          <div class="nav"><button type="button" id="previous" class="btn">Previous</button>
+            <span id="savedMark" class="mini"></span><button type="button" id="next" class="btn">Next</button></div>
+        </div>
+        <div id="message" class="feedback hidden" role="status"></div>
+      </section>
+    </div>
+    <footer>Research-only evaluation interface. This tool validates packet structure and timestamps but cannot independently prove that replay-parser claims were knowable at decision time. Keep private identity mappings and unredacted footage outside public Git history.</footer>
+  </main>
+  <script src="./review_state.js"></script>
+  <script>
+  (function () {
+    "use strict";
+    const core = window.ReplayReviewCore;
+    const $ = id => document.getElementById(id);
+    const state = {
+      decisions: [], quality: [], decisionAnswers: Object.create(null),
+      qualityAnswers: Object.create(null), decisionFrozen: false, qualityFrozen: false,
+      stage: "decision", index: 0
+    };
+    const verdictButtons = [...document.querySelectorAll("[data-verdict]")];
+    function showMessage(text, error) {
+      const box = $("message");
+      box.textContent = text;
+      box.classList.remove("hidden");
+      box.classList.toggle("error", !!error);
+    }
+    function hideMessage() { $("message").classList.add("hidden"); }
+    function setCaseStatus(text, error) {
+      const box = $("caseStatus"); box.textContent = text;
+      box.classList.toggle("hidden", !text);
+      box.classList.toggle("error", !!error);
+    }
+    function setText(id, text) { $(id).textContent = String(text); }
+    function node(tag, klass, txt) {
+      const el = document.createElement(tag);
+      if (klass) el.className = klass;
+      if (txt !== undefined) el.textContent = String(txt);
+      return el;
+    }
+    function wipe(el) { while (el.firstChild) el.removeChild(el.firstChild); }
+    function currentList() { return state.stage === "decision" ? state.decisions : state.quality; }
+    function currentAnswers() { return state.stage === "decision" ? state.decisionAnswers : state.qualityAnswers; }
+    function reviewerCode() { return core.cleanReviewerId($("rater").value.trim()); }
+    async function readJSON(file) {
+      if (!file) return null;
+      if (file.size > 5 * 1024 * 1024) throw new Error("Packet exceeds the 5 MB local file limit");
+      return JSON.parse(await file.text());
+    }
+    function saveJSON(name, data) {
+      const blob = new Blob([JSON.stringify(data, null, 2) + "\n"], {type:"application/json"});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1500);
+    }
+    function count(kind) {
+      const packets = kind === "decision" ? state.decisions : state.quality;
+      const answers = kind === "decision" ? state.decisionAnswers : state.qualityAnswers;
+      return packets.length ? core.countCompleted(packets, answers) : 0;
+    }
+    function refreshControls() {
+      const d = state.decisions.length, q = state.quality.length;
+      const dc = count("decision"), qc = count("quality");
+      setText("decisionProgress", d ? dc + " / " + d + " decisions recorded" +
+        (state.decisionFrozen ? " · frozen" : "") : "No packets loaded");
+      setText("qualityProgress", q ? qc + " / " + q + " outputs rated" : "Not started");
+      $("decisionBar").style.width = d ? (dc / d * 100) + "%" : "0%";
+      $("qualityBar").style.width = q ? (qc / q * 100) + "%" : "0%";
+      $("resumeDecisions").disabled = !d || state.decisionFrozen;
+      $("saveDecisionsDraft").disabled = !d || dc === 0 || state.decisionFrozen;
+      $("freezeDecisions").disabled = !d || dc !== d || state.decisionFrozen;
+      $("loadQuality").disabled = !state.decisionFrozen || state.qualityFrozen;
+      $("resumeQuality").disabled = !q || state.qualityFrozen;
+      $("saveQualityDraft").disabled = !q || qc === 0 || state.qualityFrozen;
+      $("exportQuality").disabled = !q || qc !== q || state.qualityFrozen;
+      $("rater").disabled = state.decisionFrozen;
+      $("previous").disabled = state.index === 0;
+      $("next").disabled = state.index >= currentList().length - 1;
+    }
+    function renderEvidence(items) {
+      const target = $("caseEvidence"); wipe(target);
+      for (const ev of items) {
+        const card = node("div", "evidence");
+        card.appendChild(node("div", "small", ev.key));
+        card.appendChild(node("div", "claim", ev.claim));
+        card.appendChild(node("div", "source",
+          "Observed: " + Number(ev.event_time_s).toFixed(2) + "s · " +
+          "Finalized: " + Number(ev.finalized_through_s).toFixed(2) + "s · " +
+          ev.source + " · " + ev.source_quality + " confidence"));
+        target.appendChild(card);
+      }
+    }
+    function renderCase() {
+      refreshControls();
+      const list = currentList();
+      if (!list.length) {
+        $("empty").classList.remove("hidden"); $("workspace").classList.add("hidden");
+        return;
+      }
+      $("empty").classList.add("hidden"); $("workspace").classList.remove("hidden");
+      const item = list[state.index];
+      const answer = currentAnswers()[item.review_id] || {};
+      setCaseStatus("");
+      setText("counter", (state.index + 1) + " / " + list.length);
+      setText("caseQuestion", item.review_question);
+      setText("savedMark", currentAnswers()[item.review_id] ? "Reviewed" : "Not yet reviewed");
+      if (state.stage === "decision") {
+        setText("phase", "Stage 1 · decision-only");
+        setText("caseTitle", item.situation_type.replace(/_/g, " "));
+        setText("caseSubtitle", item.review_id + " · at " + item.t0.toFixed(2) + " seconds");
+        renderEvidence(item.pre_decision_evidence);
+        $("decisionForm").classList.remove("hidden"); $("qualityForm").classList.add("hidden");
+        verdictButtons.forEach(btn => {
+          btn.setAttribute("aria-pressed", String(answer.verdict === btn.dataset.verdict));
+          btn.disabled = state.decisionFrozen;
+        });
+        $("decisionNote").value = answer.note || "";
+        $("decisionNote").disabled = state.decisionFrozen;
+      } else {
+        setText("phase", "Stage 2 · anonymous quality review");
+        setText("caseTitle", "Coaching output " + item.review_id);
+        setText("caseSubtitle", "Refers to anonymized decision " + item.case_ref);
+        const ref = state.decisions.find(c => c.review_id === item.case_ref);
+        renderEvidence(ref ? ref.pre_decision_evidence : []);
+        $("decisionForm").classList.add("hidden"); $("qualityForm").classList.remove("hidden");
+        setText("qualityAssessment", "Model assessment: " + item.assessment);
+        setText("modelTitle", item.title || "No title supplied");
+        setText("modelAdvice", item.advice || "No explanation supplied");
+        setText("modelCitations", "Cited pre-decision evidence: " +
+          (item.cited_evidence.length ? item.cited_evidence.join(", ") : "None"));
+        $("factualErrors").value = answer.factual_errors === undefined ? "" : answer.factual_errors;
+        $("unsupportedClaims").value = answer.unsupported_claims === undefined ? "" : answer.unsupported_claims;
+        $("usefulYes").setAttribute("aria-pressed", String(answer.useful === true));
+        $("usefulNo").setAttribute("aria-pressed", String(answer.useful === false));
+        $("qualityNote").value = answer.note || "";
+        for (const id of ["factualErrors","unsupportedClaims","usefulYes",
+                          "usefulNo","qualityNote","saveQualityAnswer"]) {
+          $(id).disabled = state.qualityFrozen;
+        }
+      }
+    }
+    function saveDecisionNote() {
+      if (state.stage !== "decision" || state.decisionFrozen || !state.decisions.length) return;
+      const id = state.decisions[state.index].review_id;
+      if (state.decisionAnswers[id]) state.decisionAnswers[id].note = $("decisionNote").value;
+    }
+    function chooseDecision(verdict) {
+      try {
+        if (state.decisionFrozen) throw new Error("Decision labels have already been frozen");
+        reviewerCode();
+        const packet = state.decisions[state.index];
+        state.decisionAnswers[packet.review_id] = {verdict:verdict, note:$("decisionNote").value};
+        renderCase();
+        setCaseStatus("Decision saved locally. No outcome or model output was shown.", false);
+      } catch (err) { showMessage(err.message, true); }
+    }
+    verdictButtons.forEach(btn => btn.addEventListener("click", () => chooseDecision(btn.dataset.verdict)));
+    $("decisionNote").addEventListener("input", saveDecisionNote);
+    let usefulSelection = null;
+    function selectUseful(value) {
+      usefulSelection = value;
+      $("usefulYes").setAttribute("aria-pressed", String(value === true));
+      $("usefulNo").setAttribute("aria-pressed", String(value === false));
+    }
+    $("usefulYes").addEventListener("click", () => selectUseful(true));
+    $("usefulNo").addEventListener("click", () => selectUseful(false));
+    function saveQualityAnswer() {
+      try {
+        if (state.qualityFrozen) throw new Error("The quality ratings have been finalized");
+        reviewerCode();
+        const rawF = $("factualErrors").value.trim();
+        const rawU = $("unsupportedClaims").value.trim();
+        if (!/^\d+$/.test(rawF) || !/^\d+$/.test(rawU))
+          throw new Error("Enter whole-number counts of errors and unsupported claims");
+        if (usefulSelection === null) throw new Error("Choose whether this coaching is useful");
+        const item = state.quality[state.index];
+        const answer = {
+          factual_errors:Number(rawF), unsupported_claims:Number(rawU),
+          useful:usefulSelection, note:$("qualityNote").value
+        };
+        core.compileSubmissions("quality", [item], {[item.review_id]:answer}, reviewerCode(), true);
+        state.qualityAnswers[item.review_id] = answer;
+        renderCase();
+        setCaseStatus("Anonymous output rating saved locally.", false);
+      } catch (err) { setCaseStatus(err.message, true); }
+    }
+    $("saveQualityAnswer").addEventListener("click", saveQualityAnswer);
+    function next(delta) {
+      saveDecisionNote();
+      state.index = Math.max(0, Math.min(currentList().length - 1, state.index + delta));
+      usefulSelection = state.stage === "quality" && state.quality.length &&
+        typeof (state.qualityAnswers[state.quality[state.index].review_id] || {}).useful === "boolean" ?
+        state.qualityAnswers[state.quality[state.index].review_id].useful : null;
+      renderCase();
+    }
+    $("previous").addEventListener("click", () => next(-1));
+    $("next").addEventListener("click", () => next(1));
+    $("loadDecisions").addEventListener("click", () => $("decisionsFile").click());
+    $("resumeDecisions").addEventListener("click", () => $("savedDecisionsFile").click());
+    $("loadQuality").addEventListener("click", () => $("qualityFile").click());
+    $("resumeQuality").addEventListener("click", () => $("savedQualityFile").click());
+
+    $("decisionsFile").addEventListener("change", async event => {
+      try {
+        const records = core.validatePackets("decision", await readJSON(event.target.files[0]));
+        state.decisions = records; state.decisionAnswers = Object.create(null);
+        state.quality = []; state.qualityAnswers = Object.create(null);
+        state.decisionFrozen = false; state.qualityFrozen = false;
+        state.stage = "decision"; state.index = 0;
+        usefulSelection = null; hideMessage(); renderCase();
+        showMessage(records.length + " anonymized decisions loaded. Review before viewing any model outputs.", false);
+      } catch (err) { showMessage(err.message, true); }
+      event.target.value = "";
+    });
+    $("savedDecisionsFile").addEventListener("change", async event => {
+      try {
+        const records = await readJSON(event.target.files[0]);
+        state.decisionAnswers = core.importSubmissions("decision", state.decisions, records, reviewerCode());
+        renderCase(); showMessage("Saved decisions restored. Finalize/export Stage 1 to unlock Stage 2.", false);
+      } catch (err) { showMessage(err.message, true); }
+      event.target.value = "";
+    });
+    $("qualityFile").addEventListener("change", async event => {
+      try {
+        if (!state.decisionFrozen) throw new Error("Export and freeze decision judgments first");
+        const records = core.validatePackets("quality", await readJSON(event.target.files[0]));
+        core.validatePairing(state.decisions, records);
+        state.quality = records; state.qualityAnswers = Object.create(null);
+        state.qualityFrozen = false;
+        state.stage = "quality"; state.index = 0; usefulSelection = null;
+        hideMessage(); renderCase();
+        showMessage(records.length + " anonymous coaching outputs loaded. Model identities remain hidden.", false);
+      } catch (err) { showMessage(err.message, true); }
+      event.target.value = "";
+    });
+    $("savedQualityFile").addEventListener("change", async event => {
+      try {
+        const answers = await readJSON(event.target.files[0]);
+        state.qualityAnswers = core.importSubmissions("quality", state.quality, answers, reviewerCode());
+        const current = state.qualityAnswers[state.quality[state.index].review_id] || {};
+        usefulSelection = typeof current.useful === "boolean" ? current.useful : null;
+        renderCase(); showMessage("Previously saved anonymous ratings restored.", false);
+      } catch (err) { showMessage(err.message, true); }
+      event.target.value = "";
+    });
+    function exportStage(stage, complete) {
+      try {
+        saveDecisionNote();
+        const records = stage === "decision" ? state.decisions : state.quality;
+        const answers = stage === "decision" ? state.decisionAnswers : state.qualityAnswers;
+        const data = core.compileSubmissions(stage, records, answers, reviewerCode(), complete);
+        const tag = complete ? "final" : "draft";
+        saveJSON("replay-lab-" + stage + "-" + reviewerCode() + "-" + tag + ".json", data);
+        if (stage === "decision" && complete) {
+          state.decisionFrozen = true;
+          renderCase();
+          showMessage("Stage 1 exported and frozen. You may now load Stage 2 quality packets.", false);
+        } else if (stage === "quality" && complete) {
+          state.qualityFrozen = true;
+          renderCase();
+          showMessage("Stage 2 exported and frozen. Send both reviewer files privately to the coordinator.", false);
+        } else showMessage(tag + " review exported locally. Keep the file private.", false);
+      } catch (err) { showMessage(err.message, true); }
+    }
+    $("saveDecisionsDraft").addEventListener("click", () => exportStage("decision", false));
+    $("freezeDecisions").addEventListener("click", () => exportStage("decision", true));
+    $("saveQualityDraft").addEventListener("click", () => exportStage("quality", false));
+    $("exportQuality").addEventListener("click", () => exportStage("quality", true));
+    // Initialize empty progress and disabled controls. No data persists on reload.
+    refreshControls();
+  })();
+  </script>
+</body>
+</html>

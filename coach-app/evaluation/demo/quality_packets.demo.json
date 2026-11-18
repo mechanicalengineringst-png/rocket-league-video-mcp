@@ -1,0 +1,37 @@
+[
+  {
+    "review_id": "Q00001",
+    "case_ref": "C00001",
+    "assessment": "tradeoff",
+    "cited_evidence": [
+      "spawn_approach",
+      "boost_at_t0"
+    ],
+    "title": "Kickoff support may be a legitimate tradeoff",
+    "advice": "Synthetic demo output: moving toward midfield might enable quick possession after a neutral kickoff. It also sacrifices deeper defensive cover. The play needs teammate communication and kickoff direction to assess confidently.",
+    "review_question": "SYNTHETIC DEMO ONLY. Rate factual errors, unsupported claims, and whether the feedback would be useful if observed in an actual replay."
+  },
+  {
+    "review_id": "Q00002",
+    "case_ref": "C00002",
+    "assessment": "risk",
+    "cited_evidence": [
+      "spacing"
+    ],
+    "title": "Challenge was clearly wrong",
+    "advice": "Synthetic demo output intentionally includes an overconfident claim for testing: your teammate was definitely unable to recover, and your opponent had a guaranteed free goal. The predecision evidence does NOT establish those facts.",
+    "review_question": "SYNTHETIC DEMO ONLY. Identify unsupported claims rather than mistaking confident writing for good coaching."
+  },
+  {
+    "review_id": "Q00003",
+    "case_ref": "C00003",
+    "assessment": "abstain",
+    "cited_evidence": [
+      "last_defender",
+      "boost_resource"
+    ],
+    "title": "Too little information to recommend a challenge",
+    "advice": "Synthetic demo output: low boost limits options, but we cannot determine the opponent's reachable shot timing or the defender's interception feasibility from position alone. Review exact motion and pad availability before proposing alternatives.",
+    "review_question": "SYNTHETIC DEMO ONLY. Assess whether a cautious abstention is more useful than speculative advice."
+  }
+]
