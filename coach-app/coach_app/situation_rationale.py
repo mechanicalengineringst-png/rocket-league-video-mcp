@@ -333,6 +333,7 @@ def _carrier_intent(s: _State, prefix: dict, t0: float, focus: str, q: _Q, base:
     st = WITHIN if abs(closing - CLOSING_COMMIT_UU_S) <= CLOSING_BAND_UU_S else (HOLDS if closing > CLOSING_COMMIT_UU_S else FAILS)
     if d < 300:
         st = HOLDS                     # already at the ball: closing speed is meaningless
+        q.add("Q.carrier_at_ball", True, None, [f"E.{k}.position", "E.ball.position"], "nearest opponent within 300 uu of the ball")
     c = _cond(st, "The nearest opponent is driving at the ball.", [f"E.{k}.velocity", "E.ball.velocity"], ["Q.carrier_closing_speed"])
     return {"carrier_committing": c}
 

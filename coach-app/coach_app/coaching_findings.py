@@ -33,7 +33,7 @@ GOAL_Y = 5120.0
 NUM_RE = re.compile(r"(?<![A-Za-z_.])-?\d+(?:\.\d+)?")
 
 CLASS_LABEL = {
-    "first_defender": "First defender facing an opponent on the ball",
+    "first_defender": "First defender: first to the ball in your half with an opponent able to contest",
     "possession": "In possession of the ball",
     "offensive_first_man": "First player to a ball in the opponent half",
     "second_man_support": "Second man while the teammate plays the ball",
@@ -241,7 +241,8 @@ READINGS: dict[str, list[tuple]] = {
                                 (F, "the {boost_pad} pad route took {boost_cover_s} s to reach goal-side, too slow to cover"),
                                 (F, "no available pad route kept you in cover"),
                                 (W, "the pad route ({boost_cover_s} s) was borderline for covering")],
-    "carrier_committing": [(H, "the nearest opponent was driving at the ball ({carrier_closing} uu/s closing)"),
+    "carrier_committing": [(H, "the nearest opponent was already on the ball", "carrier_at_ball"),
+                           (H, "the nearest opponent was driving at the ball ({carrier_closing} uu/s closing)"),
                            (F, "the nearest opponent was moving away from the ball ({carrier_away} uu/s)", "carrier_moving_away"),
                            (F, "the nearest opponent was not driving at the ball (closing at only {carrier_closing} uu/s)"),
                            (W, "it was unclear whether the nearest opponent was going for the ball ({carrier_closing} uu/s closing)")],
@@ -303,6 +304,9 @@ def _numbers(packet: dict, rationale: dict) -> _Numbers:
                      ("closing", "Q.focus_closing_speed"), ("boost_cover_s", "Q.boost_then_cover_s"),
                      ("boost_pad", "Q.boost_route_pad"), ("carrier_closing", "Q.carrier_closing_speed")):
         if qid in q and q[qid]["value"] is not None:
+            if key == "carrier_closing" and q.get("Q.carrier_at_ball"):
+                n.flags.add("carrier_at_ball")
+                continue
             if key == "carrier_closing" and q[qid]["value"] < 0:
                 n.flags.add("carrier_moving_away")
                 n.put("carrier_away", -q[qid]["value"], qid)
@@ -403,7 +407,9 @@ def build_stage_a(situation: dict, rationale: dict, packet: dict, *, finding_id:
     # alternatives
     alts = []
     order = {"supported": 0, "conditional": 1, "contested": 2, "refuted": 3}
-    for a, v in sorted(acts.items(), key=lambda kv: (order[kv[1]["status"]], kv[0])):
+    def n_sat(v):
+        return -sum(r["status"] == "satisfied" for r in v["reasons"])
+    for a, v in sorted(acts.items(), key=lambda kv: (order[kv[1]["status"]], n_sat(kv[1]), kv[0])):
         prof = ACTIONS.get(a, {"label": a.replace("_", " "), "family": a, "gains": [], "preserves": [], "sacrifices": [], "risks": []})
         sat = [r for r in v["reasons"] if r["status"] == "satisfied"]
         cnd = [r for r in v["reasons"] if r["status"] == "conditional"]

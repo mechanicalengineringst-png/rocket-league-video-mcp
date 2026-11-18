@@ -26,7 +26,7 @@ from .episode_stage1 import build_stage1_episode_packet
 from .moment_ranking import VERSION as RANK_VERSION
 from .moment_ranking import rank
 from .situation_rationale import SituationRationaleError, analyze_situation
-from .situations import RULE_VERSION, discover_situations
+from .situations import RULE_VERSION, classify_frame, discover_situations
 
 SCHEMA = "CoachingReportV1"
 VERSION = "coach-report/0.1"
@@ -50,6 +50,44 @@ def analyze_moment(replay: dict[str, Any], focus: str, situation: dict[str, Any]
     rat = analyze_situation(st1, pre, situation)
     node = next(n for n in st1["nodes"] if n["is_primary"])
     return {"situation": situation, "rationale": rat, "packet": node["packet"]}
+
+
+def coach_moment(replay: dict[str, Any], focus: str, t0: float, *, include_retrospective: bool = True,
+                 finding_id: str = "M1") -> dict[str, Any]:
+    """Coach one user-chosen moment: classify the frame at t0, then Stage A (and optionally Stage B)."""
+    frames = [f for f in replay.get("frames", []) if f["t"] <= t0 + 1e-9]
+    if not frames or t0 - frames[-1]["t"] > 0.15:
+        raise ValueError("No frame at the requested time.")
+    sit = classify_frame(frames[-1], replay.get("players", []), focus)
+    if sit is None:
+        return {"schema": "CoachingFindingV1", "finding_id": finding_id, "t0": t0, "status": "no_supported_situation",
+                "kind": "observation_only", "experimental": True,
+                "reason": "The frame does not match a supported decision situation (or a car or reach estimate is missing)."}
+    sit.t0 = t0
+    it = analyze_moment(replay, focus, sit.to_dict())
+    if it is None:
+        raise ValueError("Not enough replay before t0 for an episode.")
+    f = build_stage_a(it["situation"], it["rationale"], it["packet"], finding_id=finding_id,
+                      salience={"why_selected": ["chosen by the user"], "uses_future": False, "is_merit": False})
+    _validate(f, it["packet"])
+    if include_retrospective:
+        f["retrospective"] = build_stage_b(f, replay, it["situation"])
+    return f
+
+
+def _validate(f: dict, packet: dict) -> None:
+    ver = verify_stage1_claims(packet, f["claims"]) if f["claims"] else {"all_structural_checks_passed": True, "results": []}
+    bad_numbers = check_finding_numbers(f)
+    f["validation"] = {"claims_structurally_valid": ver["all_structural_checks_passed"],
+                       "claims_checked": len(ver["results"]),
+                       "rejected_claims": [r["claim_id"] for r in ver["results"] if r["status"] == "rejected"],
+                       "untraced_numbers": bad_numbers, "future_frames_used": False,
+                       "semantic_tactical_accuracy_verified": False}
+    if not ver["all_structural_checks_passed"] or bad_numbers:
+        f["status"] = "withheld_validation_failed"
+        f["takeaway"] = {"kind": "withheld", "text": None, "basis": []}
+    else:
+        f["status"] = "ok"
 
 
 def build_coaching_report(replay: dict[str, Any], focus: str, *, max_findings: int = 6,
@@ -76,18 +114,7 @@ def build_coaching_report(replay: dict[str, Any], focus: str, *, max_findings: i
     findings = []
     for k, it in enumerate(chosen, 1):
         f = build_stage_a(it["situation"], it["rationale"], it["packet"], finding_id=f"F{k}", salience=it["salience"])
-        ver = verify_stage1_claims(it["packet"], f["claims"]) if f["claims"] else {"all_structural_checks_passed": True, "results": []}
-        bad_numbers = check_finding_numbers(f)
-        f["validation"] = {"claims_structurally_valid": ver["all_structural_checks_passed"],
-                           "claims_checked": len(ver["results"]),
-                           "rejected_claims": [r["claim_id"] for r in ver["results"] if r["status"] == "rejected"],
-                           "untraced_numbers": bad_numbers, "future_frames_used": False,
-                           "semantic_tactical_accuracy_verified": False}
-        if not ver["all_structural_checks_passed"] or bad_numbers:
-            f["status"] = "withheld_validation_failed"
-            f["takeaway"] = {"kind": "withheld", "text": None, "basis": []}
-        else:
-            f["status"] = "ok"
+        _validate(f, it["packet"])
         if include_retrospective:
             f["retrospective"] = build_stage_b(f, replay, it["situation"])
         findings.append(f)

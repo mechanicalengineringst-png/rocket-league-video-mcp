@@ -4,7 +4,8 @@ Every class is decided from the t0 frame alone (plus earlier candidates for debo
 candidate cannot depend on what happened next. Classes describe *what decision the focus player
 faced*, not whether they handled it well:
 
-- ``first_defender``        goal-side, an opponent about to play the ball, the focus player can contest
+- ``first_defender``        goal-side, the team's first player to a ball in the own half or midfield, with an
+                            opponent able to contest within 2.5 s (includes late, level and early arrivals)
 - ``possession``            the focus player has the ball under control (Round 4 heuristic: close, moving
                             with it, low ball)
 - ``offensive_first_man``   the focus player is their team's first to a ball in the opponent half, no control yet
@@ -31,7 +32,9 @@ RULE_VERSION = "situations/0.1"
 SCAN_STEP_S = 0.25
 CLASS_DEBOUNCE_S = 4.0
 ANY_GAP_S = 1.5
-KICKOFF_EXCLUSION_S = 3.0            # kickoff play is its own discipline and is not analysed here
+KICKOFF_EXCLUSION_S = 3.0
+FIRST_DEFENDER_OPP_S = 2.5           # an opponent can contest within this time
+FIRST_DEFENDER_LAG_S = 2.0           # the focus player is not hopelessly behind the opponent            # kickoff play is its own discipline and is not analysed here
 ELIGIBILITY_MARGIN_S = 0.30          # lower end of the Round 11 band: eligibility is inclusive, judgment is not
 GOAL_Y = 5120.0
 CLASSES = ("first_defender", "possession", "offensive_first_man", "second_man_support", "loose_ball",
@@ -121,8 +124,9 @@ def classify_frame(frame: dict, players: list[dict], focus: str, *, reach_cache:
     if mate and mate_vs_focus == "a_first" and iv[mate][0] <= 1.0:
         mx, my = _rel(team, cars[mate]["x"], cars[mate]["y"])
         return mk("second_man_support", teammate_t=iv[mate][0], focus_behind_teammate=fy < my)
-    if (fc.mode == "ground" and c_t <= 0.5 and fy < by - 200 and by <= 1500 and iv[focus][0] <= c_t + 1.0
-            and (not mate or iv[focus][0] <= iv[mate][0])):
+    if (fc.mode == "ground" and c_t <= FIRST_DEFENDER_OPP_S and fy < by - 200 and by <= 1500
+            and iv[focus][0] <= c_t + FIRST_DEFENDER_LAG_S
+            and (not mate or mate_vs_focus != "a_first" or _rel(team, cars[mate]["x"], cars[mate]["y"])[1] >= by)):
         return mk("first_defender", carrier_t=c_t)
     if by > 1000 and f_vs_c in ("a_first", "ambiguous") and (not mate or mate_vs_focus != "a_first") and iv[focus][0] <= 1.5:
         return mk("offensive_first_man", carrier_t=c_t, order=f_vs_c)
