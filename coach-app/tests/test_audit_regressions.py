@@ -169,6 +169,45 @@ def test_malformed_model_output_never_becomes_a_500(monkeypatch, model_text):
     assert r.status_code in (200, 502), r.text
 
 
+def test_ai_selected_time_uses_only_predecision_window_in_actual_request(monkeypatch):
+    # No real Gemini request: inspect the exact body sent by our local endpoint.
+    sent_prompts = []
+
+    class Response:
+        def raise_for_status(self): pass
+        def json(self):
+            return {'candidates': [{'content': {'parts': [{'text': '{"findings": []}'}]}}]}
+
+    class FakeClient:
+        def __init__(self, *args, **kwargs): pass
+        async def __aenter__(self): return self
+        async def __aexit__(self, *args): return False
+        async def post(self, *args, **kwargs):
+            sent_prompts.append(kwargs['json']['contents'][0]['parts'][0]['text'])
+            return Response()
+
+    import httpx
+    monkeypatch.setattr(httpx, 'AsyncClient', FakeClient)
+    monkeypatch.setenv('GEMINI_API_KEY', 'fake-key-not-sent')
+
+    req = {'replay': _match(10), 'player_id': 'a', 'selected_time': 5.0}
+    response = client.post('/api/ai-review', json=req)
+    assert response.status_code == 200, response.text
+    assert response.json()['findings'] == []
+    assert len(sent_prompts) == 1
+    prompt = sent_prompts[0]
+    assert 'three seconds BEFORE and through this time' in prompt
+    assert '2.0 |' in prompt and '5.0 |' in prompt
+    assert '1.0 |' not in prompt and '6.0 |' not in prompt
+    assert '7.0 |' not in prompt and '9.0 |' not in prompt
+
+    # No recent t0 sample: reject *before* making a model call.
+    req['selected_time'] = 5.5
+    response = client.post('/api/ai-review', json=req)
+    assert response.status_code == 422, response.text
+    assert len(sent_prompts) == 1
+
+
 def test_percent_encoded_replay_name_is_decoded(monkeypatch):
     monkeypatch.setattr(main, 'parse_replay_file', lambda path: _match(3) | {'schema': 'rl-coach/0.2'})
     r = client.post('/api/replays', content=b'x' * 64, headers={
