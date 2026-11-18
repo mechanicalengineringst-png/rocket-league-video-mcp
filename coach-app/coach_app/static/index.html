@@ -21,6 +21,7 @@
         <small>ROCKET LEAGUE .REPLAY · MAX 20MB</small>
         <input id="fileInput" type="file" accept=".replay" hidden />
       </div>
+      <button id="loadDemoBtn" class="button button-outline" type="button" style="margin-top:8px">▶ Try Interactive Replay & Coaching</button>
       <p class="status" id="uploadStatus" role="status">No replay loaded.</p>
       <div class="section-line"></div>
       <div class="eyebrow">02 / PLAYER</div>
@@ -102,6 +103,10 @@
         </div>
         <div class="timeline-legend"><span id="startTimeLabel">00:00</span><span id="endTime">—</span></div>
       </div>
+      <!-- Interactive AI Coaching Experience (Round 9) -->
+      <section class="panel coaching-section" id="coachingSection" aria-label="Interactive AI Coaching Experience">
+        <div id="coachingExperienceContainer"></div>
+      </section>
       <details class="video-panel panel" id="videoPanel">
         <summary>Optional gameplay video <span>Attach an MP4 / WebM recording for visual context</span></summary>
         <div class="video-body">
@@ -147,6 +152,8 @@
   <script src="/static/viewer3d-math.js"></script>
   <script src="/static/boost-pad-state.js"></script>
   <script src="/static/viewer3d.js"></script>
+  <script src="/static/coaching-fixtures.js"></script>
+  <script src="/static/coaching-experience.js"></script>
   <script src="/static/app.js" defer></script>
   <script src="/static/hd-bridge.js" defer></script>
 </body>
