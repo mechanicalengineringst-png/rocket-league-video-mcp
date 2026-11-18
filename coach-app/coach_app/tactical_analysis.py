@@ -201,6 +201,7 @@ class Finding:
     not_established: list[str]
     reviewed_action: str | None = None
     ranking: dict[str, Any] = field(default_factory=dict)
+    factors: dict[str, Any] = field(default_factory=dict)   # the verdict's inputs; None = unknown
     version: str = ANALYSIS_VERSION
 
     def to_dict(self) -> dict[str, Any]:
@@ -282,14 +283,9 @@ def assess_shot(r: Reading, case_id: str, reviewed_action: str | None = None) ->
     min_slack = min((d["slack_s"] for d in lane["defenders"]), default=float("inf"))
     low_boost_but_close = [d for d in lane["defenders"] if d["boost"] is not None and d["boost"] < 20 and d["slack_s"] <= 0]
     alts = []
-    if unseen:
-        feas, basis = "unclear", "An opponent's position is unknown, so the net cannot be called open."
-    elif r.ball["z"] > 300:
-        feas, basis = "unclear", "The ball is in the air; a shot needs an aerial touch whose reliability is not measured."
-    elif lane["open_fraction"] >= 0.45 and min_slack > 0.15:
-        feas, basis = "plausible", "Most of the goal mouth is unblocked and no known defender reaches the line before the ball."
-    else:
-        feas, basis = "implausible", "The lane is mostly blocked or a defender reaches the line first."
+    factors = {"all_opponents_known": not unseen, "ball_low": r.ball["z"] <= 300,
+               "lane_mostly_open": lane["open_fraction"] >= 0.45, "defenders_late": min_slack > 0.15}
+    feas, basis = shot_feasibility(factors)
     alts.append(Alternative("immediate shot", feas, basis, unseen))
     weak_pressure = [d for d in lane["defenders"] if d["boost"] is not None and d["boost"] < 20 and d["speed"] < 300]
     if has_possession(r):
@@ -304,22 +300,38 @@ def assess_shot(r: Reading, case_id: str, reviewed_action: str | None = None) ->
         st.append(Statement("interpretation",
                             "A defender is low on boost but already close to the shot line; low boost does not stop a grounded save.",
                             [d["pid"] for d in low_boost_but_close], confidence="medium"))
+    headline = {"shot": "Shot taken while the lane was open",
+                "no_shot": "An immediate shot appears feasible here"}.get(reviewed_action or "", "Open shooting lane at t0") \
+        if feas == "plausible" else "No clear shot at t0"
     if feas == "plausible" and reviewed_action == "shot":
-        verdict, headline = "reinforce", "Shot taken while the lane was open"
         st.append(Statement("interpretation", "Shooting matched a favourable read: open lane, no defender ahead of the ball.",
                             confidence="medium"))
     elif feas == "plausible" and reviewed_action == "no_shot":
-        verdict, headline = "missed_opportunity_hypothesis", "An immediate shot appears feasible here"
         st.append(Statement("interpretation",
                             "An immediate shot appears feasible from ball control and defender positions. Whether it beat the "
                             "play that followed is not known.", confidence="low"))
-    elif feas == "plausible":
-        verdict, headline = "situation_brief", "Open shooting lane at t0"
-    else:
-        verdict, headline = "abstain", "No clear shot at t0"
+    verdict = shot_verdict(factors, reviewed_action)
     return Finding(case_id, r.t0, "possession_shot_opportunity", headline, verdict, st, alts, list(r.unknowns),
                    ["Scoring probability of the shot.", "Whether the player saw the lane.", "Value of the alternative actually taken."],
-                   reviewed_action)
+                   reviewed_action, factors=factors)
+
+
+def shot_feasibility(factors: dict[str, Any]) -> tuple[str, str]:
+    """Pure rule: shot-lane factors -> feasibility of an immediate shot."""
+    if not factors["all_opponents_known"]:
+        return "unclear", "An opponent's position is unknown, so the net cannot be called open."
+    if not factors["ball_low"]:
+        return "unclear", "The ball is in the air; a shot needs an aerial touch whose reliability is not measured."
+    if factors["lane_mostly_open"] and factors["defenders_late"]:
+        return "plausible", "Most of the goal mouth is unblocked and no known defender reaches the line before the ball."
+    return "implausible", "The lane is mostly blocked or a defender reaches the line first."
+
+
+def shot_verdict(factors: dict[str, Any], reviewed_action: str | None) -> str:
+    feas = shot_feasibility(factors)[0]
+    if feas != "plausible":
+        return "abstain"
+    return {"shot": "reinforce", "no_shot": "missed_opportunity_hypothesis"}.get(reviewed_action or "", "situation_brief")
 
 
 # ---------- first-man challenge (Example B) ----------
@@ -367,7 +379,7 @@ def assess_challenge(r: Reading, case_id: str) -> Finding:
             st.append(Statement("interpretation",
                                 "If this challenge is lost, the teammate is either up the field too or slower to the ball than the "
                                 "second opponent: the teammate may have to defend two attackers.",
-                                [spare.pid, "mate"], confidence="medium"))
+                                [spare.pid if spare else "opponents", "mate"], confidence="medium"))
     costly = None if f.boost is None else (f.boost < 30 and math.hypot(f.x, f.y + GOAL_Y) > 7000)
     factors["costly_recovery"] = costly
     if costly:
@@ -382,20 +394,36 @@ def assess_challenge(r: Reading, case_id: str) -> Finding:
                     "Distance only; whether it is reached before the opponents play the ball is not checked."),
         Alternative("challenge (what was done)", "plausible", "Observed retrospectively; included so it is compared, not assumed wrong."),
     ]
-    known = [v for v in factors.values() if v is not None]
-    if factors["teammate_exposed_1v2"] is None:
-        verdict, headline = "abstain", "Teammate position unknown: coverage cannot be judged"
-    elif deep_corner and factors["teammate_exposed_1v2"] and costly:
-        verdict, headline = "risk_hypothesis", "Low-value challenge that likely leaves your teammate in a 1v2"
-    elif not any(known):
-        verdict, headline = "reinforce", "Challenge looks supported: teammate covering, ball not trapped in the corner"
+    verdict = challenge_verdict(factors)
+    headline = CHALLENGE_HEADLINES[verdict]
+    if verdict == "reinforce":
         st.append(Statement("interpretation", "No exposure factor was found at t0; the challenge fits the situation.",
                             confidence="low"))
-    else:
-        verdict, headline = "tradeoff", "Challenge with some exposure: compare with shadowing"
     return Finding(case_id, r.t0, "first_man_challenge", headline, verdict, st, alts, list(r.unknowns),
                    ["Probability of winning the 50/50.", "Where the ball goes after contact.",
-                    "Whether teammates had agreed who challenges."], "challenge")
+                    "Whether teammates had agreed who challenges."], "challenge", factors=factors)
+
+
+CHALLENGE_HEADLINES = {
+    "abstain": "Teammate coverage unknown: the challenge cannot be judged",
+    "risk_hypothesis": "Low-value challenge that likely leaves your teammate in a 1v2",
+    "reinforce": "Challenge looks supported: teammate covering, ball not trapped in the corner",
+    "tradeoff": "Challenge with some exposure: compare with shadowing",
+}
+
+
+def challenge_verdict(factors: dict[str, Any]) -> str:
+    """Pure rule. risk only when all three factors are known and unfavourable;
+    reinforce only when all three are known and favourable."""
+    exposed = factors.get("teammate_exposed_1v2")
+    if exposed is None:
+        return "abstain"
+    vals = [factors.get(k) for k in ("low_leverage_ball", "teammate_exposed_1v2", "costly_recovery")]
+    if all(v is True for v in vals):
+        return "risk_hypothesis"
+    if all(v is False for v in vals):
+        return "reinforce"
+    return "tradeoff"
 
 
 # ---------- last-man defence ----------

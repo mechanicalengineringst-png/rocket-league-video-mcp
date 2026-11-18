@@ -213,6 +213,43 @@ async def decision_cases_endpoint(request: DecisionCaseRequest):
         raise HTTPException(422, f'Could not process decision cases: {e}') from e
 
 
+class CoachQuestionRequest(BaseModel):
+    replay: dict[str, Any]
+    player_id: str
+    case_id: str
+    question_type: str
+    question: str = ''
+    model_answer: dict[str, Any] | None = None  # optional; validated against the packet, never trusted as-is
+
+    @field_validator('replay')
+    @classmethod
+    def validate_replay_structure(cls, v: Any) -> dict[str, Any]:
+        return DecisionCaseRequest.validate_replay_structure(v)
+
+
+@app.post('/api/coach-question')
+async def coach_question_endpoint(request: CoachQuestionRequest):
+    """Answer a question about one reviewed moment from deterministic evidence only.
+
+    No model is called here. A caller may pass a model's answer; it is checked
+    against the evidence packet and replaced by the deterministic answer if it
+    breaks the contract (coach_app.coaching_qa).
+    """
+    try:
+        from .coaching_qa import answer
+        from .decision_cases import extract_all_decision_cases
+        from .tactical_analysis import review_replay
+
+        cases = extract_all_decision_cases(request.replay)
+        findings = review_replay(request.replay, cases, request.player_id)
+        target = next((f for f in findings if f.case_id == request.case_id), None)
+        if target is None:
+            raise HTTPException(404, 'No reviewed moment with that case_id for this player.')
+        return answer(target, request.question_type, request.question, request.model_answer, history=findings)
+    except (KeyError, ValueError, TypeError) as e:
+        raise HTTPException(422, f'Could not answer: {e}') from e
+
+
 @app.post('/api/ai-review')
 async def ai_review(request: Request):
     """Only called after explicit user action; sends sampled positions to Gemini, never raw file."""
