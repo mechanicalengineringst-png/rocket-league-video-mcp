@@ -145,7 +145,7 @@ function renderFindings(){
   if(!items.length){
     const d=document.createElement('div');d.className='empty';
     d.textContent=state.momentFilter==='shortlist'
-      ? 'No defensible review leads for this replay yet. Goals and 50/50s remain in the event filters; the model abstains when evidence is insufficient.'
+      ? 'Advanced coaching is not connected in this build. Browse match events or add a manual review marker.'
       : 'No events in this category. This is not a judgment of gameplay quality.';
     list.append(d);return;
   }
