@@ -66,6 +66,8 @@ function setReplay(replay, opts={}){
   $('timeRange').min=startTime();$('timeRange').max=replay.duration;$('startTimeLabel').textContent=fmt(startTime());$('endTime').textContent=fmt(replay.duration);
   $('uploadStatus').textContent=opts.demo?'Simulated example loaded. This is NOT an actual match.':(replay.playerMappingVerified===false?'Replay decoded, but player identities could not be verified from kickoff spawns.':('Decoded '+(replay.telemetrySampleCount||replay.frames.length)+' physics samples; '+(replay.eventCounts?.touch||0)+' touches, '+(replay.eventCounts?.goal_context||0)+' goals. Events are review observations, not proven mistakes.'));
   if(!opts.demo&&!state.focusConfirmed)$('uploadStatus').textContent+=' The recording player could not be identified: confirm "Who are we coaching?".';
+  // Demo fixtures are never attached to a user's real match.
+  window.coachingController?.resetForReplay(Boolean(opts.demo));
   refreshFindings(opts.demo);renderBoostPads();
   const v = getViewer3d();
   if(v) v.update(currentFrame(), state.focusId, state.replay.players);
@@ -74,33 +76,67 @@ function setReplay(replay, opts={}){
     loadDecisionCasesForCoaching(replay, state.focusId);
   }
 }
+function makeCoachLessonRequest(replay, playerId, decisionCase) {
+  // Source cases choose the primary moment; context nodes are explicitly selected
+  // nearby timestamps, not automatically inferred prior mistakes.
+  const t0 = Number(decisionCase.t0 ?? decisionCase.timestamp);
+  const first = Number(replay.frames?.[0]?.t ?? 0);
+  if (!Number.isFinite(t0) || t0 - first < 5.05 || t0 > replay.duration) return null;
+  const episodeStart = +(t0 - 5).toFixed(3);
+  const decisionTimes = [t0 - 3.2, t0 - 1.5, t0].map(t => +t.toFixed(3));
+  if (decisionTimes.some(t => t < episodeStart || !Number.isFinite(t))) return null;
+  return {
+    replay, player_id: playerId, decision_times: decisionTimes,
+    episode_start_s: episodeStart, primary_t0: +t0.toFixed(3),
+    mode: 'deterministic'
+  };
+}
+
 async function loadDecisionCasesForCoaching(replay, playerId) {
   if (!replay || !replay.frames || replay.source === 'synthetic') return;
+  const coach = window.coachingController;
+  if (!state.focusConfirmed) {
+    coach?.setLiveStatus('Confirm the player being coached to request source-backed analysis.');
+    return;
+  }
+  coach?.setLiveStatus('Inspecting candidate decisions with the local coaching backend...');
   try {
     const res = await fetch('/api/decision-cases', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        replay: replay,
-        player_id: playerId,
-        evaluate: true,
-        analyze: true
-      })
+      body: JSON.stringify({replay, player_id: playerId, evaluate: true, analyze: true})
     });
-    if (!res.ok) return;
+    if (!res.ok) throw new Error('Candidate decision extraction unavailable (' + res.status + ').');
     const data = await res.json();
-    if (data && data.cases && data.cases.length && window.coachingController) {
-      for (const c of data.cases.slice(0, 5)) {
-        if (window.ReplayLabCoachingFixtures) {
-          const ep = window.ReplayLabCoachingFixtures.adaptLiveCaseToEpisode(c, replay);
-          if (ep) window.coachingController.addLiveEpisode(ep);
-        }
+    let count = 0;
+    for (const c of (data.cases || []).slice(0, 5)) {
+      if (state.replay !== replay || state.focusId !== playerId) return;
+      const payload = makeCoachLessonRequest(replay, playerId, c);
+      if (!payload) continue;
+      try {
+        const lessonRes = await fetch('/api/coach/lesson', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify(payload)
+        });
+        if (!lessonRes.ok) continue;
+        const lesson = await lessonRes.json();
+        if (state.replay !== replay || state.focusId !== playerId) return;
+        if (lesson.schema !== 'CoachLessonV0' || lesson.stage !== 'predecision') continue;
+        coach?.addVerifiedLesson(lesson, payload, c);
+        count += 1;
+      } catch (err) {
+        console.warn('An individual coaching lesson could not be loaded:', err);
       }
     }
-  } catch (e) {
-    console.warn('Could not load live decision cases for coaching:', e);
+    if (!count && state.replay === replay && state.focusId === playerId)
+      coach?.setLiveStatus('No source-backed lessons could be constructed for this replay. Demo examples remain separate.');
+  } catch (err) {
+    console.warn('Could not load live coaching cases:', err);
+    if (state.replay === replay && state.focusId === playerId)
+      coach?.setLiveStatus('Source-backed coaching is unavailable: ' + err.message);
   }
 }
+
 function supportPoint(frame, focusId){let car=frame.cars[focusId];const team=playerById(focusId)?.team||'blue';const ownY=team==='blue'?-5120:5120;return {x:Math.max(-3500,Math.min(3500,frame.ball.x+(car.x<frame.ball.x?-500:500))),y:Math.max(-4400,Math.min(4400,frame.ball.y+(ownY>frame.ball.y?1100:-1100)))};}
 function demoReplay(){const players=[{id:'self',name:'Your car',team:'blue'},{id:'mate',name:'Teammate',team:'blue'},{id:'opp1',name:'Opponent 1',team:'orange'},{id:'opp2',name:'Opponent 2',team:'orange'}];let frames=[];for(let i=0;i<=240;i++){
 const t=i*.5, wave=Math.sin(t/13), bx=1200* Math.sin(t/16),by=3600*Math.sin(t/26),b={x:bx,y:by,z:110};
@@ -601,7 +637,7 @@ function wire(){
   zone.ondragover=e=>{e.preventDefault();zone.classList.add('dragging');};
   zone.ondragleave=()=>zone.classList.remove('dragging');
   zone.ondrop=e=>{e.preventDefault();zone.classList.remove('dragging');loadFile(e.dataTransfer.files[0]);};
-  $('playerSelect').onchange=e=>{state.focusId=e.target.value;state.focusConfirmed=true;if(state.replay?.source!=='synthetic')remembered.set(state.focusId);state.overrides.clear();refreshFindings();chooseTime(state.time);};
+  $('playerSelect').onchange=e=>{state.focusId=e.target.value;state.focusConfirmed=true;if(state.replay?.source!=='synthetic')remembered.set(state.focusId);state.overrides.clear();refreshFindings();chooseTime(state.time);window.coachingController?.resetForReplay(state.replay?.source==='synthetic');if(state.replay?.source!=='synthetic')loadDecisionCasesForCoaching(state.replay,state.focusId);};
   $('timeRange').oninput=e=>{stopPlay();chooseTime(Number(e.target.value));};
   $('playBtn').onclick=togglePlay;
   $('backBtn').onclick=()=>{stopPlay();chooseTime(state.time-2);};
