@@ -102,7 +102,7 @@ def test_companion_offline_detection():
     status = companion.get_status()
     assert not status.available
     assert not status.connected
-    assert "Rocket League Native Stats API is offline" in status.instructions
+    assert "Stats API is not confirmed available" in status.instructions
 
 
 def test_companion_mock_server_interaction():
