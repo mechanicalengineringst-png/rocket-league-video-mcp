@@ -223,14 +223,16 @@ async def ai_review(request: Request):
         if selected_time is not None:
             if not math.isfinite(selected_time) or selected_time < 0 or selected_time > float(payload.replay['duration']):
                 raise ValueError('Selected time is outside replay range.')
-        compact = compact_game_states(payload.replay, payload.player_id, max_frames=90)
+        compact = compact_game_states(payload.replay, payload.player_id, max_frames=90,
+                                      selected_time=selected_time)
     except (KeyError, ValueError, TypeError) as e:
         raise HTTPException(422, 'Invalid replay or player selection.') from e
 
     scope = (
-        f'This is a user-selected replay moment at {selected_time:.2f}s, with only '
-        'approximately three seconds of observations on either side. '
-        if selected_time is not None else 'This is sparse match telemetry. '
+        f'This is a user-selected decision moment at {selected_time:.2f}s. '
+        'The supplied samples cover at most three seconds BEFORE and through this time; '
+        'no later frames are provided. Judge choices only using pre-decision evidence. '
+        if selected_time is not None else 'This is sparse match telemetry, not a verified decision-time packet. '
     )
     instruction = (
         'You are a skeptical Rocket League replay coach. ' + scope +
