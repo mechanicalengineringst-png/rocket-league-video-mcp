@@ -1,6 +1,6 @@
 'use strict';
 const $ = id => document.getElementById(id);
-const state = { replay: null, findings: [], focusId: null, selectedId: null, time: 0, playing: false, timer: null, overrides: new Map(), reviewFeedback: new Map(), view: {facing:true, travel:false, heights:false, trail:false, ballTrail:false, boostPads:true}, speed:1, momentFilter:'shortlist', videoUrl:null, videoOffset:0, videoAligned:false };
+const state = { replay: null, findings: [], focusId: null, selectedId: null, time: 0, playing: false, timer: null, overrides: new Map(), reviewFeedback: new Map(), view: {facing:true, travel:false, heights:false, trail:false, ballTrail:false, boostPads:true}, speed:1, momentFilter:'shortlist', videoUrl:null, videoOffset:0, videoAligned:false, lastCoachingRequestId: 0 };
 let currentViewMode = 'split';
 function announceReplaySync(){
   if(!state.replay)return;
@@ -99,7 +99,49 @@ async function loadDecisionCasesForCoaching(replay, playerId) {
     coach?.setLiveStatus('Confirm the player being coached to request source-backed analysis.');
     return;
   }
+  const activeRequestId = ++state.lastCoachingRequestId;
+  const useExperimentalV1 = Boolean(coach?.useExperimentalV1);
   coach?.setLiveStatus('Discovering source-backed review moments with local coaching backend...');
+
+  // Phase 1: Try single-request review bundle if supported by backend capabilities
+  try {
+    let caps = {};
+    try {
+      const capsRes = await fetch('/api/coach/capabilities');
+      if (capsRes.ok) caps = await capsRes.json();
+    } catch (_) {}
+
+    if (caps.single_request_review_bundle === 'CoachReviewBundleV0') {
+      coach?.setLiveStatus('Requesting one-call review bundle from local coaching backend...');
+      try {
+        const bundlePayload = {
+          replay,
+          player_id: playerId,
+          max_candidates: 8,
+          preview_count: 4,
+          experimental_tactical_v1: useExperimentalV1
+        };
+        const bRes = await fetch('/api/coach/review-bundle', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(bundlePayload)
+        });
+        if (bRes.ok) {
+          const bundle = await bRes.json();
+          if (state.lastCoachingRequestId !== activeRequestId || state.replay !== replay || state.focusId !== playerId) return;
+          if (bundle.schema === 'CoachReviewBundleV0') {
+            coach?.setReviewBundle?.(bundle, replay, playerId, bundlePayload);
+            return;
+          }
+        }
+      } catch (bErr) {
+        console.warn('Review bundle query failed, falling back to candidates discovery:', bErr);
+      }
+    }
+  } catch (err) {
+    console.warn('Capabilities query check failed:', err);
+  }
+
   try {
     let candidateList = [];
     // 1. Official Round 10/11 Candidate Discovery Endpoint
@@ -661,6 +703,62 @@ async function aiReview(){
   finally{$('aiBtn').textContent='Ask Gemini about selected moment';$('aiBtn').disabled=false;}
 }
 function addManualMarker(){if(!state.replay)return;const f=currentFrame();const id='manual-'+Date.now();const finding={id,t:f.t,type:'manual',title:'Review this decision',confidence:'unverified',evidence:'Manual marker at the current replay timestamp.',advice:'Inspect the opponent, ball height, timing and recent touches. A marker records a question, not a mistaken decision.',target:null};state.findings.push(finding);state.findings.sort((a,b)=>a.t-b.t);state.selectedId=id;$('flagsValue').textContent=state.findings.filter(f=>['manual','ai','contextual'].includes(f.type)).length;renderFindings();renderDetail();renderPitch();}
+async function checkCompanionStatus() {
+  const badge = $('companionBadge');
+  const details = $('companionStatusDetails');
+  const instr = $('companionInstructions');
+  const syncBtn = $('companionSyncBtn');
+  if (!badge) return;
+  try {
+    const res = await fetch('/api/companion/status');
+    if (!res.ok) throw new Error('Status probe returned ' + res.status);
+    const data = await res.json();
+    if (data.available) {
+      badge.textContent = 'Port Ready';
+      badge.className = 'companion-status-badge online';
+      if (syncBtn) syncBtn.disabled = !$('companionOptIn')?.checked;
+      if (details) details.textContent = 'Local TCP port ' + data.port + ' is listening. No active command session.';
+      if (instr) instr.hidden = true;
+    } else {
+      badge.textContent = 'Offline';
+      badge.className = 'companion-status-badge offline';
+      if (syncBtn) syncBtn.disabled = true;
+      if (details) details.textContent = 'Ports 49123/49124 are not listening on loopback.';
+      if (instr) {
+        instr.hidden = false;
+        instr.textContent = data.instructions || 'Rocket League Stats API is not active.';
+      }
+    }
+  } catch (err) {
+    badge.textContent = 'Offline';
+    badge.className = 'companion-status-badge offline';
+    if (details) details.textContent = 'Status error: ' + err.message;
+  }
+}
+
+async function sendNativeCompanionCommand(command, data) {
+  if (!$('companionOptIn')?.checked) {
+    alert('Enable "Native Game Commands (Opt-in)" before sending commands to Rocket League.');
+    return;
+  }
+  try {
+    const res = await fetch('/api/companion/command', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ Command: command, Data: data })
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.detail || ('HTTP ' + res.status));
+    }
+    const result = await res.json();
+    console.log('Native companion command result:', result);
+  } catch (e) {
+    console.warn('Native companion command failed:', e);
+    alert('Companion command failed: ' + e.message);
+  }
+}
+
 function wire(){
   const zone=$('uploadZone'),input=$('fileInput');
   zone.onclick=()=>input.click();
@@ -711,6 +809,23 @@ function wire(){
     window.coachingController = new CoachingExperienceController();
     window.coachingController.mount('coachingExperienceContainer');
   }
+  const probeBtn = $('companionProbeBtn');
+  if (probeBtn) probeBtn.onclick = checkCompanionStatus;
+  const optIn = $('companionOptIn');
+  if (optIn) {
+    optIn.onchange = () => {
+      const syncBtn = $('companionSyncBtn');
+      if (syncBtn) syncBtn.disabled = !optIn.checked;
+    };
+  }
+  const syncBtn = $('companionSyncBtn');
+  if (syncBtn) {
+    syncBtn.onclick = () => {
+      sendNativeCompanionCommand('SeekReplay', { TimeSeconds: Number(state.time.toFixed(3)) });
+    };
+  }
+  checkCompanionStatus();
+
   setViewMode('split');
 }
 

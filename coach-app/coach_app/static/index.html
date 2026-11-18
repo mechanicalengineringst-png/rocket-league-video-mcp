@@ -112,6 +112,24 @@
           <p class="small-copy" id="videoStatus">Video synchronization requires a matching clip and a manually chosen offset.</p>
         </div>
       </details>
+      <details class="companion-panel panel" id="companionPanel">
+        <summary>Native Rocket League Companion <span id="companionBadge" class="companion-status-badge offline">Offline</span></summary>
+        <div class="companion-body">
+          <p class="small-copy">Optional loopback control of an installed Rocket League replay via the official Psyonix Stats API (port 49123). Replay Lab does not capture or stream video from the game window.</p>
+          <div class="companion-controls">
+            <label class="view-toggle">
+              <input type="checkbox" id="companionOptIn" />
+              <span>Enable Native Game Commands (Opt-in)</span>
+            </label>
+            <div class="companion-actions">
+              <button id="companionProbeBtn" class="button-mini" type="button">Probe Ports 49123/49124</button>
+              <button id="companionSyncBtn" class="button-mini" type="button" disabled>Sync Game to Playhead</button>
+            </div>
+          </div>
+          <div id="companionInstructions" class="companion-instructions" hidden></div>
+          <div id="companionStatusDetails" class="companion-status-details small-copy"></div>
+        </div>
+      </details>
     </section>
     <aside class="panel right-panel">
       <div class="eyebrow">REVIEW & MATCH EVENTS</div>

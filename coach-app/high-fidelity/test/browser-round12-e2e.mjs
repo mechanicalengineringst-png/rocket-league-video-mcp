@@ -1,0 +1,93 @@
+import { chromium } from 'playwright';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import fs from 'node:fs';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const replayPath = path.resolve(__dirname, '../../fixtures/replays/real_match_2v2.replay');
+const screenshotPath = path.resolve(__dirname, '../../../round12_live_coaching_browser_verified.png');
+
+console.log('Testing Replay Lab Round 12 end-to-end against http://127.0.0.1:8085...');
+const browser = await chromium.launch({
+  channel: 'chrome',
+  headless: true,
+  args: ['--enable-webgl', '--use-angle=swiftshader', '--enable-unsafe-swiftshader']
+});
+
+const page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
+
+try {
+  // 1. Load application
+  await page.goto('http://127.0.0.1:8085/', { waitUntil: 'networkidle', timeout: 30000 });
+  console.log('Page loaded successfully.');
+
+  // 2. Verify split view architecture & absence of retired 3D
+  const hasRetiredVp = await page.$('#viewport3d');
+  const hasRetiredControls = await page.$('#controls3d');
+  const hasRetiredTab = await page.$('#viewTab3d');
+  if (hasRetiredVp || hasRetiredControls || hasRetiredTab) {
+    throw new Error('Retired geometric 3D viewer elements were found on page!');
+  }
+  console.log('Verified: Retired 3D viewer is completely absent.');
+
+  const hdFrame = await page.$('#hdInlineFrame');
+  const fieldSvg = await page.$('#field');
+  if (!hdFrame || !fieldSvg) {
+    throw new Error('Split view components (#hdInlineFrame or #field) missing!');
+  }
+  console.log('Verified: Split view (HD + Map) is active.');
+
+  // 3. Test Companion Probe
+  await page.click('#companionPanel summary');
+  await page.click('#companionProbeBtn');
+  await page.waitForTimeout(500);
+  const badgeText = await page.textContent('#companionBadge');
+  console.log('Companion status badge:', badgeText);
+
+  // 4. Upload genuine replay file
+  console.log('Uploading real_match_2v2.replay...');
+  await page.setInputFiles('#fileInput', replayPath);
+
+  // 5. Wait for replay parsing & playerSelect population
+  await page.waitForFunction(() => {
+    const sel = document.getElementById('playerSelect');
+    return sel && sel.options.length > 1;
+  }, { timeout: 30000 });
+
+  // 6. Select focus player
+  await page.selectOption('#playerSelect', { index: 1 });
+  console.log('Player selected. Waiting for review bundle / candidate lessons...');
+
+  // 7. Wait for coaching episodes to mount
+  await page.waitForFunction(() => {
+    const sel = document.getElementById('episodeSelect');
+    return sel && sel.options.length > 0;
+  }, { timeout: 30000 });
+
+  const episodeCount = await page.evaluate(() => {
+    const sel = document.getElementById('episodeSelect');
+    return sel ? sel.options.length : 0;
+  });
+  console.log(`Successfully mounted ${episodeCount} coaching review moments!`);
+
+  // 8. Test Tester Feedback functionality
+  const usefulBtn = await page.waitForSelector('.feedback-btn.useful', { timeout: 10000 });
+  await usefulBtn.click();
+  console.log('Clicked "Useful & Accurate" feedback button.');
+
+  await page.fill('#feedbackNoteInput', 'Verified challenge timing and recovery spacing in 2v2 formation.');
+  await page.click('#saveFeedbackNoteBtn');
+  console.log('Saved tester feedback note.');
+
+  // 9. Jump to decision point
+  await page.click('#jumpDecisionBtn');
+  console.log('Synchronized replay seek to decision point.');
+
+  // 10. Capture visual evidence
+  await page.screenshot({ path: screenshotPath, fullPage: true });
+  console.log('Captured screenshot evidence at:', screenshotPath);
+
+  console.log('Round 12 browser workflow completed successfully!');
+} finally {
+  await browser.close();
+}
