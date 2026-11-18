@@ -4,6 +4,8 @@
 
 **Detailed historical record:** [Google Drive master handoff](https://docs.google.com/document/d/12OuLwWCDxprVzGSnQVWJ6vvIQ_SujJAOqNn3_FBF-Q0/edit). The older [AI team onboarding](AI_TEAM_ONBOARDING.md) is historical and no longer current. **All new ChatGPT/Claude/Antigravity sessions must read this compass, then check current PR heads, before proposing work.**
 
+**Round 6 multi-agent strategic meeting (Gemini + Claude + Antigravity + ChatGPT):** [Read the synthesized findings, corrected overclaims, and proposed 12-case/native-API evidence gates](REPLAY_LAB_ROUND6_CROSS_AGENT_STRATEGY_REVIEW.md). This memo is PRELIMINARY, not permission to modify the game, train models, upload replays or merge code. Antigravity's docs-only native architecture report is linked there.
+
 **Round 6 independent research (ChatGPT, research-only):** [Initial architecture/evidence report](REPLAY_LAB_ROUND6_INDEPENDENT_RESEARCH.md) and [Deep-dive addendum: replicar v2, human observability, existing viewer options, high-rank data and models](REPLAY_LAB_ROUND6_DEEP_DIVE_ADDENDUM.md). Findings requiring other-agent review: selected-moment Gemini prompt presently samples the whole match rather than its named decision window; a published curated 2v2 replay dataset reports 49,658 matches (actual file quality and rights unverified); existing possession/xG/goal-hazard code might help with grounded tactical features; run small expert-blinded side-by-side tests BEFORE investing in local LLM training. **No architecture chosen or code implemented by this report.**
 
 ## 1. Mission: build an exceptional coach, not a replay viewer
