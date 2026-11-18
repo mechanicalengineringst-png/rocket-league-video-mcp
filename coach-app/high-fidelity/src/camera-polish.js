@@ -97,8 +97,18 @@ export function createCameraPolishPlugin({getCameraPlugin,getFollowId,getReplayL
       const minFloor = carObj ? Math.max(ARENA_Y_MIN, anchor.y + 35) : ARENA_Y_MIN;
       cam.position.y=THREE.MathUtils.clamp(cam.position.y,minFloor,ARENA_Y_MAX);
 
-      // Keep follow-camera horizon upright (prevent camera roll inversion during aerial flips)
-      if(cam.up.y < 0.2) {
+      // Keep follow-camera horizon strictly upright (prevent disorienting camera roll during aerial flips and wall rides)
+      const forward = new THREE.Vector3();
+      cam.getWorldDirection(forward);
+      right.crossVectors(forward, UP);
+      if(right.lengthSq() > 0.001) {
+        right.normalize();
+        const correctedUp = new THREE.Vector3().crossVectors(right, forward).normalize();
+        cam.up.copy(correctedUp);
+        const rotMat = new THREE.Matrix4();
+        rotMat.makeBasis(right, correctedUp, forward.clone().negate());
+        cam.quaternion.setFromRotationMatrix(rotMat);
+      } else {
         cam.up.set(0,1,0);
       }
 

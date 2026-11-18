@@ -115,7 +115,8 @@ export function createEffectRefiner(getPreference=()=> 'soft') {
           'vec4 shade = vColor * textureColor;',
           'float edge = smoothstep(0.0, 0.18, vUV.y) *',
           '             (1.0 - smoothstep(0.76, 1.0, vUV.y));',
-          'gl_FragColor = vec4(shade.rgb, shade.a * edge * 0.66);'
+          'float lengthFade = smoothstep(0.0, 0.22, vUV.x);',
+          'gl_FragColor = vec4(shade.rgb, shade.a * edge * lengthFade * 0.72);'
         ].join('\n')
       );
     }

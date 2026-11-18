@@ -1,0 +1,56 @@
+[
+  {
+    "replay_file": "23A661D44DBC5964B0718DBC5F956A33.replay",
+    "raw_size_bytes": 1187217,
+    "raw_parse_time_ms": 2689.71,
+    "candidate_1_hermite_mean_error_uu": 42.534,
+    "candidate_1_linear_mean_error_uu": 42.534,
+    "candidate_1_interp_cost_us_per_frame": 14.37,
+    "candidate_2_physics_divergence_mean_uu": {
+      "0.1s": 38.2,
+      "0.25s": 71.0,
+      "0.5s": 210.9,
+      "1.0s": 721.6
+    },
+    "candidate_3_binary_size_bytes": 199814,
+    "candidate_3_compression_ratio": 5.94,
+    "candidate_3_decode_time_ms": 10.83,
+    "candidate_3_mean_quantization_error_uu": 0.1584
+  },
+  {
+    "replay_file": "001AAC74454E7D7FD9DBB68B238D67B1.replay",
+    "raw_size_bytes": 784255,
+    "raw_parse_time_ms": 2103.06,
+    "candidate_1_hermite_mean_error_uu": 36.654,
+    "candidate_1_linear_mean_error_uu": 36.635,
+    "candidate_1_interp_cost_us_per_frame": 15.26,
+    "candidate_2_physics_divergence_mean_uu": {
+      "0.1s": 34.5,
+      "0.25s": 67.1,
+      "0.5s": 198.9,
+      "1.0s": 665.2
+    },
+    "candidate_3_binary_size_bytes": 155948,
+    "candidate_3_compression_ratio": 5.03,
+    "candidate_3_decode_time_ms": 7.592,
+    "candidate_3_mean_quantization_error_uu": 0.1762
+  },
+  {
+    "replay_file": "0E135D2611EFEE7B6A553D8786B9BEA2.replay",
+    "raw_size_bytes": 1374366,
+    "raw_parse_time_ms": 2253.68,
+    "candidate_1_hermite_mean_error_uu": 21.317,
+    "candidate_1_linear_mean_error_uu": 21.566,
+    "candidate_1_interp_cost_us_per_frame": 15.02,
+    "candidate_2_physics_divergence_mean_uu": {
+      "0.1s": 27.1,
+      "0.25s": 71.7,
+      "0.5s": 224.0,
+      "1.0s": 780.5
+    },
+    "candidate_3_binary_size_bytes": 180104,
+    "candidate_3_compression_ratio": 7.63,
+    "candidate_3_decode_time_ms": 13.228,
+    "candidate_3_mean_quantization_error_uu": 0.2029
+  }
+]
