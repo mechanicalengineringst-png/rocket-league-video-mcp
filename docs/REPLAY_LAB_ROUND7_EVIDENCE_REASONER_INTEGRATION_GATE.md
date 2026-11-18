@@ -3,6 +3,10 @@
 
 Read [Project Compass](replay-lab-project-compass.md) first. This summary is the durable integration decision, **not a transcript**. The complete Gemini report was supplied by the owner as an 885-line Markdown attachment in ChatGPT, not independently verified against the GitHub repository.
 
+## Initial code handoff (separate draft)
+
+[PR #27](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/27), stacked on Claude's PR #22, implements the first Stage 1 evidence-only serializer in `coach-app/coach_app/stage1_packet.py` with focused synthetic tests in `coach-app/tests/test_stage1_packet.py`. It whitelists only E./C. observations and provenance, U. uncertainties, context and anonymous slots. It omits `selection`, `source`, `rules` and `retrospective`, and refuses unsafe timestamps, missing facts, invalid floats and raw context player IDs. **GitHub CI pending at this checkpoint.** This is NOT a complete two-stage evaluator or expert coaching model.
+
 ## Grounded project state
 
 - **Claude:** [PR #22](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/22), `5dc35d1`, adds `coach_app/decision_evidence.py` and [exact contract](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/blob/claude/round5-tactical-intelligence-20261117/coach-app/docs/round5/05_DECISION_EVIDENCE_V0.md). `build_decision_evidence(payload, t0, focus_id, *, context_s=3.0, selection=None)` yields `DecisionEvidenceV0`, containing `evidence` (E./C. refs), `unknowns` (U. refs), `context`, `not_observable`, and a **separate** `retrospective` (R. refs). It does not score merit. Claude reports 204 tests passed, 4 skipped, plus 636/636 stable pre-t0 records under future truncation across 15 real unknown-rank replays. **Not high-rank coaching validation**.
