@@ -95,7 +95,7 @@
       lesson.validation?.semantic_tactical_accuracy_verified===false &&
       lesson.validation?.accepted_model_claims===0 &&
       Array.isArray(lesson.claims) &&
-      lesson.claims.every(c=>c && c.author==='deterministic');
+      lesson.claims.every(c=>c && c.author==='deterministic_template');
   }
   class ManualReviewController {
     constructor(getContext,acceptLesson,fetcher) {
