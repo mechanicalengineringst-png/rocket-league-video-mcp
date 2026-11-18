@@ -16,6 +16,7 @@ const output=path.resolve('test-artifacts');
 mkdirSync(output,{recursive:true});
 const browser=await chromium.launch({
   headless:true,
+  executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',
   args:[
     '--enable-webgl',
     '--use-angle=swiftshader',
@@ -26,7 +27,10 @@ const page=await browser.newPage({viewport:{width:1440,height:900}});
 const browserErrors=[];
 const assetErrors=[];
 const shaderErrors=[];
-page.on('pageerror',error=>browserErrors.push(error.message));
+page.on('pageerror',error=>{
+  console.error('BROWSER_PAGE_ERROR_STACK:', error.stack || error.message);
+  browserErrors.push(error.message);
+});
 page.on('console',entry=>{
   if(entry.type()==='error' && /shader error|webglprogram|fragment shader|vertex shader/i.test(entry.text()))
     shaderErrors.push(entry.text().slice(0,400));
@@ -58,6 +62,10 @@ try{
   await page.locator('[data-camera="follow"]').click();
   const label=await page.locator('#cameraLabel').textContent();
   assert.match(label,/BALL CAM|CAR CAM|REAR LOOK|CAMERA UNKNOWN/);
+  const boostHudVisible=await page.locator('#boostHud').isVisible();
+  assert.ok(boostHudVisible,'Follow camera mode must display live boost HUD');
+  const boostNum=await page.locator('#boostNum').textContent();
+  assert.ok(Number(boostNum)>=0 && Number(boostNum)<=100,'Boost gauge should display valid 0-100 reading');
   const evidence=await page.locator('#cameraEvidence').textContent();
   assert.ok(evidence.length>25,'Recorded camera evidence must be visible');
   console.log('HD_CAMERA_EVIDENCE',evidence);

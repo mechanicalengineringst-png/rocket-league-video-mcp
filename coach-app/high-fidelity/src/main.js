@@ -30,7 +30,7 @@ setPlayerAssetBase(assetBase);
 // can read as background camera shake while reviewing stationary gameplay.
 const STILL_HDR={
   id:'replay-lab-stable-stadium',
-  skyboxUrl:`${assetBase.replace(/\/+$/, '')}/skyboxes/PlanetaryEarth4k.hdr`,
+  skyboxUrl:'skyboxes/PlanetaryEarth4k.hdr',
   exposure:1.20,
   rotation:{x:8,y:0,z:28},
   animation:{enabled:false,speed:0}

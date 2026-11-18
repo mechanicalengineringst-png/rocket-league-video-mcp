@@ -50,7 +50,7 @@ export function applySceneQuality(player, name='balanced') {
         // Anisotropy is a reversible, runtime quality preference.
         if(t.anisotropy!==anisotropy) {
           t.anisotropy=anisotropy;
-          t.needsUpdate=true;
+          if (t.image) t.needsUpdate=true;
         }
       }
     }

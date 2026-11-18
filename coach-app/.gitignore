@@ -5,5 +5,7 @@ __pycache__/
 *.replay
 # Native replay 3D WebGL build output; may include third-party GLBs and textures.
 coach_app/static/hd-player/
+high-fidelity/test-artifacts/
+high-fidelity/dist/
 .env
 .DS_Store
