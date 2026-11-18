@@ -262,3 +262,32 @@ def test_replay_elapsed_zero_is_preserved_and_not_confused_with_match_countdown(
     }))
     assert c.observe_playback_state()["reported_time_seconds"] == 12.75
     assert c.measure_drift(13.0) == -0.25
+
+
+def test_native_port_readiness_separates_supported_tcp_from_probe_only_ws(monkeypatch):
+    """A WebSocket-only port must NEVER enable UI send-command controls."""
+    client = RocketLeagueCompanion(tcp_port=59123, ws_port=59124)
+    monkeypatch.setattr(client, "probe_port", lambda port: port == 59124)
+    ws = client.get_status()
+    assert ws.available is True
+    assert ws.tcp_command_port_open is False
+    assert ws.websocket_probe_port_open is True
+    assert ws.transport == "none"
+    assert ws.game_identity_verified is False
+    assert ws.replay_control_verified is False
+    assert not client.is_connected()
+
+    monkeypatch.setattr(client, "probe_port", lambda port: port == 59123)
+    tcp = client.get_status()
+    assert tcp.available is True
+    assert tcp.tcp_command_port_open is True
+    assert tcp.websocket_probe_port_open is False
+    assert tcp.game_identity_verified is False
+    assert tcp.replay_control_verified is False
+    assert tcp.connected is False
+
+    monkeypatch.setattr(client, "probe_port", lambda _: False)
+    offline = client.get_status()
+    assert offline.available is False
+    assert offline.tcp_command_port_open is False
+    assert offline.websocket_probe_port_open is False
