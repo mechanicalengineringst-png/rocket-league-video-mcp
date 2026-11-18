@@ -1,14 +1,15 @@
 'use strict';
 const $ = id => document.getElementById(id);
-const state = { replay: null, findings: [], focusId: null, selectedId: null, time: 0, playing: false, timer: null, overrides: new Map(), reviewFeedback: new Map(), boostPadModel: null, padGraphics: null, view: {facing:true, travel:false, heights:false, trail:false, ballTrail:false, boostPads:true}, speed:1, momentFilter:'shortlist', videoUrl:null, videoOffset:0, videoAligned:false };
-let viewer3d = null;
-let currentViewMode = '2d';
-function getViewer3d(){
-  if(!viewer3d && typeof Viewer3D !== 'undefined'){
-    const container = $('viewport3d');
-    if(container) viewer3d = new Viewer3D(container);
-  }
-  return viewer3d;
+const state = { replay: null, findings: [], focusId: null, selectedId: null, time: 0, playing: false, timer: null, overrides: new Map(), reviewFeedback: new Map(), boostPadModel: null, padGraphics: null, view: {facing:true, travel:false, heights:false, boostPads:true}, speed:1, momentFilter:'shortlist', videoUrl:null, videoOffset:0, videoAligned:false };
+let currentViewMode = 'split';
+function announceReplaySync(){
+  if(!state.replay)return;
+  const focus=playerById(state.focusId);
+  if(!focus)return;
+  window.dispatchEvent(new CustomEvent('replay-lab:sync-state',{detail:{
+    time:state.time,playing:state.playing,speed:state.speed,
+    focusName:focus.name,focusTeam:focus.team,synthetic:state.replay.source==='synthetic'
+  }}));
 }
 const SVG_NS = 'http://www.w3.org/2000/svg';
 // Rocket League uses Unreal's left-handed axes: seen from above with the orange goal (+Y)
@@ -40,30 +41,17 @@ function chooseTime(time){
   if(!state.replay)return;
   state.time=Math.max(startTime(),Math.min(time,state.replay.duration));
   $('timeRange').value=state.time;
-  $('timeValue').textContent=fmt(state.time)+'.'+String(Math.floor((state.time%1)*100)).padStart(2,'0');
-  const frame=currentFrame();
-  const fc=frame?.cars?.[state.focusId];
-  $('boostValue').textContent='BOOST '+(fc&&!fc.demolished&&Number.isFinite(fc.boost)?Math.round(fc.boost):'—');
-  // Preserve native 60/144Hz THREE motion, while capping DOM-heavy
-  // SVG reconstruction: the tactical map doesn't need 144 repaints/second.
+  $('timeValue').textContent=fmt(state.time);
+  // The map is subordinate to HD 3D and repaints less often.
   const now=performance.now();
-  const mapInterval=currentViewMode==='split'?1000/30:1000/60;
+  const mapInterval=currentViewMode==='split'?1000/24:1000/40;
   if(!state.playing || now-lastMapPaint>=mapInterval){
     renderPitch();
     if(state.replay.boostPadTimeline) renderBoostPads();
     lastMapPaint=now;
   }
-  if(!state.playing || now-lastInspectPaint>=100){
-    renderSceneInspector();
-    lastInspectPaint=now;
-  }
-  if(viewer3d) {
-    viewer3d.update(frame, state.focusId, state.replay.players);
-    if(state.replay.boostPadTimeline) {
-      viewer3d.updateBoostPads(state.replay.boostPadTimeline, state.time, state.boostPadModel, state.view.boostPads);
-    }
-  }
   syncVideoToReplay();
+  announceReplaySync();
 }
 function setReplay(replay, opts={}){
   if(!replay || !Array.isArray(replay.players) || !Array.isArray(replay.frames) || !replay.frames.length)throw new Error('Invalid replay timeline.');
@@ -74,10 +62,6 @@ function setReplay(replay, opts={}){
     ? ReplayLabBoostPadState.compile(replay.boostPadTimeline) : null;
   state.boostPadModel=boostPadModel;
   state.padGraphics=null; // Rebuild SVG once when a different replay loads
-  const padStatus=$('boostPadDataStatus');
-  if(padStatus && typeof ReplayLabBoostPadState !== 'undefined')
-    padStatus.textContent=ReplayLabBoostPadState.describe(boostPadModel);
-  if($('recentActionsList'))$('recentActionsList').dataset.signature='';
   // Preference: the replay's recording player, then the player chosen last time, then a
   // player on the recording team. Anything weaker is a guess and is labelled as one.
   const has=id=>replay.players.some(p=>p.id===id), last=remembered.get();
@@ -92,9 +76,8 @@ function setReplay(replay, opts={}){
   $('uploadStatus').textContent=opts.demo?'Simulated example loaded. This is NOT an actual match.':(replay.playerMappingVerified===false?'Replay decoded, but player identities could not be verified from kickoff spawns.':('Decoded '+(replay.telemetrySampleCount||replay.frames.length)+' physics samples; '+(replay.eventCounts?.touch||0)+' touches, '+(replay.eventCounts?.goal_context||0)+' goals. Events are review observations, not proven mistakes.'));
   if(!opts.demo&&!state.focusConfirmed)$('uploadStatus').textContent+=' The recording player could not be identified: confirm "Who are we coaching?".';
   refreshFindings(opts.demo);renderBoostPads();
-  const v = getViewer3d();
-  if(v) v.update(currentFrame(), state.focusId, state.replay.players);
-  chooseTime(0);
+  window.dispatchEvent(new CustomEvent('replay-lab:replay-ready',{detail:{synthetic:replay.source==='synthetic'}}));
+  chooseTime(startTime());
 }
 function supportPoint(frame, focusId){let car=frame.cars[focusId];const team=playerById(focusId)?.team||'blue';const ownY=team==='blue'?-5120:5120;return {x:Math.max(-3500,Math.min(3500,frame.ball.x+(car.x<frame.ball.x?-500:500))),y:Math.max(-4400,Math.min(4400,frame.ball.y+(ownY>frame.ball.y?1100:-1100)))};}
 function demoReplay(){const players=[{id:'self',name:'Your car',team:'blue'},{id:'mate',name:'Teammate',team:'blue'},{id:'opp1',name:'Opponent 1',team:'orange'},{id:'opp2',name:'Opponent 2',team:'orange'}];let frames=[];for(let i=0;i<=240;i++){
@@ -224,16 +207,6 @@ function renderDetail(){
   details.append(note);target.append(details);
 }
 const xyDistance=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
-function recentPath(kind,focusId,seconds){
-  const result=[], fs=state.replay?.frames||[];
-  const index=nearestIndex(state.time);if(index<0)return result;
-  for(let i=index;i>=0&&result.length<165;i--){
-    const f=fs[i];if(f.t<state.time-seconds)break;
-    const p=kind==='ball'?f.ball:f.cars[focusId];
-    if(p&&Number.isFinite(p.x)&&Number.isFinite(p.y))result.push({t:f.t,x:p.x,y:p.y});
-  }
-  return result.reverse();
-}
 function renderBoostPads(){
   const parent=$('boostPadsLayer');
   if(!parent||typeof BOOST_PADS_2D==='undefined')return;
@@ -245,7 +218,7 @@ function renderBoostPads(){
     for(let i=0;i<BOOST_PADS_2D.length;i++){
       const pad=BOOST_PADS_2D[i], x=sx(pad.x),y=sy(pad.y);
       const group=el('g',{'data-pad-id':i,'data-state':'unknown'});
-      let ring=null,label=null;
+      let ring=null;
       if(pad.big){
         ring=el('circle',{cx:x,cy:y,r:13,fill:'none',stroke:'#ffca28','stroke-width':1.8});
         group.append(ring);
@@ -253,15 +226,10 @@ function renderBoostPads(){
       const dot=el('circle',{cx:x,cy:y,r:pad.big?8:4.5,
         class:pad.big?'boost-big':'boost-small'});
       group.append(dot);
-      if(pad.big){
-        label=el('text',{x,y:y+3.3,'font-size':10,'font-weight':'bold',
-          'text-anchor':'middle',fill:'#ffffff',stroke:'#10212a','stroke-width':'.45'});
-        group.append(label);
-      }
       const title=el('title',{},'Boost pad state is not known yet');
       group.append(title);
       parent.append(group);
-      nodes.push({group,ring,dot,label,title,big:pad.big,lastKey:null});
+      nodes.push({group,ring,dot,title,big:pad.big,lastKey:null});
     }
     state.padGraphics={parent,nodes};
   }
@@ -285,7 +253,6 @@ function renderBoostPads(){
       node.ring.setAttribute('stroke',available?'#ffca28':cooling?'#7b8493':'#c8bc92');
       node.ring.setAttribute('stroke-dasharray',st.known?'none':'3 3');
     }
-    if(node.label)node.label.textContent=cooling?String(seconds):st.known?'':'?';
     node.title.textContent=available?'Boost pad active':
       cooling?'Respawns in '+seconds+'s':
       'Pad availability unknown (unmatched native pickup or no pad data)';
@@ -293,72 +260,25 @@ function renderBoostPads(){
 }
 
 function setViewMode(mode){
+  if(!['hd','2d','split'].includes(mode))return;
   currentViewMode=mode;
-  for(const [id,name] of [['viewTab2d','2d'],['viewTab3d','3d'],['viewTabSplit','split']]){
-    const selected=mode===name;
-    $(id).classList.toggle('active',selected);
-    $(id).setAttribute('aria-selected',String(selected));
+  for(const [id,name] of [['viewTabHd','hd'],['viewTab2d','2d'],['viewTabSplit','split']]){
+    const chosen=mode===name;
+    $(id).classList.toggle('active',chosen);
+    $(id).setAttribute('aria-selected',String(chosen));
   }
-  const shell=$('pitchShell'),field=$('field'),vp3d=$('viewport3d'),ctrl3d=$('controls3d'),badge=$('pitchBadge');
-  shell.className = 'pitch-shell mode-'+mode;
-  if(mode==='2d'){
-    field.style.display='block';field.hidden=false;
-    vp3d.style.display='none';vp3d.hidden=true;
-    ctrl3d.style.display='none';ctrl3d.hidden=true;
-    if(badge){badge.style.display='block';badge.textContent='REPLAY FIELD · 2D TOP-DOWN VIEW';}
-    renderPitch();
-  }else if(mode==='3d'){
-    field.style.display='none';field.hidden=true;
-    vp3d.style.display='block';vp3d.hidden=false;
-    ctrl3d.style.display='flex';ctrl3d.hidden=false;
-    if(badge)badge.style.display='none';
-    const v=getViewer3d();v?.onResize();
-    if(state.replay)v?.update(currentFrame(),state.focusId,state.replay.players);
-  }else if(mode==='split'){
-    shell.className = 'pitch-shell split-mode';
-    field.style.display='block';field.hidden=false;
-    vp3d.style.display='block';vp3d.hidden=false;
-    ctrl3d.style.display='flex';ctrl3d.hidden=false;
-    if(badge){badge.style.display='block';badge.textContent='REPLAY FIELD · SYNCHRONIZED 2D + 3D VIEW';}
-    renderPitch();
-    const v=getViewer3d();v?.onResize();
-    if(state.replay)v?.update(currentFrame(),state.focusId,state.replay.players);
-  }
-}
-function setCamMode(mode){
-  for(const [id,m] of [['camOrbit','orbit'],['camTactical','tactical'],['camFollow','follow'],['camBall','ball'],['camPOV','pov']]){
-    $(id)?.classList.toggle('active',m===mode);
-  }
-  getViewer3d()?.setCameraMode(mode);
-}
-function drawTrail(parent,points,color,thickness,dashed){
-  if(points.length<2)return;
-  const stride=Math.max(1,Math.ceil(points.length/70));
-  const trace=points.filter((_,i)=>i%stride===0||i===points.length-1);
-  for(let i=1;i<trace.length;i++){
-    const before=trace[i-1],after=trace[i],gap=after.t-before.t;
-    if(gap>0.45||gap<0||xyDistance(before,after)>1200)continue;
-    const progress=i/(trace.length-1);
-    const line=el('line',{x1:sx(before.x),y1:sy(before.y),x2:sx(after.x),y2:sy(after.y),
-      stroke:color,'stroke-width':thickness,'stroke-linecap':'round',opacity:(0.09+progress*0.58).toFixed(2)});
-    if(dashed)line.setAttribute('stroke-dasharray','4 7');
-    parent.append(line);
-  }
+  $('pitchShell').className='pitch-shell '+(mode==='split'?'split-mode':'mode-'+mode);
+  $('hdInlineFrame').hidden=mode==='2d';
+  $('field').hidden=mode==='hd';
+  renderPitch();
 }
 function renderPitch(){
-  if(currentViewMode==='3d')return;
+  if(currentViewMode==='hd')return;
   const parent=$('dynamicLayers');parent.replaceChildren();
   const f=currentFrame();if(!f)return;
   const focus=f.cars[state.focusId], b=f.ball;
-  if(state.view.ballTrail)drawTrail(parent,recentPath('ball',null,1.5),'#f6f8fd',3,true);
-  if(state.view.trail && focus)drawTrail(parent,recentPath('car',state.focusId,2),'#7de2d7',5,false);
-
   // Coordinates are a genuine top-down projection. These symbols do NOT imply player POV.
   const bx=sx(b.x),by=sy(b.y);
-  const elevated=Number.isFinite(b.z)&&b.z>280;
-  if(elevated){
-    parent.append(el('circle',{cx:bx,cy:by,r:24,fill:'none',stroke:'#daeefe','stroke-width':1.8,'stroke-dasharray':'5 6',opacity:'.7'}));
-  }
   parent.append(el('circle',{cx:bx,cy:by,r:12,fill:'#f2fbff',stroke:'#62dee8','stroke-width':2.5,filter:'url(#glow)'}));
   const ballText=state.view.heights&&Number.isFinite(b.z)?('BALL · '+Math.round(b.z)+'u'):'BALL';
   parent.append(el('text',{x:bx+19,y:by-16,fill:'#d4f9ff','font-size':12,'font-weight':700,'paint-order':'stroke',stroke:'#0c2029','stroke-width':3},ballText));
@@ -373,7 +293,6 @@ function renderPitch(){
       continue;
     }
     const group=el('g');
-    if(isFocus)group.append(el('circle',{cx:x,cy:y,r:26,fill:'none',stroke:'#90f5e8','stroke-width':3,opacity:'.95'}));
     if(state.view.heights&&Number.isFinite(car.z)&&car.z>110){
       group.append(el('circle',{cx:x,cy:y,r:21,fill:'none',stroke:color,'stroke-width':1.6,'stroke-dasharray':'3 4',opacity:'.8'}));
     }
@@ -404,66 +323,30 @@ function renderPitch(){
         [baseX+fy*side,baseY-fx*side]].map(a=>a.join(',')).join(' '),
         fill:'#f3ffff',stroke:'#10202d','stroke-width':1.5}));
     }
-    group.append(el('text',{x,y:y+4,'text-anchor':'middle',fill:'#091924','font-size':10,'font-weight':800},isFocus?'F':p.team==='blue'?'B':'O'));
-    const name=p.name.slice(0,16);
-    group.append(el('text',{x,y:y-31,fill:'#f1f8fa','font-size':isFocus?12:11,
-      'text-anchor':'middle','font-weight':isFocus?700:500,'paint-order':'stroke',stroke:'#091924','stroke-width':3.5},name));
+    group.append(el('text',{x,y:y+4,'text-anchor':'middle',fill:'#091924','font-size':10,'font-weight':800},isFocus?'•':p.team==='blue'?'B':'O'));
+    if(isFocus){
+      group.append(el('text',{x,y:y-28,fill:'#d9fffb','font-size':12,
+        'text-anchor':'middle','font-weight':700,'paint-order':'stroke',stroke:'#091924','stroke-width':3},p.name.slice(0,13)));
+      // A short underline distinguishes the coached player without a ring.
+      group.append(el('line',{x1:x-14,y1:y-18,x2:x+14,y2:y-18,
+        stroke:'#90f5e8','stroke-width':3,'stroke-linecap':'round'}));
+    }
+    // In-world boost bars remain visible for every car, without pad pickup numbers.
+    const barWidth=isFocus?72:62,barX=x-barWidth/2,barY=y+26;
+    const known=Number.isFinite(car.boost)&&!car.demolished;
+    const pct=known?Math.max(0,Math.min(100,car.boost)):null;
+    group.append(el('rect',{x:barX,y:barY,width:barWidth,height:8,rx:3,
+      fill:'#091b27',stroke:'#355462','stroke-width':1}));
+    if(known)group.append(el('rect',{x:barX+1,y:barY+1,width:(barWidth-2)*pct/100,height:6,rx:2,
+      fill:color,opacity:.95}));
+    group.append(el('text',{x:barX+barWidth+5,y:barY+7,fill:known?'#d9eaf0':'#8aa5b1',
+      'font-size':isFocus?12:10,'font-weight':700},known?String(Math.round(pct)):'--'));
+    group.append(el('title',{},p.name+' · Boost '+(known?Math.round(pct):'unknown')));
     if(state.view.heights&&Number.isFinite(car.z)&&car.z>110){
       group.append(el('text',{x,y:y+35,fill:color,'font-size':10,'text-anchor':'middle','font-weight':700,
         'paint-order':'stroke',stroke:'#091924','stroke-width':3},'Z '+Math.round(car.z)+'u'));
     }
     parent.append(group);
-  }
-  const near=state.replay.events?.find(e=>e.type==='touch'&&Math.abs(e.t-state.time)<0.075);
-  if(near){
-    const who=playerById(near.playerId);
-    parent.append(el('text',{x:bx+18,y:by+26,fill:'#ffe5bb','font-size':11,'font-weight':700,
-      'paint-order':'stroke',stroke:'#07131d','stroke-width':4},
-    'TOUCH'+(who?' · '+who.name.slice(0,12):'')));
-  }
-}
-function renderSceneInspector(){
-  // Stable one-line clock. Rebuilding large dynamic cards 30 times per second
-  // previously expanded the sidebar and caused page-scroll jitter.
-  const holder=$('sceneInspector'),f=currentFrame();
-  const message=!f?'No replay loaded.':
-    'Replay '+fmt(state.time)+' · '+
-    (Number.isFinite(f.secondsRemaining)
-      ? (f.overtime?'Overtime +'+fmt(f.secondsRemaining):'Match clock '+fmt(f.secondsRemaining))
-      : 'Game clock unavailable');
-  let line=holder.firstElementChild;
-  if(!line||!line.classList.contains('scene-time')){
-    line=document.createElement('div');line.className='scene-time';
-    holder.replaceChildren(line);
-  }
-  if(line.textContent!==message)line.textContent=message;
-  renderRecentActions();
-}
-function renderRecentActions(){
-  const panel=$('recentActionsPanel'),list=$('recentActionsList');
-  if(!panel||!list||!panel.open)return; // No DOM churn for a closed panel.
-  const actions=(state.replay?.events||[])
-    .filter(e=>['touch','bump','whiff'].includes(e.type)
-      && e.t<=state.time+0.03&&e.t>=state.time-3)
-    .slice(-5).reverse();
-  const signature=actions.map(e=>[e.t,e.type,e.playerId,e.touchKind,e.classification].join(':')).join('|');
-  if(list.dataset.signature===signature)return;
-  list.dataset.signature=signature;
-  list.replaceChildren();
-  if(!actions.length){
-    const note=document.createElement('p');note.className='touch-empty';
-    note.textContent='No recent detected touches.';list.append(note);return;
-  }
-  for(const e of actions){
-    const player=playerById(e.playerId);
-    const btn=document.createElement('button');btn.className='touch-link';btn.type='button';
-    const action=e.type==='bump'?'Collision':e.type==='whiff'?'Possible missed touch':'Ball touch';
-    const label=document.createElement('span');label.textContent=(player?.name||'Unknown player')+' · '+action;
-    const stamp=document.createElement('small');stamp.textContent=fmt(e.t);
-    btn.append(label,stamp);
-    btn.onclick=()=>{stopPlay();chooseTime(e.t);};
-    btn.onpointerdown=btn.onclick;
-    list.append(btn);
   }
 }
 let playbackHandle=null;
@@ -480,6 +363,7 @@ function stopPlay(){
   }
   state.playing=false;
   $('playBtn').textContent='▶';
+  announceReplaySync();
   const video=$('gameVideo');
   if(state.videoUrl&&!video.paused)video.pause();
 }
@@ -508,6 +392,7 @@ function togglePlay(){
   if(state.playing){stopPlay();return;}
   state.playing=true;
   $('playBtn').textContent='❚❚';
+  announceReplaySync();
   lastPlayTimestamp=performance.now();
 
   const video=$('gameVideo');
@@ -641,28 +526,17 @@ function wire(){
   $('playSpeed').onchange=e=>{
     const speed=Number(e.target.value);state.speed=Number.isFinite(speed)&&speed>0?speed:1;
     if(state.videoUrl&&state.videoAligned)$('gameVideo').playbackRate=state.speed;
+    announceReplaySync();
     if(state.playing){stopPlay();togglePlay();}
   };
-  for(const [id,key] of [['showFacing','facing'],['showTrail','trail'],['showBallTrail','ballTrail']]){
-    $(id).onchange=e=>{state.view[key]=e.target.checked;renderPitch();};
-  }
+  $('showFacing').onchange=e=>{state.view.facing=e.target.checked;renderPitch();};
   $('showBoostPads').onchange=e=>{
     state.view.boostPads=e.target.checked;
     renderBoostPads();
-    if(viewer3d&&state.replay?.boostPadTimeline)
-      viewer3d.updateBoostPads(state.replay.boostPadTimeline,state.time,
-        state.boostPadModel,state.view.boostPads);
   };
-  $('recentActionsPanel').ontoggle=renderRecentActions;
+  $('viewTabHd').onclick=()=>setViewMode('hd');
   $('viewTab2d').onclick=()=>setViewMode('2d');
-  $('viewTab3d').onclick=()=>setViewMode('3d');
   $('viewTabSplit').onclick=()=>setViewMode('split');
-  $('camOrbit').onclick=()=>setCamMode('orbit');
-  $('camTactical').onclick=()=>setCamMode('tactical');
-  $('camFollow').onclick=()=>setCamMode('follow');
-  $('camPOV').onclick=()=>setCamMode('pov');
-  $('camBall').onclick=()=>setCamMode('ball');
-  $('camReset').onclick=()=>{setCamMode('orbit');getViewer3d()?.resetCamera();};
   $('momentFilter').onchange=e=>{
     state.momentFilter=e.target.value;
     const shown=visibleFindings();
@@ -677,3 +551,4 @@ function wire(){
 }
 
 wire();
+setViewMode('split');

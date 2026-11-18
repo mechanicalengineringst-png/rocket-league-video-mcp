@@ -26,9 +26,14 @@ def test_replay_view_discloses_inference_limits_and_keeps_player_selector():
     assert 'id="playerSelect"' in html
     assert "Who are we coaching?" in html
     assert 'id="showFacing"' in html
-    assert 'id="showTrail"' in html
-    assert 'id="showBallTrail"' in html
-    assert 'id="sceneInspector"' in html
+    assert 'id="viewTabHd"' in html
+    assert 'id="hdInlineFrame"' in html
+    assert 'id="viewTabSplit"' in html
+    assert 'id="showTrail"' not in html
+    assert 'id="showBallTrail"' not in html
+    assert 'id="sceneInspector"' not in html
+    assert 'id="viewTab3d"' not in html
+    assert 'Recent touches' not in html
     assert "not car facing" not in html.lower()  # white yaw tip and velocity now differ
     assert "playerMappingVerified" in js
     assert "videoAligned:false" in js
