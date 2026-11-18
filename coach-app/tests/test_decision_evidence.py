@@ -143,3 +143,23 @@ def test_record_states_what_cannot_be_observed_and_has_no_merit_fields():
     roles = resolve(rec, "E.roles.own")["value"]
     assert roles["confidence"] in ("estimate", "ambiguous")
     assert not any(isinstance(e["value"], float) and math.isinf(e["value"]) for e in rec["evidence"])
+
+
+def test_both_teammates_out_of_reach_gives_unknown_roles_not_nan():
+    """Real-replay regression: inf - inf produced a NaN role gap."""
+    from coach_app import decision_evidence as de
+    from coach_app.reachability import Reach
+
+    class St:
+        t0, margin_s, margin_interval = T0, None, (None, None)
+
+    b = de._Builder()
+    slots = {"b1": "focus", "b2": "teammate", "o1": "opponent_1", "o2": "opponent_2"}
+    far = Reach("out_of_horizon")
+    near = Reach("ok", t_min=0.5)
+    de._roles(b, St(), slots, {"b1": far, "b2": far, "o1": near, "o2": far})
+    assert any(u["id"] == "U.roles.own" for u in b.unknowns)
+    own = [e for e in b.evidence if e["id"] == "E.roles.own"]
+    assert own == []
+    opp = next(e for e in b.evidence if e["id"] == "E.roles.opponents")
+    assert opp["value"]["gap_s"] is None and opp["value"]["first"] == "opponent_1"

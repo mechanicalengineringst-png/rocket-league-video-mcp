@@ -248,6 +248,11 @@ def _roles(b: _Builder, st, slots: dict[str, str], reach: dict) -> None:
         if len(pids) < 2 or any(v is None for v in times.values()):
             b.unknown(f"U.roles.{team_label}", f"{team_label} first/second roles", "a car's earliest touch is unknown")
             continue
+        if all(math.isinf(v) for v in times.values()):
+            # inf - inf would be NaN: neither car can touch within the horizon, so the order is unknown
+            b.unknown(f"U.roles.{team_label}", f"{team_label} first/second roles",
+                      "neither car can reach the ball within the model horizon")
+            continue
         order = sorted(pids, key=lambda p: times[p])
         gap = times[order[1]] - times[order[0]]
         b.fact(f"E.roles.{team_label}", {"first": slots[order[0]], "second": slots[order[1]],
