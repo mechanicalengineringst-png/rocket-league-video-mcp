@@ -30,7 +30,7 @@ setPlayerAssetBase(assetBase);
 // can read as background camera shake while reviewing stationary gameplay.
 const STILL_HDR={
   id:'replay-lab-stable-stadium',
-  skyboxUrl:'/skyboxes/PlanetaryEarth4k.hdr',
+  skyboxUrl:`${assetBase.replace(/\/+$/, '')}/skyboxes/PlanetaryEarth4k.hdr`,
   exposure:1.20,
   rotation:{x:8,y:0,z:28},
   animation:{enabled:false,speed:0}
@@ -293,6 +293,29 @@ function updateHud(force = false) {
   $('cameraSource').textContent=mode!=='follow'?'VIEWER CONTROL':
     override!=='recorded'?'FORCED VIEW':
     recorded.hasRecordedSwitch?'REPLAY TELEMETRY':'NO RECORDED SWITCH';
+
+  // Live selected-player boost gauge
+  const focus = currentPlayer();
+  const boostHud = $('boostHud');
+  if (boostHud) {
+    if (mode === 'follow' && focus) {
+      boostHud.classList.remove('hidden');
+      const pData = player?.adapter?.getPlayer(focus.id);
+      const boostVal = Math.round(Math.max(0, Math.min(100, pData?.boost ?? 0)));
+      const isBoosting = !!pData?.isBoosting;
+      const team = focus.team === 0 ? 'blue' : 'orange';
+      $('boostNum').textContent = String(boostVal);
+      const bar = $('boostBar');
+      if (bar) {
+        const maxOffset = 251.327;
+        const offset = maxOffset * (1 - boostVal / 100);
+        bar.style.strokeDashoffset = String(offset);
+        bar.setAttribute('class', `boost-bar ${team}-team` + (isBoosting ? ' boosting' : ''));
+      }
+    } else {
+      boostHud.classList.add('hidden');
+    }
+  }
 }
 
 async function loadFile(file, preferredName = null) {

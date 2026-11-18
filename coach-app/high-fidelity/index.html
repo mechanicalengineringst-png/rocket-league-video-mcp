@@ -29,6 +29,18 @@
         <div class="stadium-hud">
           <div class="top-left-chip"><span class="live-dot"></span> REPLAY REVIEW <span id="cameraLabel">FREE CAM</span><span class="camera-source" id="cameraSource">VIEWER CONTROL</span></div>
           <div class="top-right-chip" id="playerHud">3D STADIUM</div>
+          <div class="boost-hud hidden" id="boostHud" aria-label="Player Boost Gauge">
+            <div class="boost-gauge-wrap">
+              <svg class="boost-svg" viewBox="0 0 100 100">
+                <circle class="boost-track" cx="50" cy="50" r="40" fill="none"/>
+                <circle class="boost-bar" id="boostBar" cx="50" cy="50" r="40" fill="none" stroke-dasharray="251.327" stroke-dashoffset="0" stroke-linecap="round" transform="rotate(-90 50 50)"/>
+              </svg>
+              <div class="boost-metric">
+                <span class="boost-num" id="boostNum">100</span>
+                <span class="boost-text">BOOST</span>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="loading-surface" id="loadingSurface">
           <div class="load-graphic">⬡</div>
