@@ -66,3 +66,61 @@ select{border:1px solid #345369;background:#0a1c2b;border-radius:5px;color:#dcea
 .muted{font-size:11px;color:#7895a7}
 @media(max-width:1100px){.camera-mode-group{width:100%;margin-right:0}.camera-row{gap:8px}.stadium-shell{height:58vh}.engine-tag{display:none}}
 @media(max-width:700px){.app-shell{padding:0 8px 15px}.site-bar{height:65px}.brand small{font-size:7px}.brand strong{font-size:18px}.top-actions{font-size:10px}.stadium-shell{min-height:330px;height:50vh}.info-strip #fpsHint{display:none}.controls{padding:9px}.timeline-row{gap:5px;flex-wrap:wrap}.timeline-row .seek-stack{order:5;flex-basis:100%}.cam{padding:6px 8px}.insights-strip{grid-template-columns:1fr}}
+
+
+/* Editorial HUD: native camera evidence and honest viewer override states. */
+.camera-source{margin-left:10px;font:600 9px Inter,Segoe UI,sans-serif;color:#9cbacb;letter-spacing:.7px}
+.camera-evidence{font:600 11px/1.45 Inter,Segoe UI,sans-serif;padding:8px 13px;border-radius:7px;border:1px solid #254b5b;background:#091b28;color:#a0d9ee}
+.camera-evidence.unknown{border-color:#6b5536;color:#e6c18b}
+.events-container:nth-child(2){min-width:0}
+.insights-strip{grid-template-columns:1fr 1fr}
+.insights-strip>p{grid-column:1/-1}
+#cameraEventList{margin-top:10px;display:flex;gap:7px;flex-wrap:wrap;max-height:112px;overflow-y:auto}
+#cameraEventList button{border:1px solid #3b6377;border-radius:4px;background:#102d40;color:#b3dcfc;padding:5px 9px;font-size:10px}
+#cameraEventList button.off{border-color:#9d7250;color:#f3c28e}
+#qualitySelect,#fxStyle{max-width:160px}
+.lower-controls select{font-size:11px;padding:5px 8px}
+@media(max-width:700px){.camera-source{display:none}.camera-evidence{font-size:10px}.insights-strip{grid-template-columns:1fr}.insights-strip>p{grid-column:auto}.lower-controls{gap:7px}}
+
+/* Authentic Rocket League Boost Meter HUD */
+.boost-hud{position:absolute;bottom:20px;right:24px;display:flex;align-items:center;pointer-events:none;z-index:4;transition:opacity .2s ease,transform .2s ease}
+.boost-hud.hidden{opacity:0;transform:scale(.9);pointer-events:none}
+.boost-gauge-wrap{position:relative;width:96px;height:96px;border-radius:50%;background:radial-gradient(circle,rgba(8,23,37,.90) 50%,rgba(4,14,24,.96) 100%);box-shadow:0 6px 20px rgba(0,0,0,.65),inset 0 0 14px rgba(0,0,0,.6);border:1.5px solid rgba(56,189,248,.35);display:flex;align-items:center;justify-content:center}
+.boost-svg{position:absolute;top:0;left:0;width:100%;height:100%}
+.boost-track{stroke:rgba(25,48,68,.75);stroke-width:8}
+.boost-bar{stroke-width:8;stroke:#f59e0b;transition:stroke-dashoffset .05s linear,stroke .15s ease}
+.boost-bar.blue-team{stroke:#38bdf8;filter:drop-shadow(0 0 8px rgba(56,189,248,.8))}
+.boost-bar.orange-team{stroke:#fb923c;filter:drop-shadow(0 0 8px rgba(251,146,60,.8))}
+.boost-bar.unknown-team{stroke:#64748b;filter:none;stroke-dasharray:4 4;opacity:.65}
+.boost-bar.boosting{stroke:#facc15;filter:drop-shadow(0 0 12px rgba(250,204,21,1))}
+.boost-metric{display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;z-index:2}
+.boost-num{font:900 34px/1 'Barlow Condensed',sans-serif;color:#f8fafc;letter-spacing:-.5px;text-shadow:0 2px 8px rgba(0,0,0,.9)}
+.boost-text{font:700 9px/1 'Barlow Condensed',sans-serif;color:#94a3b8;letter-spacing:1.5px;margin-top:2px}
+
+/* Founder review — hide debugging readouts that make native replay harder to study. */
+.camera-evidence{display:none!important}
+.insights-strip .events-container:nth-child(2){display:none!important}
+.insights-strip>p{display:none!important}
+/* Embedded HD is the principal visual view of the unified Replay Lab. */
+html:has(body.embedded),body.embedded{height:100%;overflow:hidden;margin:0}
+body.embedded .app-shell{height:100%;max-width:none;min-width:0;margin:0;padding:0}
+body.embedded .app-shell main{height:100%;position:relative;padding:0;margin:0;overflow:hidden}
+body.embedded .site-bar,body.embedded .info-strip,body.embedded .insights-strip,
+body.embedded .camera-evidence{display:none!important}
+body.embedded .stadium-shell{height:100%!important;min-height:0!important;width:100%;border:0;border-radius:0;margin:0;padding:0}
+body.embedded .controls{position:absolute;left:12px;bottom:12px;z-index:8;max-width:calc(100% - 140px);width:auto;
+  margin:0;padding:5px 8px;border:1px solid #446677;border-radius:9px;background:rgba(7,22,34,.86);
+  backdrop-filter:blur(9px)}
+body.embedded .camera-row{padding:0;border:0;gap:5px;flex-wrap:wrap}
+body.embedded .timeline-row,body.embedded .lower-row,
+body.embedded .camera-row .control-label,body.embedded .camera-row #playerSelect{display:none!important}
+body.embedded #ballCamSelect{width:132px;padding:6px;font-size:11px}
+body.embedded .cam{font-size:11px;padding:7px 10px}
+body.embedded .top-left-chip,body.embedded .top-right-chip{display:none!important}
+body.embedded #boostHud{bottom:12px;right:12px;transform:scale(.8);transform-origin:bottom right}
+body.embedded #boostHud.hidden{transform:scale(.75)}
+@media(max-width:750px){
+ body.embedded .controls{left:8px;bottom:7px;max-width:calc(100% - 115px)}
+ body.embedded .cam{padding:5px 7px;font-size:10px}
+ body.embedded #ballCamSelect{width:100px}
+}
