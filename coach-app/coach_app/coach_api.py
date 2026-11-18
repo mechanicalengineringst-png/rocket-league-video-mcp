@@ -45,7 +45,7 @@ class EpisodeLessonRequest(BaseModel):
         if not isinstance(events, list) or len(events) > MAX_EVENTS:
             raise ValueError("Replay event count exceeds supported limit.")
         teams = [p.get("team") for p in players if isinstance(p, dict)]
-        if len(teams) != 4 or sorted(teams) != ["blue", "blue", "orange", "orange"]:
+        if len(teams) != 4 or teams.count("blue") != 2 or teams.count("orange") != 2:
             raise ValueError("Expected exactly two players on each team.")
         if any(not isinstance(p.get("id"), str) or not p["id"] or len(p["id"]) > 256
                for p in players):
