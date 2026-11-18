@@ -96,3 +96,31 @@ select{border:1px solid #345369;background:#0a1c2b;border-radius:5px;color:#dcea
 .boost-metric{display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;z-index:2}
 .boost-num{font:900 34px/1 'Barlow Condensed',sans-serif;color:#f8fafc;letter-spacing:-.5px;text-shadow:0 2px 8px rgba(0,0,0,.9)}
 .boost-text{font:700 9px/1 'Barlow Condensed',sans-serif;color:#94a3b8;letter-spacing:1.5px;margin-top:2px}
+
+/* Founder review — hide debugging readouts that make native replay harder to study. */
+.camera-evidence{display:none!important}
+.insights-strip .events-container:nth-child(2){display:none!important}
+.insights-strip>p{display:none!important}
+/* Embedded HD is the principal visual view of the unified Replay Lab. */
+html:has(body.embedded),body.embedded{height:100%;overflow:hidden;margin:0}
+body.embedded .app-shell{height:100%;max-width:none;min-width:0;margin:0;padding:0}
+body.embedded .app-shell main{height:100%;position:relative;padding:0;margin:0;overflow:hidden}
+body.embedded .site-bar,body.embedded .info-strip,body.embedded .insights-strip,
+body.embedded .camera-evidence{display:none!important}
+body.embedded .stadium-shell{height:100%!important;min-height:0!important;width:100%;border:0;border-radius:0;margin:0;padding:0}
+body.embedded .controls{position:absolute;left:12px;bottom:12px;z-index:8;max-width:calc(100% - 140px);width:auto;
+  margin:0;padding:5px 8px;border:1px solid #446677;border-radius:9px;background:rgba(7,22,34,.86);
+  backdrop-filter:blur(9px)}
+body.embedded .camera-row{padding:0;border:0;gap:5px;flex-wrap:wrap}
+body.embedded .timeline-row,body.embedded .lower-row,
+body.embedded .camera-row .control-label,body.embedded .camera-row #playerSelect{display:none!important}
+body.embedded #ballCamSelect{width:132px;padding:6px;font-size:11px}
+body.embedded .cam{font-size:11px;padding:7px 10px}
+body.embedded .top-left-chip,body.embedded .top-right-chip{display:none!important}
+body.embedded #boostHud{bottom:12px;right:12px;transform:scale(.8);transform-origin:bottom right}
+body.embedded #boostHud.hidden{transform:scale(.75)}
+@media(max-width:750px){
+ body.embedded .controls{left:8px;bottom:7px;max-width:calc(100% - 115px)}
+ body.embedded .cam{padding:5px 7px;font-size:10px}
+ body.embedded #ballCamSelect{width:100px}
+}

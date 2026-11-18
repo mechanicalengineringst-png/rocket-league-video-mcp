@@ -8,6 +8,55 @@ const anchor=new THREE.Vector3();
 const prevPosition=new THREE.Vector3();
 const prevQuaternion=new THREE.Quaternion();
 const lastCarPos=new THREE.Vector3();
+const lookDirection=new THREE.Vector3();
+const originalPosition=new THREE.Vector3();
+const gazeTarget=new THREE.Vector3();
+const horizontal=new THREE.Vector3();
+const cameraRight=new THREE.Vector3();
+const correctedUp=new THREE.Vector3();
+const cameraBasis=new THREE.Matrix4();
+const MIN_CHASE_HEIGHT=225;
+const MIN_CHASE_DISTANCE=600;
+
+/** Keep a level horizon without flattening the incoming camera's look direction. */
+function levelHorizon(cam) {
+  cam.getWorldDirection(lookDirection);
+  cameraRight.crossVectors(lookDirection,UP);
+  if(cameraRight.lengthSq()>0.001) {
+    cameraRight.normalize();
+    correctedUp.crossVectors(cameraRight,lookDirection).normalize();
+    cam.up.copy(correctedUp);
+    cameraBasis.makeBasis(cameraRight,correctedUp,lookDirection.clone().negate());
+    cam.quaternion.setFromRotationMatrix(cameraBasis);
+  }else{
+    cam.up.copy(UP);
+  }
+}
+/** Stabilize a broken ankle-height car camera without guessing native analogue inputs.
+ * The upstream plugin still chooses whether to aim at the ball or along the car.
+ */
+export function makeUsableChasePose(cam,anchor) {
+  if(!cam||!anchor)return;
+  originalPosition.copy(cam.position);
+  cam.getWorldDirection(lookDirection);
+  horizontal.set(cam.position.x-anchor.x,0,cam.position.z-anchor.z);
+  if(horizontal.lengthSq()<1) {
+    horizontal.set(-lookDirection.x,0,-lookDirection.z);
+    if(horizontal.lengthSq()<1)horizontal.set(-1,0,0);
+  }
+  if(horizontal.length()<MIN_CHASE_DISTANCE) {
+    horizontal.normalize().multiplyScalar(MIN_CHASE_DISTANCE);
+    cam.position.x=anchor.x+horizontal.x;
+    cam.position.z=anchor.z+horizontal.z;
+  }
+  cam.position.y=Math.max(cam.position.y,Math.min(ARENA_Y_MAX,anchor.y+MIN_CHASE_HEIGHT));
+  // Aim above the car and toward what the original camera looked at; the
+  // renderer's ball/car mode remains authoritative for the horizontal gaze.
+  gazeTarget.copy(originalPosition).addScaledVector(lookDirection,950);
+  gazeTarget.y=Math.max(gazeTarget.y,anchor.y+105);
+  cam.up.copy(UP);
+  cam.lookAt(gazeTarget);
+}
 
 // Arena coordinate limits in Three.js world space:
 // Unreal space: X = Length (+-5120), Y = Width (+-4096), Z = Height (0 - 2044)
@@ -37,6 +86,8 @@ export function createCameraPolishPlugin({getCameraPlugin,getFollowId,getReplayL
       const time=state.currentTime;
       const now=performance.now();
       if(mode!=='follow'||!focus){
+        // Ball orbit is a viewer camera, but its horizon must stay level.
+        if(mode==='ballOrbit'&&ctx.camera)levelHorizon(ctx.camera);
         attached=false;reset=true;hasCarPos=false;lastMode=mode;lastFocus=focus;
         lastBallCam=null;lastRearView=null;lastCarVisible=null;
         return;
@@ -91,26 +142,15 @@ export function createCameraPolishPlugin({getCameraPlugin,getFollowId,getReplayL
         }
       }
 
-      // Enforce floor and arena bounds
+      // The upstream default can place the camera at tire height and so
+      // close that the car itself occludes the field. Give it a minimum
+      // elevated chase distance; preserve upstream horizontal look vector.
+      if(carObj)makeUsableChasePose(cam,anchor);
       cam.position.x=THREE.MathUtils.clamp(cam.position.x,-ARENA_X_LIMIT,ARENA_X_LIMIT);
       cam.position.z=THREE.MathUtils.clamp(cam.position.z,-ARENA_Z_LIMIT,ARENA_Z_LIMIT);
-      const minFloor = carObj ? Math.max(ARENA_Y_MIN, anchor.y + 35) : ARENA_Y_MIN;
+      const minFloor=carObj?Math.max(ARENA_Y_MIN,Math.min(ARENA_Y_MAX,anchor.y+MIN_CHASE_HEIGHT)):ARENA_Y_MIN;
       cam.position.y=THREE.MathUtils.clamp(cam.position.y,minFloor,ARENA_Y_MAX);
-
-      // Keep follow-camera horizon strictly upright (prevent disorienting camera roll during aerial flips and wall rides)
-      const forward = new THREE.Vector3();
-      cam.getWorldDirection(forward);
-      right.crossVectors(forward, UP);
-      if(right.lengthSq() > 0.001) {
-        right.normalize();
-        const correctedUp = new THREE.Vector3().crossVectors(right, forward).normalize();
-        cam.up.copy(correctedUp);
-        const rotMat = new THREE.Matrix4();
-        rotMat.makeBasis(right, correctedUp, forward.clone().negate());
-        cam.quaternion.setFromRotationMatrix(rotMat);
-      } else {
-        cam.up.set(0,1,0);
-      }
+      levelHorizon(cam);
 
       const dt=frameAt===null?1/60:Math.max(0,Math.min(.10,(now-frameAt)/1000));
       const jumped=replayAt!==null && Math.abs(time-replayAt)>Math.max(0.20,dt*5*Math.max(1,state.speed||1));
