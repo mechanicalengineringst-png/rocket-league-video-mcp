@@ -70,6 +70,36 @@ function setReplay(replay, opts={}){
   const v = getViewer3d();
   if(v) v.update(currentFrame(), state.focusId, state.replay.players);
   chooseTime(0);
+  if(!opts.demo && replay.source !== 'synthetic') {
+    loadDecisionCasesForCoaching(replay, state.focusId);
+  }
+}
+async function loadDecisionCasesForCoaching(replay, playerId) {
+  if (!replay || !replay.frames || replay.source === 'synthetic') return;
+  try {
+    const res = await fetch('/api/decision-cases', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        replay: replay,
+        player_id: playerId,
+        evaluate: true,
+        analyze: true
+      })
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (data && data.cases && data.cases.length && window.coachingController) {
+      for (const c of data.cases.slice(0, 5)) {
+        if (window.ReplayLabCoachingFixtures) {
+          const ep = window.ReplayLabCoachingFixtures.adaptLiveCaseToEpisode(c, replay);
+          if (ep) window.coachingController.addLiveEpisode(ep);
+        }
+      }
+    }
+  } catch (e) {
+    console.warn('Could not load live decision cases for coaching:', e);
+  }
 }
 function supportPoint(frame, focusId){let car=frame.cars[focusId];const team=playerById(focusId)?.team||'blue';const ownY=team==='blue'?-5120:5120;return {x:Math.max(-3500,Math.min(3500,frame.ball.x+(car.x<frame.ball.x?-500:500))),y:Math.max(-4400,Math.min(4400,frame.ball.y+(ownY>frame.ball.y?1100:-1100)))};}
 function demoReplay(){const players=[{id:'self',name:'Your car',team:'blue'},{id:'mate',name:'Teammate',team:'blue'},{id:'opp1',name:'Opponent 1',team:'orange'},{id:'opp2',name:'Opponent 2',team:'orange'}];let frames=[];for(let i=0;i<=240;i++){
@@ -605,7 +635,18 @@ function wire(){
   $('markBtn').onclick=addManualMarker;
   $('exportBtn').onclick=exportReview;
   $('aiBtn').onclick=aiReview;
+  if($('loadDemoBtn')){
+    $('loadDemoBtn').onclick=()=>setReplay(demoReplay(), {demo: true});
+  }
   wireVideo();
+  window.chooseTime = chooseTime;
+  window.stopPlay = stopPlay;
+  window.setReplay = setReplay;
+  window.demoReplay = demoReplay;
+  if (typeof CoachingExperienceController !== 'undefined') {
+    window.coachingController = new CoachingExperienceController();
+    window.coachingController.mount('coachingExperienceContainer');
+  }
 }
 
 wire();
