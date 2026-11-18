@@ -167,3 +167,16 @@ test('ball orbit camera is leveled rather than left at an arbitrary roll',()=>{
   const right=new THREE.Vector3(1,0,0).applyQuaternion(camera.quaternion);
   assert.ok(Math.abs(right.y)<0.0001,'ball orbit horizon must stay horizontal');
 });
+
+test('follow camera resolves car anchor when selected ID and rendered ID differ in type',()=>{
+  const cp={getMode:()=> 'follow',getBallCam:()=>false};
+  const polish=createCameraPolishPlugin({getCameraPlugin:()=>cp,getFollowId:()=> '42',getReplayLook:()=>false});
+  const cam=new THREE.PerspectiveCamera();
+  const car=new THREE.Object3D();car.position.set(0,17,0);
+  cam.position.set(-130,45,0);cam.lookAt(car.position);
+  polish.beforeRender({camera:cam,cars:[{id:42,visible:true,object3d:car}],
+    player:{replay:{frames:[{time:0}],players:[]},getState:()=>({currentTime:1,speed:1})}});
+  assert.ok(cam.position.y>=242,'numeric renderer ID must still produce elevated follow');
+  assert.ok(Math.hypot(cam.position.x,cam.position.z)>=600);
+  polish.teardown();
+});

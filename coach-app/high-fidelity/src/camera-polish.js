@@ -99,7 +99,7 @@ export function createCameraPolishPlugin({getCameraPlugin,getFollowId,getReplayL
       const rearView=recorded.behind===true;
 
       // Locate followed vehicle in frame render context
-      const carEntry=ctx.cars?.find(c=>c.id===focus);
+      const carEntry=ctx.cars?.find(c=>c.id!=null&&String(c.id)===String(focus));
       const carObj=carEntry?.object3d;
       const carVisible=carEntry?.visible!==false;
 

@@ -10,7 +10,7 @@ import {
   cameraSwitchMoments, displayCameraMode,
 } from './camera-timeline.js';
 import {
-  validateExternalControl, resolveFocusedPlayer,
+  validateExternalControl, resolveFocusedPlayer, findSelectedPlayer,
   shouldCorrectReplayTime, safeSessionId,
 } from './external-sync.js';
 import { createCameraPolishPlugin } from './camera-polish.js';
@@ -164,7 +164,7 @@ function enableControls(enabled) {
 }
 
 function currentPlayer() {
-  return player?.adapter?.playerList?.find(p => p.id === $('playerSelect').value) ?? null;
+  return findSelectedPlayer(player?.adapter?.playerList,$('playerSelect').value);
 }
 function currentCameraTrack() {
   const p=currentPlayer();
