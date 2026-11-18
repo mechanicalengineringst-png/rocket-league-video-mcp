@@ -118,7 +118,7 @@ def test_ffprobe_errors_fail_closed(tmp_path, monkeypatch):
         with pytest.raises(InvalidReviewVideo):
             verify_clip_media(path, 6.0)
     def timeout(*args, **kwargs):
-        raise subprocess.TimeoutExpired(args=["ffprobe"], timeout=30)
+        raise subprocess.TimeoutExpired(cmd=["ffprobe"], timeout=30)
     monkeypatch.setattr("evaluation.clip_media_gate.subprocess.run", timeout)
     with pytest.raises(InvalidReviewVideo, match="timeout"):
         verify_clip_media(path, 6.0)
