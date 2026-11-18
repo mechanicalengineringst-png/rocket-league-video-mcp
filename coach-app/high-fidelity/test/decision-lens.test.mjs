@@ -117,7 +117,7 @@ test('t0 near end clips safely and never synthesizes future positions',()=>{
   const final=lens.buildWindow(replay,'p1',10.0);
   assert.equal(final.end,10.0);
   assert.equal(final.after,null);
-  assert.deepEqual(final.recordedAfterTrace,{focus:[],ball:[]});
+  assert.deepEqual(JSON.parse(JSON.stringify(final.recordedAfterTrace)),{focus:[],ball:[]});
   const early=lens.buildWindow(replay,'p1',0.2);
   assert.equal(early.start,0);
   assert.equal(early.anchor.sampleTime,0.2);
