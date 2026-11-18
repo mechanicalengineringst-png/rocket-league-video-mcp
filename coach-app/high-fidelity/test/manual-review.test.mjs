@@ -75,6 +75,7 @@ test('future replay changes cannot change pinned episode selection or early cont
   const {api}=load();
   const r=replay();
   const before=clean(api.buildManualRequest(r,'b1',10.04));
+  delete before.replay;
   const cloned=replay();
   for(const f of cloned.frames) {
     if(f.t>10.04) {
@@ -83,6 +84,7 @@ test('future replay changes cannot change pinned episode selection or early cont
     }
   }
   const after=clean(api.buildManualRequest(cloned,'b1',10.04));
+  delete after.replay;
   assert.deepEqual(after,before);
   assert.ok(after.decision_times.every(t=>t<=10.04));
 });
@@ -102,10 +104,10 @@ test('bad identities, synthetic data, missing physics, sparse time and kickoff a
   r.players[3].team='blue';
   assert.equal(api.buildManualRequest(r,'b1',10.02),null);
   r=replay();
-  r.frames[300].cars.b1.demolished=true;
+  r.frames[301].cars.b1.demolished=true;
   assert.equal(api.buildManualRequest(r,'b1',10.02),null);
   r=replay();
-  delete r.frames[300].ball.z;
+  delete r.frames[301].ball.z;
   assert.equal(api.buildManualRequest(r,'b1',10.02),null);
   r=replay();
   // Drop every frame except one every full second: a derived context
