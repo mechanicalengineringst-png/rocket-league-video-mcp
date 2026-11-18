@@ -165,6 +165,7 @@ export function createCameraPolishPlugin({getCameraPlugin,getFollowId,getReplayL
         cam.position.lerpVectors(prevPosition,cam.position,alpha);
         cam.quaternion.copy(prevQuaternion).slerp(cam.quaternion,alpha);
       }
+      levelHorizon(cam);
       prevPosition.copy(cam.position);
       prevQuaternion.copy(cam.quaternion);
       frameAt=now;replayAt=time;lastMode=mode;lastFocus=focus;

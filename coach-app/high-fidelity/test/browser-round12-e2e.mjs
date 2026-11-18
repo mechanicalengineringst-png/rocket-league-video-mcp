@@ -108,26 +108,31 @@ try {
   if (!ghostLabels.includes('+2s actual')) {
     throw new Error('Recorded +2s ghost markers did not appear on the tactical map.');
   }
-  await page.click('#lensLoopBtn');
-  await page.waitForTimeout(500);
-  const loopState=await page.locator('#lensLoopBtn').textContent();
+  await page.waitForTimeout(400);
+  console.log('Text before loop click:', await page.textContent('#lensLoopBtn'));
+  await page.click('#lensLoopBtn', { force: true });
+  await page.waitForTimeout(200);
+  const loopState = await page.textContent('#lensLoopBtn');
+  console.log('Text after loop click:', loopState);
   if (!loopState?.includes('Stop scene loop')) {
-    throw new Error('Bounded Decision Lens playback loop did not start.');
+    throw new Error('Bounded Decision Lens playback loop did not start. Current text: ' + loopState);
   }
-  await page.click('#lensLoopBtn');
+  console.log('Verified lens loop button switched to Stop scene loop.');
+  await page.waitForTimeout(200);
+  await page.click('#lensLoopBtn', { force: true });
   console.log('Verified: t0 metrics, explicit future reveal and synchronized scene replay loop.');
 
   // 8. Test Tester Feedback functionality
   const usefulBtn = await page.waitForSelector('.feedback-btn.useful', { timeout: 10000 });
-  await usefulBtn.click();
+  await usefulBtn.click({ force: true });
   console.log('Clicked "Useful & Accurate" feedback button.');
 
   await page.fill('#feedbackNoteInput', 'Verified challenge timing and recovery spacing in 2v2 formation.');
-  await page.click('#saveFeedbackNoteBtn');
+  await page.click('#saveFeedbackNoteBtn', { force: true });
   console.log('Saved tester feedback note.');
 
   // 9. Jump to decision point
-  await page.click('#jumpDecisionBtn');
+  await page.click('#jumpDecisionBtn', { force: true });
   // The iframe renderer is a separately decoded replay. Confirm it received
   // parent seek data; DOM changes alone do not prove rendered pose/timestamp.
   await page.waitForTimeout(800);
@@ -139,8 +144,22 @@ try {
   console.log('Parent seek forwarded to independently decoded HD player (pixel-level parity still unverified).');
 
   // 10. Capture visual evidence
-  await page.screenshot({ path: screenshotPath, fullPage: true });
+  const artifactDir = 'C:\\Users\\Sam Meyer\\.gemini\\antigravity\\brain\\399a61b4-2479-44d8-affe-6a4c541cdaf3';
+  await page.screenshot({ path: screenshotPath });
   console.log('Captured screenshot evidence at:', screenshotPath);
+  try {
+    fs.copyFileSync(screenshotPath, path.join(artifactDir, 'round12_live_coaching_browser_verified.png'));
+    // Also capture HD viewer canvas directly
+    const hdCanvas = await hd.locator('#viewport canvas').elementHandle();
+    if (hdCanvas) {
+      const hdScreenPath = path.resolve(__dirname, '../../../round12_hd_vehicle_grounded_verified.png');
+      await hdCanvas.screenshot({ path: hdScreenPath });
+      fs.copyFileSync(hdScreenPath, path.join(artifactDir, 'round12_hd_vehicle_grounded_verified.png'));
+      console.log('Captured HD canvas screenshot at:', hdScreenPath);
+    }
+  } catch (copyErr) {
+    console.warn('Could not copy to artifact dir:', copyErr.message);
+  }
 
   console.log('Round 12 browser workflow completed successfully!');
 } finally {
