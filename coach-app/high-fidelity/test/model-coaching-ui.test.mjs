@@ -18,7 +18,8 @@ function modelAPI(ids={}) {
   }
   for(const id of ['modelCoachRunBtn','modelCoachRefreshBtn','modelCoachConsent',
       'modelCoachExportBtn','modelCoachReadiness','modelCoachSelected',
-      'modelCoachStatus','modelCoachResults','modelCoachEvidence']){
+      'modelCoachStatus','modelCoachResults','modelCoachEvidence',
+      'modelCoachSpatialBtn','modelCoachSpatialStatus','modelCoachSpatialResults']){
     elements.set(id,new Element(id));
   }
   for(const [k,v] of Object.entries(ids))Object.assign(elements.get(k),v);
@@ -228,3 +229,85 @@ test('bundle exact candidate request is reconstructed instead of reusing bundle 
   assert.equal(req?.mode,'model');
 });
 function APIFromVM(){return modelAPI().API;}
+
+
+test('source-linked local spatial inspector works when model is disabled, with zero provider calls',async()=>{
+  const {API,elements}=modelAPI();
+  const scene=situation();
+  const calls=[];
+  const fetcher=async(url,options={})=>{
+    calls.push({url,options});
+    if(url==='/api/coach/model-readiness')
+      return response({schema:'CoachModelReadinessV0',status:'disabled'});
+    if(url==='/api/coach/scene-relations'){
+      const req=JSON.parse(options.body);
+      assert.equal(req.mode,'deterministic');
+      assert.equal(req.experimental_tactical_v1,false);
+      assert.equal(req.primary_t0,21.1);
+      return response({
+        schema:'RelationalInvariantsV0',stage:'predecision',
+        information_cutoff_s:21.1,uses_future:false,
+        calculates_tactical_merit:false,expert_calibrated:false,
+        nodes:[{node_id:'N1',t0_s:20,metrics:[],unknowns:[]},
+          {node_id:'N2',t0_s:21.1,unknowns:[{metric:'nose_to_ball_angle',subject:'opponent_2'}],
+            metrics:[
+              {metric:'longitudinal_goal_side_of_ball',subject:'focus',
+                value:'goalward',source_refs:['N2/E.focus.position','N2/E.ball.position']},
+              {metric:'teammate_planar_separation',subject:'focus_and_teammate',
+                value:1200.5,unit:'uu',
+                source_refs:['N2/E.focus.position','N2/E.teammate.position']},
+            ]}]
+      });
+    }
+    throw Error('Unexpected remote call '+url);
+  };
+  const controller=new API.ModelCoachingController(()=>scene,fetcher);
+  controller.mount();await tick();
+  assert.equal(controller.readiness,'disabled');
+  assert.equal(elements.get('modelCoachSpatialBtn').disabled,false);
+  assert.equal(calls.some(x=>x.url==='/api/coach/lesson'),false);
+  assert.equal(calls.some(x=>x.url==='/api/coach/scene-relations'),false);
+  await controller.inspectSpatial();
+  assert.equal(calls.filter(x=>x.url==='/api/coach/scene-relations').length,1);
+  assert.equal(calls.filter(x=>x.url==='/api/coach/lesson').length,0);
+  assert.match(controller.spatialStatus,/not possession/i);
+  const rows=elements.get('modelCoachSpatialResults').children.filter(
+    x=>x.className==='model-spatial-row');
+  assert.equal(rows.length,2);
+  assert.ok(rows.some(x=>x.children.some(y=>y.textContent==='goalward')));
+  assert.ok(rows.some(x=>x.children.some(y=>y.textContent==='1200.5 uu')));
+  assert.ok(rows.every(x=>x.children[2].children.length===2),
+    'Each displayed geometry value must provide original clickable sources');
+});
+
+test('scene relations from a previous player must not appear under a new player',async()=>{
+  const {API,elements}=modelAPI();
+  const scene=situation();
+  let complete,requests=0;
+  const fetcher=async(url)=>{
+    if(url==='/api/coach/model-readiness')
+      return response({schema:'CoachModelReadinessV0',status:'disabled'});
+    if(url==='/api/coach/scene-relations'){
+      requests++;
+      return new Promise(resolve=>complete=resolve);
+    }
+    throw Error('Unknown URL');
+  };
+  const controller=new API.ModelCoachingController(()=>scene,fetcher);
+  controller.mount();await tick();
+  const pending=controller.inspectSpatial();await tick();
+  assert.equal(requests,1);
+  scene.focusId='other';
+  controller.selectionChanged();
+  complete(response({
+    schema:'RelationalInvariantsV0',stage:'predecision',
+    uses_future:false,calculates_tactical_merit:false,expert_calibrated:false,
+    information_cutoff_s:21.1,
+    nodes:[{node_id:'N2',t0_s:21.1,
+      metrics:[{metric:'planar_ball_distance',subject:'focus',value:500,
+        source_refs:['N2/E.focus.position','N2/E.ball.position']}],unknowns:[]}]
+  }));
+  await pending;
+  assert.equal(elements.get('modelCoachSpatialResults').children.length,0);
+  assert.equal(elements.get('modelCoachSpatialBtn').disabled,true);
+});
