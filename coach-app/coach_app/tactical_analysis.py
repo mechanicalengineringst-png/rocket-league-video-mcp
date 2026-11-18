@@ -23,6 +23,8 @@ from typing import Any
 import bisect
 
 from .decision_cases import DecisionCase
+from .reachability import car_state as reach_car_state
+from .reachability import estimate_reach, ground_time
 
 GOAL_Y = 5120.0
 POST_X = 893.0
@@ -64,6 +66,8 @@ class Reading:
     ball: dict[str, float] | None
     unknowns: list[str] = field(default_factory=list)
     names: dict[str, str] = field(default_factory=dict)
+    raw_cars: dict[str, dict] = field(default_factory=dict)    # world-frame car dicts at t0 (for reachability)
+    raw_ball: dict | None = None
 
     @property
     def complete(self) -> bool:
@@ -148,14 +152,41 @@ def read_state(payload: dict[str, Any], t0: float, focus_id: str) -> Reading:
     for s in [focus, mate, *opps]:
         if s is not None and s.boost is None:
             unknowns.append(f"Boost of {players.get(s.pid, {}).get('name', s.pid)} at t0 is unknown.")
-    return Reading(t0, focus, mate, opps, ball, unknowns, {p: i.get("name", p) for p, i in players.items()})
+    raw = {p: _find_car_at_time(frames, t0, p) for p in players}
+    return Reading(t0, focus, mate, opps, ball, unknowns, {p: i.get("name", p) for p, i in players.items()},
+                   {p: c for p, c in raw.items() if c}, raw_ball if ball is not None else None)
+
+
+def kin_time(r: Reading, pid: str, target: tuple[float, float] | None = None) -> float | None:
+    """Kinematic lower bound (s) for ``pid`` to touch the ball, or to reach a team-frame point.
+
+    Uses only the t0 states. ``math.inf`` = not within the model horizon; ``None`` = unknown
+    (wall, demolished, no heading, airborne for point targets).
+    """
+    car = r.raw_cars.get(pid)
+    if target is None:
+        if r.raw_ball is None:
+            return None
+        e = estimate_reach(car, r.raw_ball)
+        return e.t_min if e.status == "ok" else (math.inf if e.status == "out_of_horizon" else None)
+    c, _ = reach_car_state(car)
+    if c is None or c.mode != "ground" or c.heading is None:
+        return None
+    team = r.focus.team if r.focus else "blue"
+    wx, wy = _rot(team, target[0], target[1])          # the rotation is its own inverse
+    t, _ = ground_time(c, wx, wy, 4.0, (c.boost or 0.0) > 0)
+    return math.inf if t is None else t
+
+
+def _fmt_t(t: float | None) -> str:
+    return "unknown" if t is None else ("more than 4 s" if math.isinf(t) else f"{t:.1f} s")
 
 
 def time_to_point(car: CarState, px: float, py: float) -> float:
-    """Arrival-time approximation (s): distance over an effective approach speed.
+    """Round 4 arrival-time approximation, kept only as a comparison baseline.
 
-    Same approximation as the research module: it ranks who arrives first. It is
-    not a physics reachability check and ignores turning, jumps and boost.
+    Superseded by ``kin_time`` (coach_app.reachability), which models heading,
+    turning, boost, jumps and the ball's motion. See docs/round5/02_REACHABILITY.md.
     """
     dx, dy = px - car.x, py - car.y
     d = math.hypot(dx, dy)
@@ -243,10 +274,10 @@ def shot_lane(r: Reading) -> dict[str, Any]:
         seg2 = sx * sx + sy * sy
         u = min(max(((o.x - b["x"]) * sx + (o.y - b["y"]) * sy) / seg2, 0.0), 1.0) if seg2 > 0 else 1.0
         px, py = b["x"] + u * sx, b["y"] + u * sy
-        t_def = time_to_point(o, px, py)
+        t_def = kin_time(r, o.pid, (px, py))
         reach.append({"pid": o.pid, "time_to_line_s": t_def, "ball_time_s": ball_time * u,
-                      "slack_s": t_def - ball_time * u, "boost": o.boost, "speed": o.speed,
-                      "goal_side": o.y > b["y"]})
+                      "slack_s": None if t_def is None else t_def - ball_time * u, "boost": o.boost,
+                      "speed": o.speed, "goal_side": o.y > b["y"]})
     return {"open_fraction": open_count / len(targets), "dist_to_goal": dist_goal,
             "ball_time_s": ball_time, "defenders": reach}
 
@@ -272,16 +303,22 @@ def assess_shot(r: Reading, case_id: str, reviewed_action: str | None = None) ->
         Statement("derived", f"{lane['open_fraction'] * 9:.0f} of 9 straight lines from ball to goal mouth are unblocked by a known opponent.",
                   ["ball", "opponents"], [f"A car within {LANE_BLOCK_UU:.0f} uu of a line blocks it; ball curve and bounces ignored."]),
     ]
-    for d in sorted(lane["defenders"], key=lambda d: d["slack_s"]):
+    for d in sorted(lane["defenders"], key=lambda d: (d["slack_s"] is None, d["slack_s"] or 0.0)):
         boost = "unknown boost" if d["boost"] is None else f"{d['boost']:.0f} boost"
+        who = f"Defender {names.get(d['pid'], d['pid'])} ({boost}, {d['speed']:.0f} uu/s, {'goal-side' if d['goal_side'] else 'not goal-side'})"
+        if d["slack_s"] is None:
+            st.append(Statement("fact", f"{who}: time to the shot line is unknown (airborne, on a wall or no heading at t0).",
+                                [d["pid"]]))
+            continue
         st.append(Statement(
-            "derived",
-            f"Defender {names.get(d['pid'], d['pid'])} ({boost}, {d['speed']:.0f} uu/s, {'goal-side' if d['goal_side'] else 'not goal-side'}) "
-            f"reaches the shot line {d['slack_s']:+.2f} s relative to the ball.",
-            [d["pid"]], [f"Shot travels at {ASSUMED_SHOT_SPEED:.0f} uu/s; arrival time is an approximation."]))
-    unseen = [u for u in r.unknowns if "Opponent" in u]
-    min_slack = min((d["slack_s"] for d in lane["defenders"]), default=float("inf"))
-    low_boost_but_close = [d for d in lane["defenders"] if d["boost"] is not None and d["boost"] < 20 and d["slack_s"] <= 0]
+            "derived", f"{who} could reach the shot line at the earliest {d['slack_s']:+.2f} s relative to the ball.",
+            [d["pid"]], [f"Shot travels at {ASSUMED_SHOT_SPEED:.0f} uu/s.",
+                         "Defender time is a kinematic lower bound (fastest feasible), so 'late' is conservative."]))
+    unseen = [u for u in r.unknowns if "Opponent" in u] + \
+        [f"Defender {names.get(d['pid'], d['pid'])} time to the shot line is unknown." for d in lane["defenders"] if d["slack_s"] is None]
+    min_slack = min((d["slack_s"] for d in lane["defenders"] if d["slack_s"] is not None), default=float("inf"))
+    low_boost_but_close = [d for d in lane["defenders"] if d["boost"] is not None and d["boost"] < 20
+                           and d["slack_s"] is not None and d["slack_s"] <= 0]
     alts = []
     factors = {"all_opponents_known": not unseen, "ball_low": r.ball["z"] <= 300,
                "lane_mostly_open": lane["open_fraction"] >= 0.45, "defenders_late": min_slack > 0.15}
@@ -360,20 +397,25 @@ def assess_challenge(r: Reading, case_id: str) -> Finding:
         mate_goal_side = m.y < b["y"]
         mate_own_goal = math.hypot(m.x, m.y + GOAL_Y)
         # The opponent NOT in the 50/50 is the one who collects a spill.
-        others = sorted(r.opponents, key=lambda o: time_to_point(o, b["x"], b["y"]))
+        opp_t = {o.pid: kin_time(r, o.pid) for o in r.opponents}
+        known = None not in opp_t.values()
+        others = sorted(r.opponents, key=lambda o: opp_t[o.pid]) if known else []
         spare = others[1] if len(others) > 1 else None
         st.append(Statement("fact", f"Teammate is {'goal-side' if mate_goal_side else 'not goal-side'} of the ball, "
                                     f"{mate_own_goal:.0f} uu from own goal"
                                     + ("" if m.boost is None else f", {m.boost:.0f} boost") + ".", ["mate"]))
-        exposed = None
-        if spare is not None:
-            spare_t = time_to_point(spare, b["x"], b["y"])
-            mate_t = time_to_point(m, b["x"], b["y"])
-            st.append(Statement("derived", f"The second opponent reaches the ball in about {spare_t:.1f} s; the teammate in about {mate_t:.1f} s.",
-                                [spare.pid, "mate"], ["Arrival-time approximation."]))
+        exposed = True if not mate_goal_side else None
+        mate_t = kin_time(r, m.pid)
+        if spare is not None and mate_t is not None:
+            spare_t = opp_t[spare.pid]
+            st.append(Statement("derived", f"Earliest feasible touch: second opponent {_fmt_t(spare_t)}, teammate {_fmt_t(mate_t)}.",
+                                [spare.pid, "mate"], ["Kinematic lower bounds from t0 (reachability model)."]))
             # Exposed: the teammate is up the field too, or the opponent not in the
-            # 50/50 would reach a loose ball before the teammate does.
+            # 50/50 could reach a loose ball before the teammate could.
             exposed = (not mate_goal_side) or spare_t < mate_t
+        elif exposed is None:
+            st.append(Statement("fact", "An opponent's or the teammate's earliest touch is unknown at t0 (wall, air or no heading).",
+                                ["opponents", "mate"]))
         factors["teammate_exposed_1v2"] = exposed
         if exposed:
             why = ("the teammate is not goal-side either" if not mate_goal_side
@@ -441,19 +483,22 @@ def assess_last_man(r: Reading, case_id: str) -> Finding:
         a_d = math.hypot(attacker.x - b["x"], attacker.y - b["y"])
         st.append(Statement("fact", f"Nearest attacker is {a_d:.0f} uu from the ball at {attacker.speed:.0f} uu/s"
                                     + ("" if attacker.boost is None else f" with {attacker.boost:.0f} boost") + ".", [attacker.pid]))
-        f_t, a_t = time_to_point(f, b["x"], b["y"]), time_to_point(attacker, b["x"], b["y"])
-        st.append(Statement("derived", f"Defender reaches the ball in about {f_t:.1f} s, the attacker in about {a_t:.1f} s.",
-                            ["focus", attacker.pid], ["Arrival-time approximation."]))
-        alts.append(Alternative("challenge early", "plausible" if f_t < a_t else "unclear",
-                                "Defender arrives first." if f_t < a_t else "Attacker arrives first; an early challenge risks being beaten."))
+        f_t, a_t = kin_time(r, f.pid), kin_time(r, attacker.pid)
+        st.append(Statement("derived", f"Earliest feasible touch: defender {_fmt_t(f_t)}, attacker {_fmt_t(a_t)}.",
+                            ["focus", attacker.pid], ["Kinematic lower bounds from t0 (reachability model)."]))
+        first = None if f_t is None or a_t is None else f_t < a_t
+        alts.append(Alternative("challenge early", "plausible" if first else "unclear",
+                                "Defender can arrive first." if first else
+                                ("Attacker can arrive first; an early challenge risks being beaten." if first is False
+                                 else "Arrival order unknown at t0.")))
         if attacker.boost is not None and attacker.boost < 15:
             st.append(Statement("interpretation", "The attacker is low on boost, which limits aerial and power options, "
                                                   "but not a grounded shot or a dribble.", [attacker.pid], confidence="medium"))
     alts.append(Alternative("shadow toward the goal", "plausible" if f.y < b["y"] else "unclear",
                             "Defender is goal-side of the ball." if f.y < b["y"] else "Defender is not goal-side."))
     if r.mate is not None:
-        st.append(Statement("derived", f"Teammate reaches the own goal area in about {time_to_point(r.mate, 0.0, -GOAL_Y + 500):.1f} s.",
-                            ["mate"], ["Arrival-time approximation."]))
+        st.append(Statement("derived", f"Teammate could reach the own goal area in {_fmt_t(kin_time(r, r.mate.pid, (0.0, -GOAL_Y + 500)))}.",
+                            ["mate"], ["Kinematic lower bound from t0; unknown if the teammate is airborne or on a wall."]))
     return Finding(case_id, r.t0, "last_man_defense", "Last-defender situation brief", "situation_brief", st, alts,
                    list(r.unknowns), ["What the defender chose (no choice label for this situation yet).",
                                       "Shot outcome probabilities."])
@@ -514,7 +559,8 @@ def find_shot_opportunities(payload: dict[str, Any], focus_id: str, step_s: floa
         if r.ball is None or r.ball["y"] < 1000 or not has_possession(r) or any("Opponent" in u for u in r.unknowns):
             continue
         lane = shot_lane(r)
-        if lane["open_fraction"] < 0.45 or min((d["slack_s"] for d in lane["defenders"]), default=1.0) <= 0.15:
+        slacks = [d["slack_s"] for d in lane["defenders"]]
+        if lane["open_fraction"] < 0.45 or None in slacks or min(slacks, default=1.0) <= 0.15:
             continue
         last = t
         out.append(assess_shot(r, f"shot-{focus_id}-{t:.1f}", _shot_followed(frames, t, team)))

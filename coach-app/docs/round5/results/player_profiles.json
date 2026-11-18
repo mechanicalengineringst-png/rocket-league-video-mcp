@@ -1,0 +1,117 @@
+{
+ "players": 51,
+ "observations": 1655,
+ "players_by_matches_observed": {
+  "1": 46,
+  "2": 4,
+  "6": 1
+ },
+ "rate_status_counts": {
+  "decision_consistency|below_pool": 1,
+  "decision_consistency|consistent_with_pool": 1,
+  "decision_consistency|insufficient": 98,
+  "execution|consistent_with_pool": 1,
+  "execution|insufficient": 50,
+  "preferences|consistent_with_pool": 3,
+  "preferences|insufficient": 150,
+  "team_context|consistent_with_pool": 1,
+  "team_context|insufficient": 50
+ },
+ "players_with_an_established_pattern": 0,
+ "established_patterns": {},
+ "example_profile": {
+  "model": "player-model/0.1",
+  "moments": 175,
+  "matches": 6,
+  "preferences": {
+   "challenges_as_first_defender": {
+    "label": "Chooses to challenge (vs shadow/retreat) as first defender",
+    "k": 43,
+    "n": 61,
+    "matches": 6,
+    "pooled": 0.705,
+    "mean": 0.705,
+    "lo90": 0.61,
+    "hi90": 0.792,
+    "status": "consistent_with_pool"
+   },
+   "challenges_when_contest_and_cover": {
+    "label": "Challenges when contest and cover",
+    "k": 16,
+    "n": 18,
+    "matches": 6,
+    "pooled": 0.953,
+    "mean": 0.905,
+    "lo90": 0.793,
+    "hi90": 0.979,
+    "status": "consistent_with_pool"
+   },
+   "challenges_when_late_and_uncovered": {
+    "label": "Challenges when late and uncovered",
+    "k": 3,
+    "n": 9,
+    "matches": 5,
+    "pooled": 0.594,
+    "mean": 0.438,
+    "lo90": 0.238,
+    "hi90": 0.647,
+    "status": "consistent_with_pool"
+   }
+  },
+  "decision_consistency": {
+   "defender_decision": {
+    "label": "defender decision: moments flagged as a concern",
+    "k": 3,
+    "n": 44,
+    "matches": 6,
+    "pooled": 0.153,
+    "mean": 0.078,
+    "lo90": 0.027,
+    "hi90": 0.148,
+    "status": "below_pool"
+   },
+   "first_man_challenge": {
+    "label": "first man challenge: moments flagged as a concern",
+    "k": 0,
+    "n": 36,
+    "matches": 6,
+    "pooled": 0.014,
+    "mean": 0.003,
+    "lo90": 0.0,
+    "hi90": 0.027,
+    "status": "consistent_with_pool"
+   }
+  },
+  "execution": {
+   "whiff_rate": {
+    "label": "Whiffs per attempted touch (decoder 'whiff' events)",
+    "k": 37,
+    "n": 284,
+    "matches": 6,
+    "pooled": 0.14,
+    "mean": 0.13,
+    "lo90": 0.1,
+    "hi90": 0.164,
+    "status": "consistent_with_pool"
+   }
+  },
+  "team_context": {
+   "teammate_could_cover": {
+    "label": "Teammate could get goal-side in time when this player was first defender",
+    "k": 29,
+    "n": 44,
+    "matches": 6,
+    "pooled": 0.623,
+    "mean": 0.655,
+    "lo90": 0.542,
+    "hi90": 0.761,
+    "status": "consistent_with_pool"
+   }
+  },
+  "patterns": [],
+  "notes": [
+   "Rates describe these matches only and say nothing about ability to improve.",
+   "Shrunk toward the pooled rate of all players in this dataset; patterns need 8+ moments in 3+ matches."
+  ]
+ }
+}

@@ -1,0 +1,41 @@
+{
+ "runtime_s": 343.3,
+ "candidates": 643,
+ "choice_labels": {
+  "shadow": 143,
+  "challenge": 365,
+  "unclear": 116,
+  "boost": 9,
+  "retreat": 10
+ },
+ "decoder_shadow_defense_overlap": {
+  "boost|decoder_shadow=False": 6,
+  "boost|decoder_shadow=True": 3,
+  "challenge|decoder_shadow=False": 328,
+  "challenge|decoder_shadow=True": 37,
+  "retreat|decoder_shadow=False": 5,
+  "retreat|decoder_shadow=True": 5,
+  "shadow|decoder_shadow=False": 73,
+  "shadow|decoder_shadow=True": 70,
+  "unclear|decoder_shadow=False": 95,
+  "unclear|decoder_shadow=True": 21
+ },
+ "truncation_check": {
+  "checked": 643,
+  "identical": 643
+ },
+ "next_touch_team_auc": {
+  "rows": 2663,
+  "time_margin_reachability": 0.815,
+  "distance_margin_baseline": 0.746
+ },
+ "manifest": {
+  "rows": 636,
+  "by_detector_choice": {
+   "shadow": 142,
+   "challenge": 361,
+   "unclear": 133
+  },
+  "matches": 15
+ }
+}

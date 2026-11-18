@@ -28,8 +28,12 @@ PLAYERS = [
 ]
 
 
-def car(x, y, vx=0.0, vy=0.0, boost=50.0, z=17.0):
-    return {"x": x, "y": y, "z": z, "velocity": [vx, vy, 0.0], "boost": boost}
+def car(x, y, vx=0.0, vy=0.0, boost=50.0, z=17.0, forward=None):
+    """Forward defaults to the direction of travel, or +y when stationary (Round 5 needs a heading)."""
+    if forward is None:
+        sp = (vx * vx + vy * vy) ** 0.5
+        forward = [vx / sp, vy / sp, 0.0] if sp > 0 else [0.0, 1.0, 0.0]
+    return {"x": x, "y": y, "z": z, "velocity": [vx, vy, 0.0], "boost": boost, "forward": forward}
 
 
 def snapshot(cars, ball, t=10.0, players=PLAYERS):

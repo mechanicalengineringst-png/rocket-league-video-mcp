@@ -24,11 +24,13 @@ from typing import Any
 from .tactical_analysis import Finding, challenge_verdict, shot_verdict
 
 QUESTION_TYPES = ("why_flagged", "alternative_feasibility", "teammate_actions", "opponent_actions",
-                  "what_would_change", "recurring_patterns")
+                  "what_would_change", "recurring_patterns", "higher_rank_comparison", "practice_priority")
 
 INTENT_WORDS = re.compile(r"\b(wanted|intended|intend|tried to|meant to|decided to|chose to|was trying|panicked|lazy)\b", re.I)
 BLAME_WORDS = re.compile(r"\b(mistake|error|bad decision|wrong|should have|blunder|fault)\b", re.I)
 PROB_WORDS = re.compile(r"(\d+\s*%|\bprobabilit|\bchance of|\blikelihood|\bodds\b|\bxg\b)", re.I)
+RANK_WORDS = re.compile(r"\b(gc|ssl|grand champ\w*|pros?|higher[- ]ranked|better players?|top players?)\b", re.I)
+CERTAINTY_WORDS = re.compile(r"\b(definitely|certainly|obviously|clearly|always|never|guaranteed)\b", re.I)
 RETRO_MARKERS = re.compile(r"\b(later|afterwards|after t0|then|next|followed|retrospective)\b", re.I)
 NUMBER = re.compile(r"[-+]?\d+(?:\.\d+)?")
 
@@ -79,8 +81,15 @@ def what_would_change(finding: Finding) -> list[str]:
     f = dict(finding.factors)
     if not f:
         return []
-    rule = (lambda x: challenge_verdict(x)) if finding.situation == "first_man_challenge" else \
-        (lambda x: shot_verdict(x, finding.reviewed_action)) if finding.situation == "possession_shot_opportunity" else None
+    if finding.situation == "first_man_challenge":
+        rule = challenge_verdict
+    elif finding.situation == "possession_shot_opportunity":
+        rule = lambda x: shot_verdict(x, finding.reviewed_action)  # noqa: E731
+    elif finding.situation == "defender_decision":
+        from .defender_decisions import defender_verdict
+        rule = lambda x: defender_verdict(x, finding.reviewed_action)  # noqa: E731
+    else:
+        rule = None
     if rule is None:
         return []
     base = rule(f)
@@ -102,7 +111,8 @@ def what_would_change(finding: Finding) -> list[str]:
 
 
 def build_packet(finding: Finding, question_type: str, question: str = "",
-                 retrospective: list[str] | None = None, history: list[Finding] | None = None) -> Packet:
+                 retrospective: list[str] | None = None, history: list[Finding] | None = None,
+                 profile: dict[str, Any] | None = None) -> Packet:
     """Deterministic retrieval of the evidence a question may use."""
     if question_type not in QUESTION_TYPES:
         raise ValueError(f"question_type must be one of {QUESTION_TYPES}")
@@ -114,6 +124,7 @@ def build_packet(finding: Finding, question_type: str, question: str = "",
         n += 1
         items.append(Item(f"{prefix}{n}", kind, text, tags or []))
 
+    add("verdict", f"Engine reading of this moment: {finding.verdict.replace('_', ' ')} ({finding.headline}).", ["verdict"])
     for s in finding.statements:
         add(s.kind, s.text + ("" if not s.assumptions else f" (Assumes: {'; '.join(s.assumptions)})"),
             _tags_for(s.text, s.inputs))
@@ -131,8 +142,16 @@ def build_packet(finding: Finding, question_type: str, question: str = "",
         for line in what_would_change(finding):
             add("factor", line, ["factor"])
     if question_type == "recurring_patterns":
-        for line in recurring_patterns(history or [finding]):
+        lines = profile_lines(profile, finding.situation) if profile else recurring_patterns(history or [finding])
+        for line in lines:
             add("factor", line, ["pattern"])
+    if question_type == "practice_priority":
+        for line in practice_lines(profile):
+            add("factor", line, ["pattern"])
+    if question_type == "higher_rank_comparison":
+        add("unknown", "No reference replays from higher-ranked players are loaded, so whether a higher-ranked player "
+                       "would choose differently is not established. Different successful styles choose differently "
+                       "in the same spot.", ["reference"])
 
     keep = {
         "why_flagged": lambda i: i.kind in ("fact", "derived", "interpretation", "unknown", "retrospective"),
@@ -141,7 +160,12 @@ def build_packet(finding: Finding, question_type: str, question: str = "",
         "opponent_actions": lambda i: "opponent" in i.tags or i.kind == "unknown" and "opponent" in i.text.lower(),
         "what_would_change": lambda i: i.kind in ("factor", "unknown"),
         "recurring_patterns": lambda i: i.kind == "factor",
+        "higher_rank_comparison": lambda i: i.kind in ("alternative", "verdict") or "reference" in i.tags,
+        "practice_priority": lambda i: i.kind == "factor",
     }[question_type]
+    if question_type in ("why_flagged", "teammate_actions", "opponent_actions", "alternative_feasibility"):
+        base = keep
+        keep = lambda i: base(i) or i.kind == "verdict"  # noqa: E731
     return Packet(question_type, question, finding.case_id, finding.t0, finding.situation, finding.verdict,
                   finding.headline, [i for i in items if keep(i)], list(finding.not_established))
 
@@ -180,6 +204,8 @@ def answer_deterministically(p: Packet) -> dict[str, Any]:
         "opponent_actions": "What the telemetry shows about the opponents at t0:",
         "what_would_change": "How the verdict depends on its inputs:",
         "recurring_patterns": "Across the reviewed moments:",
+        "higher_rank_comparison": "What the engine can and cannot say about higher-ranked choices:",
+        "practice_priority": "What the reviewed matches support as a first focus:",
     }[p.question_type]
     for it in p.items:
         text = it.text
@@ -239,7 +265,8 @@ def validate_answer(answer: dict[str, Any], p: Packet) -> list[str]:
             problems.append(f"Sentence {k} uses numbers not in its cited evidence: {sorted(extra)}.")
         if any(known[c].kind == "retrospective" for c in cites) and not RETRO_MARKERS.search(text):
             problems.append(f"Sentence {k} cites a later event without saying it happened later.")
-        for rx, what in ((INTENT_WORDS, "intent"), (BLAME_WORDS, "blame"), (PROB_WORDS, "probability")):
+        for rx, what in ((INTENT_WORDS, "intent"), (BLAME_WORDS, "blame"), (PROB_WORDS, "probability"),
+                         (RANK_WORDS, "a comparison with other players"), (CERTAINTY_WORDS, "certainty")):
             m = rx.search(text)
             if m and not rx.search(cited_text):
                 problems.append(f"Sentence {k} asserts {what} ('{m.group(0)}') that the evidence does not contain.")
@@ -250,10 +277,82 @@ def validate_answer(answer: dict[str, Any], p: Packet) -> list[str]:
     return problems
 
 
+def profile_lines(profile: dict[str, Any], situation: str) -> list[str]:
+    """Pattern lines from a player_model profile, with counts and intervals."""
+    out = []
+    dc = profile.get("decision_consistency", {}).get(situation)
+    if dc:
+        out.append(f"{dc['label']}: {dc['k']} of {dc['n']} across {dc['matches']} matches "
+                   f"(shrunk rate {dc['mean']}, 90% interval {dc['lo90']}-{dc['hi90']}, pooled {dc['pooled']}); "
+                   f"status: {dc['status'].replace('_', ' ')}.")
+    else:
+        out.append(f"No judged {situation.replace('_', ' ')} moments for this player yet.")
+    for p in profile.get("patterns", []):
+        out.append("Established pattern: " + p["wording"])
+    if not profile.get("patterns"):
+        out.append(f"No recurring pattern is established ({profile.get('moments', 0)} moments across "
+                   f"{profile.get('matches', 0)} matches).")
+    return out
+
+
+def practice_lines(profile: dict[str, Any] | None) -> list[str]:
+    from .player_model import MIN_MATCHES, MIN_N, practice_priority
+    if not profile:
+        return ["No player profile is loaded, so no practice priority can be derived."]
+    pri = practice_priority(profile)
+    if not pri:
+        return [f"No pattern is established yet: {profile.get('moments', 0)} moments across {profile.get('matches', 0)} "
+                f"matches; a pattern needs {MIN_N} or more moments in {MIN_MATCHES} or more matches and a rate clearly "
+                "above other players here."]
+    return [f"Priority {k}: {x['wording']} Evidence: {x['evidence']}." for k, x in enumerate(pri, 1)]
+
+
+NATURAL_ROUTES = [
+    (re.compile(r"\b(why|how come)\b.*\b(bad|wrong|mistake|poor|flagged)\b", re.I), "why_flagged", True),
+    (re.compile(r"\bwhy\b", re.I), "why_flagged", False),
+    (re.compile(r"\b(done differently|instead|alternative|other option|what else)\b", re.I), "alternative_feasibility", False),
+    (re.compile(r"\b(teammate|mate|partner)\b.*\b(cover|covered|back|behind|support)", re.I), "teammate_actions", False),
+    (re.compile(r"\b(opponent|defender|attacker|they)\b", re.I), "opponent_actions", False),
+    (re.compile(r"\b(higher|better|pro|ssl|gc|grand champ)\b.*\b(rank|player|choose|do)", re.I), "higher_rank_comparison", False),
+    (re.compile(r"\b(recurring|pattern|always|keep doing|habit|often)\b", re.I), "recurring_patterns", False),
+    (re.compile(r"\b(practi[cs]e|train|work on|improve first|focus on)\b", re.I), "practice_priority", False),
+    (re.compile(r"\b(would change|change the|what if|depend)\b", re.I), "what_would_change", False),
+]
+
+
+def route_question(text: str) -> tuple[str | None, bool]:
+    """Map a natural question to a packet type. Returns (type or None, presupposes_a_negative_verdict)."""
+    order = [r for r in NATURAL_ROUTES if r[1] not in ("why_flagged",)] + [r for r in NATURAL_ROUTES if r[1] == "why_flagged"]
+    for rx, qtype, presup in order:
+        if rx.search(text):
+            if qtype == "why_flagged":
+                presup = bool(NATURAL_ROUTES[0][0].search(text))
+            return qtype, presup
+    return None, False
+
+
+def answer_natural(text: str, finding: Finding, *, profile: dict[str, Any] | None = None,
+                   history: list[Finding] | None = None, model_answer: dict[str, Any] | None = None) -> dict[str, Any]:
+    """Route a free-text question, correct a false premise, and answer from evidence only."""
+    qtype, presupposes_bad = route_question(text)
+    if qtype is None:
+        return {"routed_to": None, "answer": {"abstain": True, "sentences": [], "answerer": "deterministic",
+                                              "note": "This question is not one the evidence can answer. Supported: "
+                                                      + ", ".join(QUESTION_TYPES)}}
+    p = build_packet(finding, qtype, text, history=history, profile=profile)
+    out = answer(finding, qtype, text, model_answer, history=history, profile=profile)
+    out["routed_to"] = qtype
+    concern = finding.verdict in ("risk_hypothesis", "missed_opportunity_hypothesis")
+    if presupposes_bad and not concern:
+        v = next(i for i in p.items if i.kind == "verdict")
+        out["premise_correction"] = {"text": f"The engine did not judge this as bad: {v.text}", "cites": [v.id]}
+    return out
+
+
 def answer(finding: Finding, question_type: str, question: str = "", model_answer: dict[str, Any] | None = None,
-           history: list[Finding] | None = None) -> dict[str, Any]:
+           history: list[Finding] | None = None, profile: dict[str, Any] | None = None) -> dict[str, Any]:
     """Build the packet, validate a model answer if given, and fall back to the deterministic answer."""
-    p = build_packet(finding, question_type, question, history=history)
+    p = build_packet(finding, question_type, question, history=history, profile=profile)
     result: dict[str, Any] = {"packet": p.to_dict()}
     if model_answer is not None:
         problems = validate_answer(model_answer, p)

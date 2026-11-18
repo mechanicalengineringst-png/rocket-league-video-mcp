@@ -1,0 +1,15 @@
+{
+ "records": 636,
+ "pre_decision_identical_after_deleting_future": 636,
+ "unknowns_by_kind": {
+  "U.cover.teammate": 156,
+  "U.opponent_1.state": 4,
+  "U.reach.opponent_1": 14,
+  "U.roles.opponents": 21,
+  "U.opponent_2.state": 2,
+  "U.reach.opponent_2": 7
+ },
+ "positions": 3174,
+ "stale_possible_positions": 40,
+ "runtime_s": 24.5
+}
