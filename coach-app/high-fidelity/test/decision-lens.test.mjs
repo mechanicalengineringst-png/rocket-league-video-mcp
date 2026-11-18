@@ -1,9 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createRequire} from 'node:module';
+import {readFileSync} from 'node:fs';
+import {runInNewContext} from 'node:vm';
 
-const require=createRequire(import.meta.url);
-const lens=require('../../coach_app/static/decision-lens.js');
+// Run the same browser classic script in a clean VM. Node 22's automatic
+// ESM detection can otherwise make require() of a browser IIFE return an
+// empty namespace. The VM verifies the actual window-global integration.
+const scope={};
+scope.globalThis=scope;
+const source=readFileSync(new URL('../../coach_app/static/decision-lens.js',import.meta.url),'utf8');
+runInNewContext(source,scope,{filename:'decision-lens.js'});
+const lens=scope.ReplayLabDecisionLens;
+assert.equal(typeof lens?.buildWindow,'function');
 const players=[
   {id:'p1',team:'blue'},
   {id:'p2',team:'blue'},
