@@ -464,3 +464,21 @@ paired_compare is independent of all live coaching endpoints and does not call
 or train any AI model. It is a measurement tool, not evidence that either
 current system is high-rank accurate. Before publishing comparisons, audit the
 cohort provenance, independent selection rates and every source-video clip.
+
+
+## Round 5: Packet freshness / resampled-actor provenance audit
+
+The existing coach_app/subtr_replays.py calls subtr_actor.get_ndarray_with_info_from_replay_filepath with fps=FPS and packages its output into one ROW timestamp for all actors. The row timestamp is NOT proof that every car/ball received a fresh native network update at that instant. An actor can be carried forward, resampled, missing, or legitimately stationary. The current normalized payload does not preserve a distinct last native actor update timestamp for each actor. This is separate from Claude PR #21's future-frame leakage check.
+
+A read-only diagnostic, requiring no parser/GPU/model dependencies:
+
+    # Run from coach-app, keep private source JSON and the audit private.
+    python -m evaluation.packet_freshness --replay-json private_local/decoded_2v2.json --cases private_local/decision_cases.json --output private_local/packet_freshness_audit.json
+
+Case inputs support {case_id,t0,focus_player_id} or Claude-style {decision_case_id,decision_time_s,focus_player:{id}} or blinded benchmark case rows without a focus ID. In the latter case all rostered players plus the ball are audited; no focus is guessed.
+
+For each requested t0 it chooses only the latest OUTPUT frame at or before t0 (default maximum lookback 0.15 seconds). It reports selected-frame age, missing/demolished/incomplete states, and consecutive identical resampled-value runs. Identical runs are NOT stale-packet evidence: stationary game actors can remain unchanged.
+
+Every result currently says native_packet_freshness: unverifiable. An experimental nativeUpdateTimeS optional field from any future decoder is reported only as an UNVERIFIED hint, never a certificate; impossible post-row/post-t0 time hints are rejected. This project currently has no authoritative source-time extractor. Never promote inferred visual states to coaching facts on this evidence alone.
+
+NEXT: Independently implement and audit a raw native-actor-update source-time collector. Measure real replay per-actor update intervals, match them to dense ndarray samples, and quantify uncertainty around the exact decision times. Only then add a calibrated production coaching freshness policy. The current auditor changes no replay data or live coaching, does not call a model, and makes no unsupported native freshness claims.
