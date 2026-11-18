@@ -1,0 +1,183 @@
+{
+ "replays": 15,
+ "t0_samples_x_cars": 18132,
+ "with_touch_label": 6322,
+ "runtime_s": 79.7,
+ "abstentions": {
+  "car on a wall: wall driving is not modelled": 1333,
+  "car demolished at t0": 120
+ },
+ "out_of_horizon_with_label": 51,
+ "lower_bound_violations": {
+  "new": 332,
+  "baseline_same_rows": 1596,
+  "rows": 5783,
+  "new_out_of_horizon_but_touched": 51
+ },
+ "gap_label_minus_estimate_s": {
+  "new": {
+   "n": 5783,
+   "p10": -0.023,
+   "median": 0.419,
+   "p90": 1.966,
+   "mean_abs": 0.766
+  },
+  "baseline": {
+   "n": 5783,
+   "p10": -1.51,
+   "median": 0.266,
+   "p90": 2.114,
+   "mean_abs": 1.139
+  }
+ },
+ "gap_when_touch_within_1_5s": {
+  "new": {
+   "n": 2639,
+   "p10": -0.048,
+   "median": 0.113,
+   "p90": 0.516,
+   "mean_abs": 0.233
+  },
+  "baseline": {
+   "n": 2639,
+   "p10": -0.512,
+   "median": 0.06,
+   "p90": 0.738,
+   "mean_abs": 0.426
+  }
+ },
+ "baseline_over_4s_while_touch_within_2s": 96,
+ "new_over_4s_while_touch_within_2s": 0,
+ "first_to_ball_within_2_5s": {
+  "cases": 2493,
+  "new_accuracy": 0.674,
+  "baseline_accuracy": 0.596,
+  "chance": 0.25
+ },
+ "violations_by_approach": {
+  "dodge": "28/336",
+  "drive": "143/2208",
+  "powerslide": "98/1211",
+  "aerial continuation": "43/1525",
+  "already at the ball": "0/432",
+  "half_flip": "6/52",
+  "brake_and_turn": "10/13",
+  "land and drive": "4/6"
+ },
+ "approach_used": {
+  "dodge": 336,
+  "drive": 2208,
+  "powerslide": 1211,
+  "aerial continuation": 1525,
+  "already at the ball": 432,
+  "half_flip": 52,
+  "brake_and_turn": 13,
+  "land and drive": 6
+ },
+ "worst_new_violations": [
+  {
+   "replay": "recent-r",
+   "t0": 88.31,
+   "label": 0.32569999999999766,
+   "new": 3.899999999999996,
+   "approach": "brake_and_turn + single jump",
+   "z": 17.46,
+   "speed": 1757
+  },
+  {
+   "replay": "replay-f",
+   "t0": 12.38,
+   "label": 0.030799999999999272,
+   "new": 3.5666666666666638,
+   "approach": "land and drive",
+   "z": 89.48,
+   "speed": 844
+  },
+  {
+   "replay": "recent-r",
+   "t0": 11.31,
+   "label": 0.05570000000000164,
+   "new": 2.7333333333333334,
+   "approach": "aerial continuation",
+   "z": 48.24,
+   "speed": 1937
+  },
+  {
+   "replay": "replay-f",
+   "t0": 89.38,
+   "label": 0.8307999999999964,
+   "new": 3.1999999999999984,
+   "approach": "brake_and_turn",
+   "z": 17.01,
+   "speed": 1797
+  },
+  {
+   "replay": "squishy-",
+   "t0": 83.73,
+   "label": 1.3829000000000065,
+   "new": 3.599999999999997,
+   "approach": "powerslide",
+   "z": 17.01,
+   "speed": 1577
+  },
+  {
+   "replay": "calemaca",
+   "t0": 45.27,
+   "label": 1.9927000000000064,
+   "new": 3.9999999999999956,
+   "approach": "powerslide",
+   "z": 17.03,
+   "speed": 1288
+  },
+  {
+   "replay": "wall-aer",
+   "t0": 199.74,
+   "label": 1.9962999999999909,
+   "new": 3.9999999999999956,
+   "approach": "brake_and_turn + aerial",
+   "z": 20.61,
+   "speed": 1014
+  },
+  {
+   "replay": "replay-f",
+   "t0": 232.16,
+   "label": 0.6974999999999909,
+   "new": 2.6000000000000005,
+   "approach": "powerslide + double jump",
+   "z": 16.99,
+   "speed": 2204
+  }
+ ],
+ "turning_model_check": {
+  "0-500 uu/s": {
+   "n": 2190,
+   "median_ratio": 0.376,
+   "p95_ratio": 1.198,
+   "share_above_model": 0.103
+  },
+  "500-1000 uu/s": {
+   "n": 10831,
+   "median_ratio": 0.6,
+   "p95_ratio": 1.27,
+   "share_above_model": 0.177
+  },
+  "1000-1500 uu/s": {
+   "n": 26218,
+   "median_ratio": 0.54,
+   "p95_ratio": 1.262,
+   "share_above_model": 0.157
+  },
+  "1500-2000 uu/s": {
+   "n": 17984,
+   "median_ratio": 0.491,
+   "p95_ratio": 1.359,
+   "share_above_model": 0.149
+  },
+  "2000-2500 uu/s": {
+   "n": 12550,
+   "median_ratio": 0.325,
+   "p95_ratio": 1.132,
+   "share_above_model": 0.078
+  }
+ }
+}
