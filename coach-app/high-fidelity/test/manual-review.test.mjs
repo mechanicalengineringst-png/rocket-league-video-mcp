@@ -38,7 +38,9 @@ function replay() {
       }
     });
   }
-  return {source:'native-replay',title:'private',players:roster,frames,
+  // Each test gets a fresh roster: mutation of one fixture may not
+  // contaminate later 2v2 identity tests or silently disable the UI.
+  return {source:'native-replay',title:'private',players:roster.map(p=>({...p})),frames,
     events:[],duration:13};
 }
 function context(r=replay(),t0=10.04) {
