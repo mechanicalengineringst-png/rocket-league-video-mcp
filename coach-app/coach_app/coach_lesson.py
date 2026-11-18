@@ -109,6 +109,8 @@ def _checked_draft_claim(claim: dict[str, Any], packet: dict[str, Any]) -> tuple
         errors.append("Invalid lesson section.")
     if scope != "PRE_DECISION":
         errors.append("Only Stage 1 claims are supported.")
+    if typ in ("TACTICAL_INFERENCE", "HYPOTHETICAL_ALTERNATIVE", "PRACTICAL_TEACHING_RECOMMENDATION") and CERTAINTY.search(str(claim.get("text", ""))):
+        errors.append("Tactical hypotheses must not assert guaranteed or certain outcomes.")
     text = claim.get("text")
     if not isinstance(text, str) or not text.strip() or len(text) > 900 or any(
             ord(c) < 32 and c not in "\n\t" for c in text if isinstance(text, str)):
