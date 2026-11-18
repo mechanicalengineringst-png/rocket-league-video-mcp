@@ -323,7 +323,7 @@
         Array.isArray(m.source_refs) && m.source_refs.length>=2 &&
         m.source_refs.length<=3 &&
         m.source_refs.every(r=>typeof r==='string' &&
-          /^N[1-4]\\/E\\.[a-zA-Z0-9_.-]+$/.test(r)));
+          /^N[1-4][/](?:E[.])[a-zA-Z0-9_.-]+$/.test(r)));
       // Keep the visible panel compact. All model inputs use the same
       // measured data, and these labels make its limitations inspectable.
       for(const m of metrics){
