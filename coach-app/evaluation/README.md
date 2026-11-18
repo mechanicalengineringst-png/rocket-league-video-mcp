@@ -354,11 +354,18 @@ commitment rather than showing goals/outcomes (at most 3.5s after t0).
 Only neutral hints such as "Follow the outlined blue car" are accepted;
 never mention challenger/shadower, roles, names, or detector verdicts.
 
-**Blocking source dependency:** the 15 shadow cases cannot be filled
-from future 50/50 challenge detections or manually guessed labels. There
-is no independently pre-registered shadow-candidate exporter in this PR.
-Create and audit that upstream exporter before running the 40-clip pilot;
-this coordinator intentionally does not fabricate a shadow source.
+**Source update (Claude Round 5, draft PR #22):** an independently
+specified first-defender candidate scanner now exists in
+`coach_app/choices.py` on the separate branch
+`claude/round5-tactical-intelligence-20261117`. The current PR #22
+reports 636 predeclared manifest rows from 15 source replays; it passed
+this coordinator's existing manifest validations. Those are **candidate
+rows, not rendered clips**, and PR #22 has not been integrated into this
+evaluation branch. Preserve its private replay-source mapping and verify
+t0-only eligibility, shadow/unclear selection, actual footage and
+anonymization before inviting reviewers. Antigravity draft PR #23's
+single-frame placeholder files remain unusable, and the ffprobe gate
+below correctly rejects them.
 
 ### Human review workflow
 
@@ -516,3 +523,44 @@ timing, visible outcomes, scoreboard or gamertags. Use a preregistered
 independent shadow/nonchallenge source. Keep the private mapping
 separate from the reviewed videos. Never advertise reviewed-coaching
 accuracy until actual humans have submitted independent ratings.
+
+
+## Round 5 integration: two distinct expert studies, not interchangeable
+
+**Study A — Commitment timing and observed action (40 source videos).**
+`evaluation.commitment_review` records `choice`, `mark_type`,
+`earliest_s`, `latest_s`, `confidence` and `note`. It measures the
+timing and agreement of the detectable commitment window (15 candidate
+challenges, 15 candidate shadows, 10 unclear; 20 overlap for a second
+independent rater). Reviewers may inspect a short post-t0 action window
+to judge *what was done* and *when*, but post-t0 outcomes must never be
+provided as evidence about what was wise at t0. **There is NO tactical
+merit verdict in this annotation schema.** Calibrating cover-first
+tactical thresholds from these timing labels alone would be invalid.
+
+**Study B — Tactical merit and coaching trust (separate Stage 1/2
+review).** `evaluation/REVIEW_RUBRIC.md` and `evaluation.score`
+collect Stage 1 `sound/risk/tradeoff/indeterminate` decisions using
+ONLY information visible by t0, independent of all eventual outcomes.
+After Stage 1 is frozen, Stage 2 exposes anonymous model explanations
+and scores factual errors, unsupported assertions, and usefulness.
+The exploratory `evaluation.pilot` is a separate coverage-first
+60-case process (20 each kickoff support, first-man challenge and
+last-man defense), including independent time-sampled candidate moments;
+it cannot be replaced by 40 timing-clip annotations or by detector-only
+first-defender cases. We may add first-defender decisions as an explicit
+additional registered situation, but must not silently relabel existing
+categories or discard negative controls.
+
+**Honest release gate for a high-rank coach.** Use Study A to correct
+the decision-time alignment; use independently rated Study B to
+calibrate tactical interpretation. Preregister candidate thresholds
+and evidence rules before opening Stage 1 ratings. If any threshold,
+model, or verdict policy is selected from human labels, evaluate it
+on **different complete replay groups** from those used to tune it.
+The existing 40/60 pilots are small, selection-biased, correlated
+studies, not an accuracy claim. Report per-match rates, abstentions,
+expert disagreement and false criticism of good plays, even if zero
+systems pass the human usefulness bar. The `evaluation.paired_compare`
+tool can perform match-equal paired comparisons once independent expert
+labels and export schemas genuinely exist.
