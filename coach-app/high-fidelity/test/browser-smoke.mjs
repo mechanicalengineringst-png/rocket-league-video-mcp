@@ -65,7 +65,7 @@ try{
   const boostHudVisible=await page.locator('#boostHud').isVisible();
   assert.ok(boostHudVisible,'Follow camera mode must display live boost HUD');
   const boostNum=await page.locator('#boostNum').textContent();
-  assert.ok(Number(boostNum)>=0 && Number(boostNum)<=100,'Boost gauge should display valid 0-100 reading');
+  assert.ok(boostNum === '--' || (Number(boostNum)>=0 && Number(boostNum)<=100),'Boost gauge should display valid 0-100 reading or explicit unknown state');
   const evidence=await page.locator('#cameraEvidence').textContent();
   assert.ok(evidence.length>25,'Recorded camera evidence must be visible');
   console.log('HD_CAMERA_EVIDENCE',evidence);

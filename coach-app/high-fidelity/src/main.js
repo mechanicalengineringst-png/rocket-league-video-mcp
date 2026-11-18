@@ -10,6 +10,10 @@ import {
   findCameraTrack, recordedCameraAtTime, cameraEvidence,
   cameraSwitchMoments, displayCameraMode,
 } from './camera-timeline.js';
+import {
+  validateExternalControl, resolveFocusedPlayer,
+  shouldCorrectReplayTime, safeSessionId,
+} from './external-sync.js';
 import { createCameraPolishPlugin } from './camera-polish.js';
 import { createRecordedCameraSwitchPlugin } from './recorded-camera-switch.js';
 import {
@@ -45,6 +49,10 @@ let loading = false;
 let scrubbing = false;
 let resumeAfterScrub = false;
 let lastHudUpdate = -Infinity;
+let bridgeSessionId = null;
+const hdInstanceId = globalThis.crypto?.randomUUID?.() ||
+  'instance-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2);
+let lastBridgeSeq = 0;
 // Optional QA-only mesh probe, only enabled by ?qa=1 on this same-origin page.
 // It reports what the renderer really draws under a pixel, to locate oversized
 // black field decorations without guessing at material names.
@@ -301,16 +309,25 @@ function updateHud(force = false) {
     if (mode === 'follow' && focus) {
       boostHud.classList.remove('hidden');
       const pData = player?.adapter?.getPlayer(focus.id);
-      const boostVal = Math.round(Math.max(0, Math.min(100, pData?.boost ?? 0)));
-      const isBoosting = !!pData?.isBoosting;
-      const team = focus.team === 0 ? 'blue' : 'orange';
-      $('boostNum').textContent = String(boostVal);
+      const rawBoost = pData?.boost;
       const bar = $('boostBar');
-      if (bar) {
-        const maxOffset = 251.327;
-        const offset = maxOffset * (1 - boostVal / 100);
-        bar.style.strokeDashoffset = String(offset);
-        bar.setAttribute('class', `boost-bar ${team}-team` + (isBoosting ? ' boosting' : ''));
+      if (rawBoost == null || Number.isNaN(rawBoost)) {
+        $('boostNum').textContent = '--';
+        if (bar) {
+          bar.style.strokeDashoffset = '251.327';
+          bar.setAttribute('class', 'boost-bar unknown-team');
+        }
+      } else {
+        const boostVal = Math.round(Math.max(0, Math.min(100, rawBoost)));
+        const isBoosting = !!pData?.isBoosting;
+        const team = focus.team === 0 ? 'blue' : 'orange';
+        $('boostNum').textContent = String(boostVal);
+        if (bar) {
+          const maxOffset = 251.327;
+          const offset = maxOffset * (1 - boostVal / 100);
+          bar.style.strokeDashoffset = String(offset);
+          bar.setAttribute('class', `boost-bar ${team}-team` + (isBoosting ? ' boosting' : ''));
+        }
       }
     } else {
       boostHud.classList.add('hidden');
@@ -318,7 +335,7 @@ function updateHud(force = false) {
   }
 }
 
-async function loadFile(file, preferredName = null) {
+async function loadFile(file, preferredName = null, sessionId = null) {
   if (!file || !String(file.name || '').toLowerCase().endsWith('.replay')) {
     setStatus('Choose a .replay file.', true);
     return;
@@ -326,6 +343,10 @@ async function loadFile(file, preferredName = null) {
   if (file.size > 20 * 1024 * 1024) {
     setStatus('Replay file exceeds the 20 MB local limit.', true);
     return;
+  }
+  if (sessionId) {
+    bridgeSessionId = sessionId;
+    lastBridgeSeq = 0;
   }
   const seq = ++loadSequence;
   loading = true;
@@ -409,6 +430,9 @@ async function loadFile(file, preferredName = null) {
       ' · filtered textures '+sceneQA.textures;
     setLoading(false);
     updateHud(true);
+    if (bridgeSessionId && window.opener) {
+      window.opener.postMessage({ type: 'replay-lab:hd-loaded', sessionId: bridgeSessionId }, location.origin);
+    }
     next.play();
   } catch (error) {
     if (seq !== loadSequence) return;
@@ -417,6 +441,9 @@ async function loadFile(file, preferredName = null) {
     setStatus('Failed to open replay • ' + message, true);
     setLoading(true, 'Replay could not be loaded', 'Try another .replay or inspect the browser console for a parsing/asset error.');
     $('loadError').textContent = message;
+    if (bridgeSessionId && window.opener) {
+      window.opener.postMessage({ type: 'replay-lab:hd-load-error', sessionId: bridgeSessionId }, location.origin);
+    }
   } finally {
     if (seq === loadSequence) loading = false;
   }
@@ -537,22 +564,60 @@ document.addEventListener('keydown', e => {
   }
 });
 
+function applyParentReplayControl(data) {
+  if (!player || loading || !bridgeSessionId) return;
+  const command = validateExternalControl(
+    data, bridgeSessionId, lastBridgeSeq, player.duration
+  );
+  if (!command) return;
+  lastBridgeSeq = command.seq;
+
+  const focus = resolveFocusedPlayer(
+    player.adapter?.playerList, command.focusName, command.focusTeam
+  );
+  // A name+team match is the best available cross-parser identity mapping.
+  // If ambiguous, DO NOT silently attach the wrong player's camera.
+  if (focus && $('playerSelect').value !== String(focus.id)) {
+    $('playerSelect').value = String(focus.id);
+    switchCamera('follow');
+  } else if (!focus) {
+    setStatus('HD synchronization: player identity is ambiguous; camera unchanged.', true);
+  }
+
+  if (Number($('speedSelect').value) !== command.speed) {
+    $('speedSelect').value = String(command.speed);
+    player.setPlaybackRate(command.speed);
+  }
+  const before = player.getState();
+  if (shouldCorrectReplayTime(command.time, before.currentTime, command.playing)) {
+    player.seek(clampTime(command.time, player.duration));
+  }
+  const after = player.getState();
+  if (command.playing && !after.playing) player.play();
+  else if (!command.playing && after.playing) player.pause();
+  updateHud(true);
+}
+
 // The parent Replay Lab can transfer an already-selected File without
 // uploading it again, using a strict same-origin postMessage handshake.
 window.addEventListener('message', event => {
   if (event.origin !== location.origin || event.source !== window.opener) return;
   if (event.data?.type === 'replay-lab:hd-ping') {
-    window.opener?.postMessage({ type:'replay-lab:hd-ready' }, location.origin);
+    window.opener?.postMessage({ type: 'replay-lab:hd-ready', instanceId: hdInstanceId }, location.origin);
+    return;
+  }
+  if (event.data?.type === 'replay-lab:hd-control') {
+    applyParentReplayControl(event.data);
     return;
   }
   if (event.data?.type !== 'replay-lab:hd-load') return;
   const file = event.data.file;
-  if (!(file instanceof File)) return;
+  if (!(file instanceof File) || !safeSessionId(event.data.sessionId)) return;
   void loadFile(file, typeof event.data.preferredPlayer === 'string'
-    ? event.data.preferredPlayer : null);
+    ? event.data.preferredPlayer : null, event.data.sessionId);
 });
 if (window.opener && window.opener !== window) {
-  window.opener.postMessage({ type:'replay-lab:hd-ready' }, location.origin);
+  window.opener.postMessage({ type: 'replay-lab:hd-ready', instanceId: hdInstanceId }, location.origin);
 }
 
 function hudLoop() {
