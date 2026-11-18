@@ -21,7 +21,7 @@ def manifest(groups=("m1", "m2", "m3", "m4"), count_per_group=12):
                     "replay_group": g,
                     "detector_choice": label,
                     "source_t0_s": t0,
-                    "clip_start_s": t0 - 3,
+                    "clip_start_s": t0 - (3 + ((i % 9) - 4) * 0.2),
                     "clip_end_s": t0 + 1.5,
                     "clip_file": f"{g}-{label}-{i}.mp4",
                     "focus_hint": "Follow the outlined blue car",
@@ -92,14 +92,17 @@ def test_rejects_duplicate_ids_invalid_video_paths_and_future_clip():
         validate_manifest(rows)
 
 
-def annotations(p, reviewer, ids=None, shift=0.0):
+def annotations(p, reviewer, ids=None, shift=0.0, lead=0.5):
     if ids is None:
         ids = [x["review_id"] for x in p["primary_packets"]]
+    mapping = p["private_map"]["cases"]
     return [{
         "review_id": cid, "rater_id": reviewer,
         "choice": "challenge",
-        "mark_type": "interval", "earliest_s": 2.1 + shift,
-        "latest_s": 2.5 + shift, "confidence": "medium",
+        "mark_type": "interval",
+        "earliest_s": round(mapping[cid]["source_t0_s"] - mapping[cid]["clip_start_s"] - lead - 0.4 + shift, 5),
+        "latest_s": round(mapping[cid]["source_t0_s"] - mapping[cid]["clip_start_s"] - lead + shift, 5),
+        "confidence": "medium",
         "note": "Could still turn before the final frame",
     } for cid in ids]
 
@@ -115,7 +118,7 @@ def test_human_interval_agreement_detector_lead_and_separate_reviewers():
     assert report["shared_choice_agreement_rate"] == 1.0
     assert report["both_observable_endpoints_within_0_3s"] == 20
     assert report["median_detector_t0_minus_human_latest_s"] == 0.5
-    assert report["candidate_interpretation"] == "fixed_offset_probably_late"
+    assert report["candidate_interpretation"] == "detector_t0_probably_late"
     assert report["primary_detector_readable_choice_compared"] == 30
     assert report["primary_detector_choice_agreement"] == 0.5
     assert report["primary_detector_unclear_recovered_by_human"] == 10
@@ -159,6 +162,52 @@ def test_future_mark_invalid_conflicting_reviewer_ids_or_duplicate_id():
     with pytest.raises(ValueError, match="different reviewer codes"):
         evaluate_timings(p["private_map"], a, annotations(p, "rater-a"))
 
+
+
+def test_fixed_clip_offsets_and_choice_leaking_hints_are_rejected():
+    rows = manifest()
+    for row in rows:
+        row["clip_start_s"] = row["source_t0_s"] - 3
+    with pytest.raises(ValueError, match="offsets too uniform"):
+        prepare_packets(rows)
+    for bad in ("Follow the challenger car", "Track the shadower",
+                "Follow the outlined blue attacker", "Follow Steam:76561198000000000"):
+        rows = manifest()
+        rows[0]["focus_hint"] = bad
+        with pytest.raises(ValueError, match="focus_hint"):
+            validate_manifest(rows)
+
+
+def test_three_seconds_early_is_not_called_consistent():
+    rows = manifest()
+    for row in rows:
+        row["clip_end_s"] = row["source_t0_s"] + 3.5
+    p = prepare_packets(rows)
+    a = annotations(p, "rater-a", lead=-3.0)
+    b = annotations(p, "rater-b",
+                    [x["review_id"] for x in p["secondary_packets"]],
+                    lead=-3.0)
+    report = evaluate_timings(p["private_map"], a, b)
+    assert report["median_detector_t0_minus_human_latest_s"] == -3.0
+    assert report["candidate_interpretation"] == "detector_t0_probably_early"
+
+
+def test_balanced_early_and_late_errors_cannot_hide_behind_median():
+    rows = manifest()
+    for row in rows:
+        row["clip_end_s"] = row["source_t0_s"] + 3.5
+    p = prepare_packets(rows)
+    a = annotations(p, "rater-a", lead=0)
+    for i, row in enumerate(a):
+        delta = 1.5 if i < 20 else -1.5
+        row["earliest_s"] = round(row["earliest_s"] + delta, 5)
+        row["latest_s"] = round(row["latest_s"] + delta, 5)
+    b = annotations(p, "rater-b",
+                    [x["review_id"] for x in p["secondary_packets"]])
+    result = evaluate_timings(p["private_map"], a, b)
+    assert result["median_detector_t0_minus_human_latest_s"] == 0.0
+    assert result["primary_detector_abs_lead_under_0_25s_rate"] == 0
+    assert result["candidate_interpretation"] == "inconclusive"
 
 def test_secondary_rater_cannot_silently_switch_to_cherry_picked_twenty_clips():
     p = prepare_packets(manifest())

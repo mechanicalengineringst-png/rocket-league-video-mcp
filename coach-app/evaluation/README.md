@@ -345,6 +345,20 @@ unclear), and within-match duplicated moments less than 5s apart. These
 strata are **detector claims**, not human truth, and the sample is NOT
 randomly representative of gameplay. The original video export is the
 upstream responsibility; the preparation script cannot synthesize videos.
+Source clips must vary their pre-t0 lead-in by detector stratum. A fixed
+clip offset allows reviewers to infer t0 even without an explicit marker;
+prepare refuses a selected stratum with almost constant offsets. This
+is a validation guard, NOT a jittering video exporter. Time metadata must
+match the actual rendered video, and clips should end near the reviewed
+commitment rather than showing goals/outcomes (at most 3.5s after t0).
+Only neutral hints such as "Follow the outlined blue car" are accepted;
+never mention challenger/shadower, roles, names, or detector verdicts.
+
+**Blocking source dependency:** the 15 shadow cases cannot be filled
+from future 50/50 challenge detections or manually guessed labels. There
+is no independently pre-registered shadow-candidate exporter in this PR.
+Create and audit that upstream exporter before running the 40-clip pilot;
+this coordinator intentionally does not fabricate a shadow source.
 
 ### Human review workflow
 
@@ -378,9 +392,10 @@ upstream responsibility; the preparation script cannot synthesize videos.
 
 For the predefined 20 overlapping clips, Claude proposed treating >=14/20
 endpoint agreements within 0.3s as encouraging evidence that commitment
-timing can be annotated. A median detector lead >=0.5s would suggest the
-current trigger is late; <0.25s is more consistent with the old assumption.
-Intermediate cases require more clips. **Do not turn these pilot cutoffs into
+timing can be annotated. A median detector lead >=0.5s suggests t0 is late; <=-0.5s suggests
+that t0 is early. Consistency requires |median lead| <0.25s AND at least
+70% of observed cases individually within 0.25s; mixed early/late errors
+must not cancel in the median. Intermediate cases are inconclusive. **Do not turn these pilot cutoffs into
 claims of validated physical irreversibility or tactical quality.**
 
 Known limitations:

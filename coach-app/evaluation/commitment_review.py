@@ -25,6 +25,7 @@ STRATA = {"challenge": 15, "shadow": 15, "unclear": 10}
 SECONDARY_STRATA = {"challenge": 8, "shadow": 7, "unclear": 5}
 SCHEMA = "replay-lab-commitment-review-v1"
 ANONYMOUS_REVIEW_ID = re.compile(r"^T[0-9]{5}$")
+FOCUS_HINT = re.compile(r"^(?:Follow|Track) the (?:outlined|marked) (?:blue|orange) car$", re.I)
 PLATFORM_ID = re.compile(r"\b(?:Steam|Epic|PSN|PsyNet|Xbox):[A-Za-z0-9_-]{7,}\b", re.I)
 
 
@@ -62,7 +63,8 @@ def validate_manifest(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
             row["source_t0_s"], row["clip_start_s"], row["clip_end_s"]
         )
         _need(all(_finite(v) for v in (t0, start, end))
-              and 0 <= start <= t0 <= end and 0 < end - start <= 30,
+              and 0 <= start <= t0 <= end and 0 < end - start <= 30
+              and end - t0 <= 3.5,
               f"{cid}: invalid clip time interval")
         name = row["clip_file"]
         _need(isinstance(name, str) and name == Path(name).name
@@ -73,8 +75,8 @@ def validate_manifest(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
         filenames.add(name)
         hint = row["focus_hint"]
         _need(isinstance(hint, str) and 0 < len(hint) <= 160
-              and not PLATFORM_ID.search(hint),
-              f"{cid}: focus_hint must be short and anonymized")
+              and not PLATFORM_ID.search(hint) and FOCUS_HINT.fullmatch(hint),
+              f"{cid}: focus_hint must identify only an outlined/marked blue/orange car")
         indexed[cid] = row
     return indexed
 
@@ -130,6 +132,17 @@ def prepare_packets(
     _need(len(chosen) == 40, "Expected exactly 40 pilot clips")
     _need(len({c["replay_group"] for c in chosen}) >= min_replay_groups,
           "Selected cohort did not represent enough matches")
+    # A fixed decision-time position in all video clips would unblind the
+    # proposed detector trigger after reviewers see a few examples.
+    # Clip timing must be jittered by the upstream video exporter, NOT by
+    # editing clip_start_s after a video is already rendered.
+    for label in DETECTOR_CHOICES:
+        offsets = [c["source_t0_s"] - c["clip_start_s"] for c in chosen
+                   if c["detector_choice"] == label]
+        _need(max(offsets) - min(offsets) >= 0.75
+              and len({round(offset * 4) for offset in offsets}) >= 4,
+              f"{label}: clip t0 offsets too uniform; re-export source clips "
+              "with varying predecision lead-in")
     rng.shuffle(chosen)
 
     mappings = {}
@@ -267,10 +280,19 @@ def evaluate_timings(
     ]
     choice_agreement = sum(a[rid]["choice"] == b[rid]["choice"] for rid in overlap)
     median_lead = statistics.median(leads) if leads else None
+    near_t0_share = (sum(abs(gap) < 0.25 for gap in leads) / len(leads)
+                     if leads else None)
+    # Positive gap means the detector fired AFTER the human latest-reversible
+    # mark. Negative gap means it fired BEFORE that mark. A one-sided median
+    # comparison incorrectly declared even a 3-second early t0 consistent.
+    # Requiring a large in-band share prevents early/late errors cancelling.
     decision = (
         "insufficient_observable_windows" if len(leads) < 20 else
-        "fixed_offset_probably_late" if median_lead >= 0.5 else
-        "fixed_offset_consistent" if median_lead < 0.25 else "inconclusive"
+        "detector_t0_probably_late" if median_lead >= 0.5 else
+        "detector_t0_probably_early" if median_lead <= -0.5 else
+        "detector_t0_consistent" if abs(median_lead) < 0.25
+                                 and near_t0_share >= 0.7 else
+        "inconclusive"
     )
     return {
         "schema": "replay-lab-commitment-report-v1",
@@ -305,6 +327,9 @@ def evaluate_timings(
         ),
         "median_detector_t0_minus_human_latest_s": (
             round(median_lead, 5) if median_lead is not None else None
+        ),
+        "primary_detector_abs_lead_under_0_25s_rate": (
+            round(near_t0_share, 4) if near_t0_share is not None else None
         ),
         "candidate_interpretation": decision,
         "warning": (

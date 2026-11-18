@@ -48,6 +48,8 @@
         id + " missing focus description");
       check(!/\b(?:Steam|Epic|PSN|PsyNet|Xbox):[A-Za-z0-9_-]{7,}\b/i.test(
         packet.focus_hint), id + " leaks a platform identifier");
+      check(/^(?:Follow|Track) the (?:outlined|marked) (?:blue|orange) car$/i.test(
+        packet.focus_hint), id + " must identify only an outlined/marked blue/orange car");
     }
     return packets;
   }

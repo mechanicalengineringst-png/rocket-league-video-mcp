@@ -64,6 +64,10 @@ fails(()=>api.validatePackets([{...packet,clip_file:"../real-name.mp4"}]),
 fails(()=>api.validatePackets([packet,packet]),/Duplicate/);
 fails(()=>api.validatePackets([{...packet,focus_hint:"Steam:76561198000000000"}]),
   /platform identifier/);
+fails(()=>api.validatePackets([{...packet,focus_hint:"Follow the challenger car"}]),
+  /only an outlined/);
+fails(()=>api.validatePackets([{...packet,focus_hint:"Track the shadower"}]),
+  /only an outlined/);
 fails(()=>api.compile([packet],{},"rater-01",true),
   /Complete every case/);
 fails(()=>api.compile([packet],{T00001:{...answer,latest_s:5}},
