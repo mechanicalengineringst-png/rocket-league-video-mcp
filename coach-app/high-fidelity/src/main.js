@@ -1,8 +1,7 @@
 import {
   createPlayer, createCameraPlugin, createNameTagPlugin,
   createBoostPadsPlugin, createScoredTextPlugin,
-  createBoostPickupAnimationPlugin,
-  fromReplayPlayerPlugin, setPlayerAssetBase,
+  setPlayerAssetBase,
 } from '@rlrml/player';
 import * as THREE from 'three';
 import { formatTime, clampTime, timelineMarkers } from './time.js';
@@ -394,7 +393,6 @@ async function loadFile(file, preferredName = null, sessionId = null) {
         createNameTagPlugin(),
         createBoostPadsPlugin(),
         createScoredTextPlugin(),
-        fromReplayPlayerPlugin(createBoostPickupAnimationPlugin()),
         cameraStateSource, // native source overrides stale adapter BEFORE camera renders
         cameraPlugin,
         cameraPolish, // must run AFTER native camera plugin
@@ -428,17 +426,20 @@ async function loadFile(file, preferredName = null, sessionId = null) {
     enableControls(true);
     $('ballCamSelect').disabled = false;
     $('hitboxToggle').checked = false;
-    $('trailToggle').checked = true;
+    $('trailToggle').checked = false;
+    next.setBoostPickupAnimationEnabled(false);
     setFieldDecorStyle(next,$('fieldDecorSelect').value);
     const sceneQA=applySceneQuality(next,$('qualitySelect').value);
     $('fpsHint').textContent='3D meshes '+sceneQA.meshes+
       ' · filtered textures '+sceneQA.textures;
     setLoading(false);
+    loading = false; // Parent controls can now be applied immediately on hd-loaded.
     updateHud(true);
     if (bridgeSessionId && syncHost()) {
       syncHost().postMessage({ type: 'replay-lab:hd-loaded', sessionId: bridgeSessionId }, location.origin);
     }
-    next.play();
+    if (embedded) next.pause(); // Parent main timeline owns play/pause.
+    else next.play();
   } catch (error) {
     if (seq !== loadSequence) return;
     console.error('[Replay Lab HD] Replay failed to load', error);
@@ -479,10 +480,8 @@ $('fxStyle').addEventListener('change', () => {
   if(player) effectRefiner?.update(player);
 });
 $('hitboxToggle').addEventListener('change', e => player?.setHitboxWireframesEnabled(e.target.checked));
-$('trailToggle').addEventListener('change', e => { 
-  // The bridged native pickup particle plugin observes this state.
-  player?.setBoostPickupAnimationEnabled(e.target.checked);
-});
+// Boost pads themselves remain visible; numeric pickup popups are deliberately disabled.
+
 $('playBtn').addEventListener('click', () => {
   if (!player) return;
   if (player.getState().playing) player.pause(); else player.play();

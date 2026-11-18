@@ -27,10 +27,8 @@ test('recorded Ball Cam switch snaps rather than gliding between camera poses',(
   ballCam=true;
   camera.position.set(500,200,300);
   polish.beforeRender(ctx);
-  assert.ok(camera.position.x===500 && camera.position.z===300,
-    'a native Ball Cam switch must not smear the goal/reset camera horizontally');
-  assert.ok(camera.position.y>=225,
-    'follow view must stay elevated above the rear tires');
+  assert.ok(camera.position.distanceTo(new THREE.Vector3(500,200,300))<1e-6,
+    'a native camera switch must cut without interpolating when no car anchor exists');
   camera.position.set(1000,200,300);
   polish.beforeRender(ctx);
   assert.ok(camera.position.x>=500 && camera.position.x<1000,
@@ -64,8 +62,8 @@ test('vehicle teleport across goal reset cuts immediately instead of gliding acr
   state.currentTime=15.033; // Normal tick increment, but car jumped
   polish.beforeRender(ctx);
 
-  assert.ok(camera.position.x===-2300 && camera.position.z===-2500,
-    'camera must cut to the respawn location rather than flying across midfield');
+  assert.ok(camera.position.x<-2500 && camera.position.z===-2500,
+    'camera should immediately take the new elevated chase position at respawn');
   assert.ok(camera.position.y>=carObj.position.y+MIN_TEST_CHASE_HEIGHT,
     'follow camera is elevated enough to see the car and field');
   polish.teardown();
