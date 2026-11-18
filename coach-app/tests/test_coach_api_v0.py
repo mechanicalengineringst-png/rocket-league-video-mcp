@@ -195,3 +195,46 @@ def test_replay_content_type_and_request_size_limits():
     r = client.post("/api/coach/lesson", content=b"x" * (24 * 1024 * 1024 + 1),
                     headers={"content-type": "application/json"})
     assert r.status_code == 413
+
+
+def test_evidence_inspector_opens_real_sources_and_labels_derived_math_unverified():
+    original = payload()
+    original["replay"]["title"] = "PRIVATE_MATCH_WITH_A_REAL_ACCOUNT_NAME"
+    refs = ["N3/E.focus.boost", "N1/E.focus.boost",
+            "D.N1-N2.focus.boost", "H.1", "T.touch.1"]
+    r = client.post("/api/coach/evidence", json={
+        **original, "evidence_refs": refs,
+    })
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["schema"] == "CoachEvidenceLookupV0"
+    assert body["stage"] == "predecision"
+    assert body["retrospective_exposed"] is False
+    assert [x["id"] for x in body["records"]] == refs
+    assert body["records"][0]["value"] == 10.0
+    assert body["records"][1]["value"] == 60.0
+    assert body["records"][2]["value"] == -40.0
+    assert body["records"][2]["verification"] == "derived_value_needs_independent_math_check"
+    assert body["records"][3]["established_cause"] is False
+    assert "PRIVATE_MATCH_WITH_A_REAL_ACCOUNT_NAME" not in r.text
+    lesson = client.post("/api/coach/lesson", json=original)
+    assert lesson.status_code == 200
+    assert body["stage1_packet_sha256"] == lesson.json()["validation"]["stage1_packet_sha256"]
+
+
+def test_evidence_inspector_never_returns_future_or_nonexistent_citation():
+    for ref in ("N3/R.goal_within_5s", "R.future_result", "N3/E.nonexistent"):
+        r = client.post("/api/coach/evidence", json={
+            **payload(), "evidence_refs": [ref],
+        })
+        assert r.status_code == 422
+        assert "future_result" not in r.text
+    r = client.post("/api/coach/evidence", json={
+        **payload(), "evidence_refs": ["N3/E.focus.boost", "N3/E.focus.boost"],
+    })
+    assert r.status_code == 422
+    r = client.post("/api/coach/evidence", json={
+        **payload(), "mode": "model", "evidence_refs": ["N3/E.focus.boost"],
+    })
+    assert r.status_code == 422
+
