@@ -117,6 +117,105 @@
           <p class="small-copy lens-status" id="lensStatus" role="status">The 2D map will show recorded t0 positions. Future positions remain hidden until you reveal them.</p>
         </div>
       </details>
+      <!-- Two-stage subjective evaluation. Captures user's own action before
+           revealing future/game outcome or any model advice in this UI. -->
+      <details class="panel blind-review-panel" id="blindReviewPanel">
+        <summary>Blind Decision Review <span class="blind-review-summary">Record your choice before seeing AI advice</span></summary>
+        <div class="blind-review-content">
+          <p class="small-copy">For evaluating coaching accuracy: inspect gameplay up to the selected decision, commit your own choice, then separately review the recorded outcome and optional AI hypotheses. This tool cannot verify you haven't previously seen the play, or hide an external Rocket League window. The notes stay in your browser until you export them.</p>
+          <p class="blind-review-selection" id="blindReviewSelection">Load a real 2v2 replay and select a primary coaching decision.</p>
+          <div id="blindStartControls" class="blind-review-start">
+            <label for="blindPriorExposure">Have you seen how this play ends before this evaluation?</label>
+            <select id="blindPriorExposure">
+              <option value="unsure" selected>Not sure / don't remember</option>
+              <option value="unseen">No, I haven't seen the outcome</option>
+              <option value="seen">Yes, I've seen the outcome</option>
+            </select>
+            <button type="button" id="blindStartBtn" class="button-mini blind-accent" disabled>Start predecision review</button>
+          </div>
+          <div id="blindPreStage" class="blind-review-stage" hidden>
+            <strong class="blind-review-stage-title">Stage A — Your judgment before the outcome</strong>
+            <p class="small-copy">The parent replay clock is capped at t0. The automatic coach, AI results and future-reveal controls are temporarily hidden. You can inspect earlier gameplay, but an already-seen match or separate native game window cannot be made genuinely blind.</p>
+            <div class="blind-review-inputs">
+              <label for="blindPreAction">What would you try here?</label>
+              <select id="blindPreAction">
+                <option value="" selected>Select a possible action</option>
+                <option value="challenge">Challenge / commit</option>
+                <option value="force_fifty">Force a 50/50</option>
+                <option value="fake_pressure">Fake / apply pressure</option>
+                <option value="shadow_delay">Shadow / delay</option>
+                <option value="control_possession">Take control of the ball</option>
+                <option value="rotate_abort">Abort / rotate out</option>
+                <option value="not_enough_information">Not enough information</option>
+              </select>
+              <label for="blindPreCoverage">How is your teammate positioned?</label>
+              <select id="blindPreCoverage">
+                <option value="" selected>Select coverage assessment</option>
+                <option value="covered">Able to provide cover</option>
+                <option value="exposed">Appears exposed</option>
+                <option value="unclear">Can't determine from replay</option>
+              </select>
+              <label for="blindPreConfidence">Confidence in your read</label>
+              <select id="blindPreConfidence">
+                <option value="" selected>Choose confidence</option>
+                <option value="1">1 — Very uncertain</option>
+                <option value="2">2 — Uncertain</option>
+                <option value="3">3 — Moderate</option>
+                <option value="4">4 — Confident</option>
+                <option value="5">5 — Very confident</option>
+              </select>
+              <label for="blindPreRationale">Why? What evidence would change your choice? (optional)</label>
+              <textarea id="blindPreRationale" rows="3" maxlength="1200" placeholder="e.g. teammate is recovering; I'd fake pressure and rotate, unless our comms confirm they're back."></textarea>
+            </div>
+            <button type="button" class="button-mini blind-accent" id="blindLockBtn">Lock my predecision judgment</button>
+          </div>
+          <div id="blindPostStage" class="blind-review-stage" hidden>
+            <strong class="blind-review-stage-title">Stage B — Outcome, execution and AI are separate</strong>
+            <p id="blindPreLockedSummary" class="blind-review-locked">No predecision judgment has been locked.</p>
+            <div class="blind-post-actions">
+              <button type="button" class="button-mini" id="blindRevealBtn">Reveal actual recorded follow-through</button>
+              <button type="button" class="button-mini" id="blindOpenModelBtn">Open optional AI coaching</button>
+            </div>
+            <p class="small-copy">Revealing the outcome shows what actually happened—not a simulated alternative. AI review requires its own explicit model consent, and both the decision and execution may be judged differently.</p>
+            <div class="blind-review-inputs">
+              <label for="blindPostDecision">Was the original decision itself strategically defensible?</label>
+              <select id="blindPostDecision">
+                <option value="" selected>Choose a decision assessment</option>
+                <option value="defensible">Defensible, including if it went badly</option>
+                <option value="tradeoff">Reasonable tradeoff / multiple defensible actions</option>
+                <option value="questionable">Questionable decision</option>
+                <option value="undetermined">Cannot tell from the evidence</option>
+              </select>
+              <label for="blindPostExecution">How was that decision executed?</label>
+              <select id="blindPostExecution">
+                <option value="" selected>Choose an execution assessment</option>
+                <option value="clean">Executed as intended</option>
+                <option value="mechanical_error">Mechanical / execution problem</option>
+                <option value="opponent_adaptation">Opponent adjustment affected outcome</option>
+                <option value="undetermined">Not enough evidence</option>
+              </select>
+              <label for="blindPostModel">What about the AI's coaching, if tested?</label>
+              <select id="blindPostModel">
+                <option value="" selected>Choose an AI assessment</option>
+                <option value="helpful">Useful / grounded</option>
+                <option value="false_criticism">Falsely criticized a defensible play</option>
+                <option value="missed_context">Missed important match context</option>
+                <option value="too_generic">Too generic to help</option>
+                <option value="uncertain">Cannot fairly assess its advice</option>
+                <option value="not_tested">No AI review was requested</option>
+              </select>
+              <label for="blindPostNotes">What did the outcome or AI reveal? (optional)</label>
+              <textarea id="blindPostNotes" rows="3" maxlength="1600" placeholder="Keep strategy, mechanical execution and unexpected opponent play separate."></textarea>
+            </div>
+            <button type="button" class="button-mini blind-accent" id="blindFinishBtn">Save this review locally</button>
+          </div>
+          <p id="blindReviewStatus" class="small-copy blind-review-status" role="status" aria-live="polite">Select a decision to begin.</p>
+          <div class="blind-review-footer">
+            <span class="small-copy" id="blindReportSummary">0 locked · 0 completed</span>
+            <button type="button" class="button-mini" id="blindExportBtn">Export session evaluation JSON</button>
+          </div>
+        </div>
+      </details>
       <!-- Interactive AI Coaching Experience (Round 9) -->
       <section class="panel coaching-section" id="coachingSection" aria-label="Interactive AI Coaching Experience">
         <div id="coachingExperienceContainer"></div>
@@ -231,6 +330,7 @@
   <script src="/static/coaching-experience.js"></script>
   <script src="/static/model-coaching.js"></script>
   <script src="/static/manual-review.js"></script>
+  <script src="/static/blind-review.js"></script>
   <script src="/static/app.js" defer></script>
   <script src="/static/hd-bridge.js" defer></script>
 </body>

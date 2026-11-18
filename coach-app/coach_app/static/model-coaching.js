@@ -224,6 +224,10 @@
     }
     async generate(){
       const context=this.getContext();
+      if(root.blindReviewUI?.isPredecisionOpen?.()){
+        this.status='Blind evaluation is collecting your independent Stage A judgment. Lock it before requesting AI advice.';
+        this.render();return;
+      }
       if(this.loading || !context.request || !context.key ||
           context.key!==this.activeKey || !VALID_READINESS.has(this.readiness) ||
           !$('modelCoachConsent')?.checked){
@@ -437,7 +441,8 @@
           'Measuring local geometry…':'Inspect source-backed geometry';
       }
       if($('modelCoachSpatialStatus'))$('modelCoachSpatialStatus').textContent=this.spatialStatus;
-      btn.disabled=!request || !ready || !consent || this.loading;
+      const blindMasked=Boolean(root.blindReviewUI?.isPredecisionOpen?.());
+      btn.disabled=!request || !ready || !consent || this.loading || blindMasked;
       btn.textContent=this.loading?'Evaluating one decision…':'Generate AI coaching for this decision';
       $('modelCoachReadiness').textContent=readinessLabel(this.readiness);
       const name=episode?.title || 'No source-backed primary decision selected';
@@ -447,6 +452,13 @@
       $('modelCoachStatus').textContent=this.status;
       const holder=$('modelCoachResults');
       holder.replaceChildren();
+      // Even a preexisting, cached model response must not be displayed
+      // while the human's predecision judgment is still unlocked.
+      if(blindMasked){
+        holder.append(element('p','small-copy',
+          'Blind review is active. Lock your own choice before seeing any AI suggestion.'));
+        return;
+      }
       const item=this.results.get(this.activeKey);
       if(!item){
         holder.append(element('p','small-copy',

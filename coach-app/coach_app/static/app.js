@@ -30,7 +30,14 @@ const show = (message) => { $('toast').textContent=message; $('toast').classList
 function el(tag, attrs={}, text) { const n=document.createElementNS(SVG_NS,tag); for(const [k,v] of Object.entries(attrs))n.setAttribute(k,String(v)); if(text!==undefined)n.textContent=text; return n; }
 function chooseTime(time){
   if(!state.replay)return;
-  state.time=Math.max(startTime(),Math.min(time,state.replay.duration));
+  // Two-stage tester mode: until the user's OWN predecision read is locked,
+  // the parent HD + 2D replay clock cannot advance into recorded outcomes.
+  // A separately running native game or previously seen footage is outside
+  // this viewer's control (explicitly disclosed in the tester UI).
+  const blindCutoff=window.blindReviewUI?.playbackLimit?.();
+  const maxTime=Number.isFinite(blindCutoff)?
+    Math.min(state.replay.duration,blindCutoff):state.replay.duration;
+  state.time=Math.max(startTime(),Math.min(time,maxTime));
   $('timeRange').value=state.time;
   $('timeValue').textContent=fmt(state.time)+'.'+String(Math.floor((state.time%1)*100)).padStart(2,'0');
   const frame=currentFrame();
@@ -45,6 +52,7 @@ function chooseTime(time){
 }
 function setReplay(replay, opts={}){
   if(!replay || !Array.isArray(replay.players) || !Array.isArray(replay.frames) || !replay.frames.length)throw new Error('Invalid replay timeline.');
+  window.blindReviewUI?.cancelOpen();
   stopPlay();removeVideo();window.manualReviewUI?.invalidate('Load and manually pin a real replay moment to review.');state.replay=replay;state.findings=[];
   // Never retain a previous match's pins or future-follow-through ghosts.
   state.decisionLens=null;
@@ -693,6 +701,9 @@ function jumpDecisionLens(where){
   renderDecisionLensPanel();
 }
 function toggleDecisionLensLoop(){
+  // Normal loops include +2s actual outcomes and must not reveal a blind
+  // Stage A future even if the control is triggered via keyboard/script.
+  if(window.blindReviewUI?.isPredecisionOpen?.())return;
   const lens=state.decisionLens;if(!lens)return;
   if(lens.loop){
     lens.loop=false;stopPlay();renderDecisionLensPanel();return;
@@ -764,6 +775,10 @@ function playTick(timestamp){
   if(!state.playing||!state.replay){
     playbackHandle=null;
     return;
+  }
+  const predecisionEnd=window.blindReviewUI?.playbackLimit?.();
+  if(Number.isFinite(predecisionEnd) && state.time>=predecisionEnd-0.001){
+    stopPlay();chooseTime(predecisionEnd);return;
   }
   if(!lastPlayTimestamp)lastPlayTimestamp=timestamp;
   const delta=Math.min(0.1,(timestamp-lastPlayTimestamp)/1000);
@@ -1006,7 +1021,7 @@ function wire(){
   zone.ondragover=e=>{e.preventDefault();zone.classList.add('dragging');};
   zone.ondragleave=()=>zone.classList.remove('dragging');
   zone.ondrop=e=>{e.preventDefault();zone.classList.remove('dragging');loadFile(e.dataTransfer.files[0]);};
-  $('playerSelect').onchange=e=>{clearDecisionLens();window.modelCoachingUI?.resetForReplay();state.focusId=e.target.value;state.focusConfirmed=true;if(state.replay?.source!=='synthetic')remembered.set(state.focusId);state.overrides.clear();refreshFindings();chooseTime(state.time);window.coachingController?.resetForReplay(state.replay?.source==='synthetic');if(state.replay?.source!=='synthetic')loadDecisionCasesForCoaching(state.replay,state.focusId);};
+  $('playerSelect').onchange=e=>{window.blindReviewUI?.cancelOpen();clearDecisionLens();window.modelCoachingUI?.resetForReplay();state.focusId=e.target.value;state.focusConfirmed=true;if(state.replay?.source!=='synthetic')remembered.set(state.focusId);state.overrides.clear();refreshFindings();chooseTime(state.time);window.coachingController?.resetForReplay(state.replay?.source==='synthetic');if(state.replay?.source!=='synthetic')loadDecisionCasesForCoaching(state.replay,state.focusId);};
   $('timeRange').oninput=e=>{stopPlay();cancelDecisionLensLoop();chooseTime(Number(e.target.value));};
   $('playBtn').onclick=togglePlay;
   $('backBtn').onclick=()=>{stopPlay();cancelDecisionLensLoop();chooseTime(state.time-2);};
@@ -1066,6 +1081,55 @@ function wire(){
         window.coachingController?.addVerifiedLesson(lesson,request,metadata));
     window.manualReviewUI.mount();
   }
+  // Independent reviewer calibration: stage A locks the user's OWN
+  // choice before any replay future or AI is shown; stage B separately
+  // assesses decision/execution/model advice. Local export only.
+  if(globalThis.ReplayLabBlindReview?.BlindReviewController){
+    window.blindReviewUI=new ReplayLabBlindReview.BlindReviewController(
+      ()=>({replay:state.replay,focusId:state.focusId,
+        focusConfirmed:state.focusConfirmed,coach:window.coachingController}),{
+        onStart:(t0)=>{
+          stopPlay();
+          cancelDecisionLensLoop();
+          if(state.decisionLens){
+            state.decisionLens.loop=false;
+            state.decisionLens.revealed=false;
+          }
+          renderDecisionLensPanel();renderPitch();
+          chooseTime(Math.max(startTime(),t0-3));
+        },
+        onLocked:()=>{renderDecisionLensPanel();renderPitch();},
+        onReveal:(t0)=>{
+          if(!state.replay || !state.focusConfirmed)return false;
+          if(!state.decisionLens?.window ||
+             Math.abs(state.decisionLens.window.t0-t0)>0.05){
+            if(!pinDecisionLens(t0,'coaching'))return false;
+          }
+          if(!state.decisionLens?.window?.after)return false;
+          stopPlay();
+          state.decisionLens.loop=false;
+          state.decisionLens.revealed=true;
+          renderDecisionLensPanel();
+          chooseTime(state.decisionLens.window.end);
+          renderPitch();
+          return true;
+        },
+        onOpenModel:()=>{
+          const panel=$('modelCoachPanel');if(panel)panel.open=true;
+          window.modelCoachingUI?.render();
+        },
+        modelSummary:()=>{
+          const model=window.modelCoachingUI;
+          const key=model?.getContext?.().key;
+          const current=key?model.results.get(key):null;
+          return current?{
+            mode:'model_proposal',grade:current.grade,
+            accepted:current.accepted,rejected:current.rejected
+          }:null;
+        }
+      });
+    window.blindReviewUI.mount();
+  }
   // Decision Lens is a real replay tool, separate from coaching verdicts.
   if($('lensPinBtn'))$('lensPinBtn').onclick=()=>{
     stopPlay();pinDecisionLens(state.time,'manual');
@@ -1076,6 +1140,7 @@ function wire(){
   if($('lensAfterBtn'))$('lensAfterBtn').onclick=()=>jumpDecisionLens('after');
   if($('lensLoopBtn'))$('lensLoopBtn').onclick=toggleDecisionLensLoop;
   if($('lensRevealBtn'))$('lensRevealBtn').onclick=()=>{
+    if(window.blindReviewUI?.isPredecisionOpen?.())return;
     if(!state.decisionLens?.window.after)return;
     state.decisionLens.revealed=!state.decisionLens.revealed;
     renderDecisionLensPanel();renderPitch();
