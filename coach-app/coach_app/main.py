@@ -301,6 +301,20 @@ def get_companion_status():
     return asdict(status)
 
 
+@app.get('/api/companion/diagnostics')
+def get_companion_diagnostics():
+    from coach_app.companion import diagnose_configuration
+    diag = diagnose_configuration()
+    return diag.to_dict()
+
+
+@app.get('/api/companion/state')
+def get_companion_state():
+    from coach_app.companion import RocketLeagueCompanion
+    comp = RocketLeagueCompanion()
+    return comp.observe_playback_state()
+
+
 @app.post('/api/companion/command')
 def post_companion_command(payload: dict):
     # This route can control a running game; never enable it merely because a

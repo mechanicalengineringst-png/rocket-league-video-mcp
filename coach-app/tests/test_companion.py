@@ -13,7 +13,10 @@ from coach_app.companion import (
     RocketLeagueCompanion,
     CompanionConnectionError,
     CompanionProtocolError,
+    ConfigurationDiagnostics,
     SETUP_INSTRUCTIONS,
+    diagnose_configuration,
+    resolve_spectator_shortcut,
     validate_native_command,
 )
 
@@ -262,3 +265,223 @@ def test_replay_elapsed_zero_is_preserved_and_not_confused_with_match_countdown(
     }))
     assert c.observe_playback_state()["reported_time_seconds"] == 12.75
     assert c.measure_drift(13.0) == -0.25
+
+
+def test_diagnose_configuration_custom_dir(tmp_path):
+    doc_cfg = tmp_path / "Documents" / "My Games" / "Rocket League" / "TAGame" / "Config"
+    doc_cfg.mkdir(parents=True)
+    ini_file = doc_cfg / "TAStatsAPI.ini"
+    ini_file.write_text("[TAGame.MatchStatsExporter_TA]\nPort=49123\nWebPort=49124\nPacketSendRate=30\n", encoding="utf-8")
+
+    diag = diagnose_configuration(custom_documents_dir=str(tmp_path / "Documents" / "My Games" / "Rocket League"))
+    assert diag.status == "CONFIGURED_ENABLED"
+    assert diag.effective_packet_send_rate == 30
+    assert diag.documents_packet_send_rate == 30
+    assert diag.tcp_port == 49123
+    assert "PacketSendRate=30" in diag.instructions
+
+
+def test_diagnose_configuration_muted_dir(tmp_path):
+    doc_cfg = tmp_path / "Documents" / "My Games" / "Rocket League" / "TAGame" / "Config"
+    doc_cfg.mkdir(parents=True)
+    ini_file = doc_cfg / "TAStatsAPI.ini"
+    ini_file.write_text("[TAGame.MatchStatsExporter_TA]\nPort=49123\nWebPort=49124\nPacketSendRate=0\n", encoding="utf-8")
+
+    diag = diagnose_configuration(custom_documents_dir=str(tmp_path / "Documents" / "My Games" / "Rocket League"))
+    assert diag.status == "CONFIGURED_MUTED"
+    assert diag.effective_packet_send_rate == 0
+    assert "PacketSendRate is 0" in diag.instructions
+    assert "TAStatsAPI.ini" in diag.instructions
+
+
+def test_diagnose_configuration_not_found(tmp_path):
+    empty_dir = tmp_path / "Empty"
+    empty_dir.mkdir()
+    diag = diagnose_configuration(custom_documents_dir=str(empty_dir), custom_install_dir=str(empty_dir))
+    assert diag.status == "NOT_FOUND"
+    assert diag.effective_packet_send_rate is None
+    assert "Stats API is not confirmed available" in diag.instructions
+
+
+def test_diagnose_configuration_real_environment():
+    diag = diagnose_configuration()
+    # On this local development workstation, Rocket League configuration is verified present
+    assert diag.status in ("CONFIGURED_MUTED", "CONFIGURED_ENABLED")
+    assert diag.documents_ini_path is not None
+    assert diag.documents_ini_path.endswith("TAStatsAPI.ini")
+    assert diag.install_ini_path is not None
+    assert diag.install_ini_path.endswith("DefaultStatsAPI.ini")
+    assert diag.tcp_port == 49123
+    assert diag.web_port == 49124
+
+
+def test_resolve_spectator_shortcut():
+    players = [
+        {"Id": "Steam_001", "Name": "Musty", "Team": 0},
+        {"Id": "Steam_002", "Name": "Ament", "Team": 0},
+        {"Id": "Epic_003", "Name": "Squishy", "Team": 1},
+        {"Id": "Epic_004", "Name": "GarrettG", "Team": 1, "SpectatorShortcut": "6"},
+    ]
+
+    # 1. Ball
+    assert resolve_spectator_shortcut(players, "Ball") == "Ball"
+    assert resolve_spectator_shortcut(players, "ball") == "Ball"
+
+    # 2. Direct integers and numeric strings
+    assert resolve_spectator_shortcut(players, 1) == "1"
+    assert resolve_spectator_shortcut(players, 8) == "8"
+    assert resolve_spectator_shortcut(players, "3") == "3"
+    with pytest.raises(CompanionProtocolError):
+        resolve_spectator_shortcut(players, 0)
+    with pytest.raises(CompanionProtocolError):
+        resolve_spectator_shortcut(players, 9)
+    with pytest.raises(CompanionProtocolError):
+        resolve_spectator_shortcut(players, "9")
+
+    # 3. Resolve by name (case-insensitive)
+    assert resolve_spectator_shortcut(players, "Musty") == "1"
+    assert resolve_spectator_shortcut(players, "musty") == "1"
+    assert resolve_spectator_shortcut(players, "Ament") == "2"
+
+    # 4. Resolve by ID
+    assert resolve_spectator_shortcut(players, "Steam_002") == "2"
+    assert resolve_spectator_shortcut(players, "steam_002") == "2"
+
+    # 5. Resolve Orange team (team 1 inferred index = 5)
+    assert resolve_spectator_shortcut(players, "Squishy") == "5"
+
+    # 6. Resolve Orange team (explicit shortcut = 6)
+    assert resolve_spectator_shortcut(players, "GarrettG") == "6"
+
+    # 7. Unmatched player
+    with pytest.raises(CompanionProtocolError) as exc_info:
+        resolve_spectator_shortcut(players, "NonExistentPlayer")
+    assert "not found" in str(exc_info.value)
+
+    # 8. Ambiguous player
+    duplicate_players = [
+        {"Id": "1", "Name": "Clone", "Team": 0},
+        {"Id": "2", "Name": "Clone", "Team": 1},
+    ]
+    with pytest.raises(CompanionProtocolError) as exc_info:
+        resolve_spectator_shortcut(duplicate_players, "Clone")
+    assert "Ambiguous" in str(exc_info.value)
+
+
+def test_dual_clock_telemetry_observation():
+    c = RocketLeagueCompanion()
+    c._process_inbound_line(json.dumps({
+        "Event": "UpdateState",
+        "Data": {
+            "Game": {
+                "bReplay": True,
+                "Elapsed": 45.5,
+                "SecondsRemaining": 254.5,
+                "bMatchPaused": False,
+                "Speed": 1.0,
+            }
+        },
+    }))
+    obs = c.observe_playback_state()
+    assert obs["is_replay"] is True
+    assert obs["replay_elapsed_seconds"] == 45.5
+    assert obs["match_clock_seconds_remaining"] == 254.5
+    assert obs["reported_time_seconds"] == 45.5
+    assert obs["is_paused"] is False
+    assert obs["game_speed"] == 1.0
+
+    # Drift is measured against replay_elapsed_seconds, not match_clock_seconds_remaining
+    assert c.measure_drift(45.0) == 0.5
+
+
+def test_companion_opt_in_workflow():
+    c = RocketLeagueCompanion(enabled=False, require_opt_in=True)
+    with pytest.raises(CompanionProtocolError) as exc_info:
+        c.send_command("SetGameSpeed", {"Speed": 1.0})
+    assert "Native game commands are disabled" in str(exc_info.value)
+
+    c.enable_commands(True)
+    assert c.commands_enabled is True
+
+
+def test_companion_replay_path_validation():
+    c = RocketLeagueCompanion()
+
+    # Path traversal rejected
+    with pytest.raises(CompanionProtocolError):
+        validate_native_command("LoadReplay", {"Path": "../secret/demo.replay"})
+    with pytest.raises(CompanionProtocolError):
+        validate_native_command("LoadReplay", {"FileName": "../demo.replay"})
+    with pytest.raises(CompanionProtocolError):
+        validate_native_command("LoadReplay", {"FileName": "folder/demo.replay"})
+
+    # Non .replay extension rejected
+    with pytest.raises(CompanionProtocolError):
+        validate_native_command("LoadReplay", {"Path": "C:/Windows/notepad.exe"})
+
+    # Valid paths accepted
+    res_path = validate_native_command("LoadReplay", {"Path": "D:/MyGames/test.replay"})
+    assert res_path == {"Path": "D:/MyGames/test.replay"}
+
+    res_fn = validate_native_command("LoadReplay", {"FileName": "028EA2CD420A3913ACA4CDBC149F9EA5.replay"})
+    assert res_fn == {"FileName": "028EA2CD420A3913ACA4CDBC149F9EA5.replay"}
+
+
+def test_full_companion_simulated_acceptance_roundtrip():
+    """Step C Full Simulated Round-Trip: 7 core native replay operations against mock server."""
+    server = MockRocketLeagueServer()
+    try:
+        companion = RocketLeagueCompanion(
+            host="127.0.0.1",
+            tcp_port=server.port,
+            ws_port=server.port + 1,
+            probe_timeout=0.5,
+            command_timeout=1.0,
+            enabled=True,
+        )
+        assert companion.connect(server.port)
+        assert companion.is_connected()
+
+        players = [
+            {"Id": "Steam_001", "Name": "Musty", "Team": 0},
+            {"Id": "Steam_002", "Name": "Ament", "Team": 0},
+            {"Id": "Epic_003", "Name": "Squishy", "Team": 1},
+        ]
+
+        # 1. Load a real replay by name
+        res_load = companion.load_replay("028EA2CD420A3913ACA4CDBC149F9EA5.replay")
+        assert res_load["Status"] == "Sent"
+
+        # 2. Seek to a chosen moment
+        res_seek = companion.seek_replay(32.5)
+        assert res_seek["Status"] == "Sent"
+
+        # 3. Select a specific player & change POV
+        res_pov1 = companion.change_pov_to_player(players, "Musty", perspective="PlayerView")
+        assert res_pov1["Status"] == "Sent"
+
+        # 4. Switch to alternative perspective (Fly)
+        res_pov2 = companion.change_pov(perspective="Fly")
+        assert res_pov2["Status"] == "Sent"
+
+        # 5. Pause and resume
+        companion.set_match_paused(True)
+        companion.set_match_paused(False)
+
+        # 6. Change playback speed
+        companion.set_game_speed(0.5)
+
+        # Allow inbound loop to process server replies
+        time.sleep(0.1)
+
+        # 7. Verify reported state, time alignment and focus
+        state = companion.observe_playback_state()
+        assert state["connected"] is True
+        assert state["reported_time_seconds"] == 32.5
+        assert companion.measure_drift(32.5) == 0.0
+
+        companion.disconnect()
+        assert not companion.is_connected()
+    finally:
+        server.stop()
+
