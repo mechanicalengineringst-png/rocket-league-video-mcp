@@ -19,6 +19,7 @@ from .episode_evidence import EpisodeError, build_episode_evidence
 from .episode_discovery import DiscoveryError, discover_episode_candidates
 from .episode_stage1 import build_stage1_episode_packet
 from .stage1_packet import Stage1PacketError
+from .review_bundle import build_review_bundle
 
 router = APIRouter(tags=["coaching"])
 MAX_JSON_BYTES = 24 * 1024 * 1024
@@ -98,6 +99,11 @@ class EpisodeCandidatesRequest(BaseModel):
         return t
 
 
+class ReviewBundleRequest(EpisodeCandidatesRequest):
+    preview_count: int = Field(default=3, ge=0, le=4)
+    experimental_tactical_v1: bool = False
+
+
 async def _read_json_request(request: Request, model_class: type[BaseModel]) -> BaseModel:
     if request.headers.get("content-type", "").split(";")[0].strip().lower() != "application/json":
         raise HTTPException(415, "Send the coaching request as application/json.")
@@ -138,6 +144,9 @@ def coach_capabilities():
         "stage": "predecision",
         "automatic_episode_selection": False,
         "source_backed_candidate_discovery": "EpisodeCandidatesV0",
+        "single_request_review_bundle": "CoachReviewBundleV0",
+        "review_bundle_max_previews": 4,
+        "review_bundle_invokes_model": False,
         "candidate_discovery_is_tactical_grading": False,
         "experimental_decision_state_v1": "explicit_opt_in_deterministic_only",
         "experimental_v1_expert_validated": False,
@@ -162,6 +171,25 @@ async def coach_candidates_endpoint(request: Request):
         )
     except (DiscoveryError, ValueError, TypeError, KeyError, OverflowError) as exc:
         raise HTTPException(422, "Could not safely discover source-backed review candidates.") from exc
+
+
+@router.post("/api/coach/review-bundle")
+async def coach_review_bundle_endpoint(request: Request):
+    """Prepare source-checked review leads + bounded lessons in one replay request.
+
+    No user replay is retained; no external model called; comparison samples
+    are NOT inferred prior player decisions or tactical grades.
+    """
+    req = await _read_json_request(request, ReviewBundleRequest)
+    try:
+        return await run_in_threadpool(
+            build_review_bundle, req.replay, req.player_id,
+            max_candidates=req.max_candidates, preview_count=req.preview_count,
+            experimental_tactical_v1=req.experimental_tactical_v1,
+            horizon_s=req.horizon_s,
+        )
+    except (DiscoveryError, ValueError, TypeError, KeyError, OverflowError) as exc:
+        raise HTTPException(422, "Could not safely build this replay review bundle.") from exc
 
 
 @router.post("/api/coach/lesson")
