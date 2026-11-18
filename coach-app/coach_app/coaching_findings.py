@@ -626,8 +626,12 @@ def observe_action(replay: dict, situation: dict) -> dict[str, Any]:
         elif _rel_y(team, rows[0][0]["y"]) - _rel_y(team, rows[-1][0]["y"]) > 600 or goal_side >= 0.8:
             lab = "return_direct"
     elif cls == "second_man_support":
-        if mine:
-            lab = "challenge_as_well"
+        mate_first = next((t for t, p in touches if p != pid and team_of.get(p) == team), None)
+        if mine and (mate_first is None or mine[0] < mate_first + 0.3):
+            lab = "challenge_as_well"      # you played it before (or together with) your teammate
+        elif mine:
+            lab = "aggressive_follow_up"   # you followed up after your teammate's touch
+            basis["followed_up_after_teammate_s"] = round(mine[0] - mate_first, 2)
         elif basis["big_pad_pickup"] or basis["small_pad_pickups"] >= 2:
             lab = "boost_while_teammate_plays"
         elif goal_side >= 0.8 and dmin > 1500:

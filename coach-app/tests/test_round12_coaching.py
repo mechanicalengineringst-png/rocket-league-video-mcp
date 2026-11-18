@@ -345,3 +345,13 @@ def test_async_reasoner_uses_the_same_validation():
         return {"schema": rc.SCHEMA_B_RESP, "finding_id": msg["input"]["finding_id"], "feedback": "Fine read; it held up."}
     out = asyncio.run(rc.run_reasoner_async(_finding(), transport))
     assert out["stage_a"]["mode"] == "deterministic" and out["stage_a"]["rejections"]
+
+
+def test_second_man_follow_up_after_teammate_touch_is_not_a_double_commit():
+    from coach_app.coaching_findings import observe_action
+    r = materialise(SC["second_man_low_boost"])
+    sit = {"situation_class": "second_man_support", "t0": T0, "player_id": "b1", "team": "blue"}
+    r["events"] += [{"type": "touch", "t": T0 + 0.4, "playerId": "b2"}, {"type": "touch", "t": T0 + 1.6, "playerId": "b1"}]
+    assert observe_action(r, sit)["label"] == "aggressive_follow_up"
+    r["events"] = [e for e in r["events"] if e.get("playerId") != "b2"]
+    assert observe_action(r, sit)["label"] == "challenge_as_well"
