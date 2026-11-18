@@ -145,3 +145,76 @@ test('recorded camera without known events uses a neutral non-claimed fallback',
   plugin.beforeRender({player,time:0,state:{cameraViewMode:'follow',currentTime:0}});
   assert.equal(current,true,'explicit forced Ball Cam still works');
 });
+
+test('long native camera histories support many smooth seeks without rescanning every event',()=>{
+  const frames=Array.from({length:1500},(_,i)=>({time:i/60,cameraYaw:0,cameraPitch:0}));
+  const cameraEvents=Array.from({length:1200},(_,i)=>({
+    frame:i,ballCamActive:i%2===0,behindViewActive:i%5===0
+  }));
+  let reads=0;
+  // Instrument event *entries*. Linear per-frame scans trigger 1200 reads
+  // for every camera render; indexed binary lookup never touches them again.
+  const observedEvents=new Proxy(cameraEvents,{
+    get(target,key,receiver){
+      if(typeof key==='string' && /^(0|[1-9][0-9]*)$/.test(key))reads++;
+      return Reflect.get(target,key,receiver);
+    }
+  });
+  const player={frames,cameraEvents:observedEvents};
+  assert.equal(recordedCameraAt(player,0).ballCam,true);
+  const initialReads=reads;
+  assert.ok(initialReads>=1200);
+  for(let timeIndex=1499;timeIndex>=0;timeIndex-=3){
+    const frame=Math.min(timeIndex,1199);
+    const got=recordedCameraAt(player,timeIndex);
+    assert.equal(got.ballCam,frame%2===0, 'same historical state on backwards seek');
+    assert.equal(got.behind,frame%5===0, 'latest rear toggle remains accurate');
+  }
+  assert.equal(reads,initialReads,'per-render lookup must not rescan source event array');
+});
+
+test('unsorted same-frame camera signals preserve source-order tie precedence',()=>{
+  const custom={frames:[{}, {}, {}, {}, {}],cameraEvents:[
+    {frame:3,ballCamActive:true},
+    {frame:1,ballCamActive:true},
+    {frame:3,ballCamActive:false},
+    {frame:3,behindViewActive:true},
+    {frame:0,behindViewActive:false},
+    {frame:3,behindViewActive:false},
+    {frame:4,driving:true},
+  ]};
+  assert.equal(recordedCameraAt(custom,2).ballCam,true);
+  assert.equal(recordedCameraAt(custom,3).ballCam,false);
+  assert.equal(recordedCameraAt(custom,3).behind,false);
+  assert.equal(recordedCameraAt(custom,3).lastSwitchFrame,3);
+  assert.equal(recordedCameraAt(custom,4).driving,true);
+  assert.equal(recordedCameraAt(custom,0).driving,null);
+});
+
+test('replacing or appending decoded camera timeline invalidates cache, but old replay does not contaminate new',()=>{
+  const one={frames:[{}, {}, {}],cameraEvents:[{frame:0,ballCamActive:true}]};
+  const another={frames:[{}, {}, {}],cameraEvents:[{frame:0,ballCamActive:false}]};
+  assert.equal(recordedCameraAt(one,2).ballCam,true);
+  assert.equal(recordedCameraAt(another,2).ballCam,false);
+  one.cameraEvents.push({frame:2,ballCamActive:false});
+  assert.equal(recordedCameraAt(one,1).ballCam,true);
+  assert.equal(recordedCameraAt(one,2).ballCam,false);
+  one.cameraEvents=[{frame:0,ballCamActive:false}];
+  assert.equal(recordedCameraAt(one,0).ballCam,false);
+});
+
+test('future camera toggles remain unavailable at pre-switch frames and missing switches remain unknown',()=>{
+  const onlyFuture={frames:Array.from({length:20},()=>({})),cameraEvents:[
+    {frame:18,ballCamActive:true,behindViewActive:true},
+    {frame:19,ballCamActive:false},
+    {frame:-1,ballCamActive:false},
+    {frame:NaN,ballCamActive:true},
+  ]};
+  const atTen=recordedCameraAt(onlyFuture,10);
+  assert.equal(atTen.ballCam,null);
+  assert.equal(atTen.behind,null);
+  assert.equal(atTen.lastSwitchFrame,-1);
+  assert.equal(atTen.hasRecordedSwitch,true);
+  assert.equal(recordedCameraAt(onlyFuture,18).ballCam,true);
+  assert.equal(recordedCameraAt(onlyFuture,19).ballCam,false);
+});

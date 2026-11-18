@@ -92,11 +92,13 @@ export function createEffectRefiner(getPreference=()=> 'soft') {
   function materialStyle(mat,kind,style) {
     if (!mat?.isShaderMaterial) return;
     if (!originals.has(mat)) originals.set(mat,{
-      vertex:mat.vertexShader,fragment:mat.fragmentShader
+      vertex:mat.vertexShader,fragment:mat.fragmentShader,
+      alphaTest:mat.alphaTest,
     });
     if (applied.get(mat)===style) return;
     const original=originals.get(mat);
     let vertex=original.vertex,fragment=original.fragment;
+    let alphaTest=original.alphaTest;
     if (style==='soft' && kind==='boost') {
       vertex=vertex.replace(
         /gl_PointSize\s*=\s*size\s*\*\s*\(2500\.0\s*\/\s*-mvPosition\.z\)\s*;/,
@@ -109,20 +111,55 @@ export function createEffectRefiner(getPreference=()=> 'soft') {
       );
     }
     if (style==='soft' && kind==='supersonic') {
-      fragment=fragment.replace(
-        /gl_FragColor\s*=\s*vColor\s*\*\s*textureColor\s*;/,
-        [
-          'vec4 shade = vColor * textureColor;',
-          'float edge = smoothstep(0.0, 0.18, vUV.y) *',
-          '             (1.0 - smoothstep(0.76, 1.0, vUV.y));',
-          'float lengthFade = smoothstep(0.0, 0.22, vUV.x);',
-          'gl_FragColor = vec4(shade.rgb, shade.a * edge * lengthFade * 0.72);'
-        ].join('\n')
-      );
+      // @rlrml/player 1.5.1 uses TrailRenderer.createBaseMaterial()
+      // for the ACTUAL SupersonicTrailV2. Its fragment shader writes
+      // gl_FragColor = vColor; and has NO vUV/textureColor. Previously our
+      // "Soft" effect matched only TexturedFragmentShader, so it silently
+      // did nothing on the real tire trails, leaving block-like hard edges.
+      //
+      // Alternate left/right vertex IDs (0,1,2,3) are actual ribbon-strip
+      // endpoints. Interpolating -1/+1 across each strip produces a
+      // transverse alpha falloff without inventing meshes or textures.
+      const nativeRibbon =
+        /attribute\s+float\s+nodeVertexID\s*;/.test(vertex) &&
+        /gl_FragColor\s*=\s*vColor\s*;/.test(fragment) &&
+        /void\s+main\s*\(\s*\)\s*\{/.test(vertex) &&
+        /void\s+main\s*\(\s*\)\s*\{/.test(fragment);
+      if (nativeRibbon) {
+        vertex=vertex.replace(/void\s+main\s*\(\s*\)\s*\{/,
+          ['varying float vRibbonSide;',
+           'void main() {',
+           'vRibbonSide = mod(nodeVertexID, 2.0) * 2.0 - 1.0;'].join('\n'));
+        fragment=fragment.replace(/void\s+main\s*\(\s*\)\s*\{/,
+          ['varying float vRibbonSide;',
+           'void main() {'].join('\n'));
+        fragment=fragment.replace(/gl_FragColor\s*=\s*vColor\s*;/,
+          ['float edgeFade = 1.0 - smoothstep(0.55, 0.98, abs(vRibbonSide));',
+           'gl_FragColor = vec4(vColor.rgb, vColor.a * edgeFade * 0.78);'].join('\n'));
+        // Do not clip the new soft edge with the source's 0.5 alphaTest.
+        // Original setting is restored below when user chooses Original.
+        alphaTest=0;
+      } else {
+        // Preserve the older textured-ribbon fallback, if a future
+        // @rlrml/player version actually uses it. Never introduce a vUV
+        // varying into a shader without the corresponding vertex output.
+        fragment=fragment.replace(
+          /gl_FragColor\s*=\s*vColor\s*\*\s*textureColor\s*;/,
+          [
+            'vec4 shade = vColor * textureColor;',
+            'float edge = smoothstep(0.0, 0.18, vUV.y) *',
+            '             (1.0 - smoothstep(0.76, 1.0, vUV.y));',
+            'float lengthFade = smoothstep(0.0, 0.22, vUV.x);',
+            'gl_FragColor = vec4(shade.rgb, shade.a * edge * lengthFade * 0.72);'
+          ].join('\n')
+        );
+      }
     }
-    if(mat.vertexShader!==vertex || mat.fragmentShader!==fragment) {
+    if(mat.vertexShader!==vertex || mat.fragmentShader!==fragment ||
+       mat.alphaTest!==alphaTest) {
       mat.vertexShader=vertex;
       mat.fragmentShader=fragment;
+      mat.alphaTest=alphaTest;
       mat.needsUpdate=true;
       changes++;
     }
