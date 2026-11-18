@@ -110,8 +110,10 @@
       if(this.currentKey!==key){
         const old=this.entries.get(this.currentKey);
         if(old?.phase==='predecision'){
-          old.phase='abandoned';
-          old.abandoned_reason='context_changed_before_predecision_lock';
+          // An unfinished, unrecorded first impression is not an
+          // independent data point. A reviewer may try again after
+          // accidentally switching away, without inflating the report.
+          this.entries.delete(this.currentKey);
         }
         this.currentKey=key;
         this.status=ctx?'Ready for a new independent judgment.':
@@ -198,6 +200,11 @@
         this.status='Give a separate judgment for decision, execution and advice. Select undetermined/not tested where appropriate.';
         this.render();return false;
       }
+      const availableModel=this.controls.modelSummary?.();
+      if(!availableModel && !['not_tested','uncertain'].includes(advice)){
+        this.status='No model proposal was generated for this decision. Choose Not tested or Cannot assess instead of grading nonexistent AI advice.';
+        this.render();return false;
+      }
       let m=null;
       try{
         const source=this.controls.modelSummary?.();
@@ -223,8 +230,7 @@
     cancelOpen(){
       const trial=this.current();
       if(trial?.phase==='predecision'){
-        trial.phase='abandoned';
-        trial.abandoned_reason='replay_or_player_changed';
+        this.entries.delete(trial.key);
         this._mask();this.render();
       }
     }
