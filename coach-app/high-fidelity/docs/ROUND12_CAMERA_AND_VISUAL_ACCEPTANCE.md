@@ -78,8 +78,37 @@ Replacing the event array or appending events rebuilds it. Editing an
 existing event value in place while leaving the array and count unchanged
 is unsupported; ReplayModel is an immutable decoded replay.
 
-**This is an algorithmic performance and correctness improvement, not a
-promise that a low camera, blocky boost, or missing assets are fixed.**
+### Additional concrete Round 12 fix — actual tire/supersonic ribbon shader
+
+Directly inspected the upstream `rlrml/subtr-actor` JavaScript player source,
+`EffectsManager.js` and `TrailRenderer.js`, which implement the
+`@rlrml/player` 1.5.x source shapes. The actual
+`SupersonicTrailV2.createTrail()` constructs
+`TrailRenderer.createBaseMaterial()`, whose fragment shader has
+`gl_FragColor = vColor;`. **It is not the textured fragment path** that
+the previous Replay Lab `Soft` filter attempted to patch. Therefore the
+existing soft tire trail shader was generally a silent no-op.
+
+In `src/visual-quality.js` we now recognize the actual untextured base
+ribbon shader and introduce a cross-sectional edge-fade varying using
+the source's real `nodeVertexID` attribute, with a reversible lower
+alpha-test threshold. The original authored vertex/fragment shaders and
+alpha-test settings are retained for exact restoration in Original mode.
+An unknown/unmatched shader is left intact, rather than injecting
+unbound variables. The older textured material path remains supported.
+
+New source-shaped QA tests verify the actual untextured path is modified,
+repeated per-frame updates are idempotent, switching Original/Soft fully
+restores materials, and unsupported shaders are unchanged. This is an
+**actual shader-path bug fix**, but **the user's original jagged/blocky
+visuals remain browser-acceptance PENDING** until a real replay is rendered
+and visually compared. Geometry tessellation, source material quality,
+boost flame emissions and wheel mesh alignment are still independent
+issues. Upstream shader source was consulted as code, not modified.
+
+**This branch addresses both recorded camera-event performance and the
+real supersonic ribbon shader mismatch. It does not prove that the low
+chase camera, blue block car or missing/incorrect arena assets are fixed.**
 
 ## Visual acceptance matrix for next user test (actual .replay)
 
