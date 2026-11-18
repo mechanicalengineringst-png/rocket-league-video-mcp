@@ -76,15 +76,21 @@ def test_kickoff_cheat_is_not_flagged_as_accidental_overlap():
     assert 25.0 in overlap_times, "Legitimate mid-game double commit was not flagged."
 
 
-def test_ui_contract_supports_3d_viewer():
+def test_ui_contract_uses_hd_replay_as_primary_3d_viewer():
+    """The old geometric renderer stays archived, not mounted in the live UI."""
     html = (STATIC_DIR / "index.html").read_text(encoding="utf-8")
-    assert 'id="viewport3d"' in html
+    bridge = (STATIC_DIR / "hd-bridge.js").read_text(encoding="utf-8")
+    app = (STATIC_DIR / "app.js").read_text(encoding="utf-8")
+    assert 'id="hdInlineFrame"' in html
+    assert 'src="/hd?embedded=1"' in html
+    assert 'id="viewTabHd"' in html
     assert 'id="viewTab2d"' in html
-    assert 'id="viewTab3d"' in html
     assert 'id="viewTabSplit"' in html
-    assert 'id="controls3d"' in html
-    assert 'id="camOrbit"' in html
-    assert 'id="camFollow"' in html
-    assert 'id="camBall"' in html
+    assert 'id="viewport3d"' not in html
+    assert 'id="viewTab3d"' not in html
+    assert 'id="controls3d"' not in html
+    assert 'viewer3d.js' not in html
     assert 'id="boostPadsLayer"' in html
     assert 'id="showBoostPads"' in html
+    assert 'replay-lab:sync-state' in bridge and 'replay-lab:sync-state' in app
+    assert 'replay-lab:replay-ready' in bridge and 'replay-lab:replay-ready' in app
