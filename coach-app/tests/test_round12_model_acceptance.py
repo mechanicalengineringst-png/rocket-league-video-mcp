@@ -67,7 +67,8 @@ def local_model_stub(*, fenced=False, malformed=False):
             assert packet["stage1_episode"]["schema"] == "Stage1EpisodePacketV0"
             assert packet["tactical_options"]["schema"] == "CoachTacticalContextV0"
             assert "PRIVATE_MATCH_SHOULD_NOT_LEAK" not in message
-            assert "retrospective" not in message
+            assert "retrospective" not in packet["stage1_episode"]
+            assert packet["stage1_episode"].get("retrospective_present") is False
             assert "selection" not in message
             assert "REPLAY_LAB_COACH_MODEL_API_KEY" not in message
             text = json.dumps(coaching_draft())
