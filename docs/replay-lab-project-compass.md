@@ -212,21 +212,47 @@ claim that the product has passed real-browser, real-game, or expert testing.
    claims are **research hypotheses not yet API/physics validated**;
    Claude/Antigravity must not adopt them as verified verdicts or
    game commands without evidence and real-game QA.
-14. [PR #45](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/45)
+14. [PR #50](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/50)
+   **ChatGPT's substantive Round 12E independent blind two-stage
+   human review workflow**, stacked on #49 (#43 -> #44 -> #46 ->
+   #47 -> #48 -> #49 -> #50), head `d13da11c`.
+   The user selects an actual primary replay episode, self-reports
+   prior outcome exposure, then starts Stage A: HD+2D parent timeline
+   capped at t0, future reveal/loop buttons and normal coaching/AI
+   panels temporarily hidden, existing AI results masked and any
+   additional model call blocked. User must lock **intended action,
+   teammate-coverage interpretation, confidence and optional rationale**
+   BEFORE Stage B unlocks. Stage B explicitly reveals the RECORDED
+   outcome and separately collects **decision merit, mechanical execution
+   and AI recommendation quality** (including false criticism).
+   No action forecasts or implicit model calls. Completed/in-progress
+   locked trials export as anonymized local
+   `ReplayLabBlindReviewReportV0` JSON: match indices only, no replay
+   names, player IDs, raw frames, model prompts or credentials.
+   Unlocked unfinished attempts excluded. Tool is an **in-app controlled
+   viewing aid**, NOT proof that the reviewer never saw the play before,
+   or that an external native Rocket League window was hidden.
+   **CI checkpoint:** 44/44 JS tests passed including real blocking
+   behavior; Python/general checks still running at first handoff.
+   Source: `coach-app/docs/round12e/BLIND_TWO_STAGE_EVAL.md`
+   on PR #50. Gemini has been tasked with **24 hypothetical
+   adversarial 2v2 cases and at least 8 context-flip pairs** with a
+   blind-scoring rubric; Gemini output is pending, not merged code.
+15. [PR #45](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/45)
    **Claude's Round 12 tactical intelligence PR**, head `619914f`,
    stacked on Claude's earlier #40. Introduces an experimental,
    opt-in situation-aware `CoachingReportV1` with two-stage findings.
    Claude's PR body states its real replay cohort evaluation is still
    in progress, so its integration and empirical merit are **pending**.
    Do not confuse this tactic backend branch with the HD UI branch.
-15. [PR #28](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/28)
+16. [PR #28](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/28)
    Earlier native Stats API companion, independently drafted. Real
    Rocket League loading/seek/POV/pause/speed **NOT verified in a live
    running game**. Antigravity #43 provides another implementation;
    reconcile after source review and real game acceptance. A listening
    port is not game authentication; actual Windows game testing requires
    owner's explicit permission.
-16. [PR #25](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/25)
+17. [PR #25](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/25)
    is this canonical project compass. It remains a separate docs-only
    draft; future sessions should read the linked branch version rather than
    assume this file is already on `main`.
@@ -257,15 +283,16 @@ claim that the product has passed real-browser, real-game, or expert testing.
    native replay load and strict WebGL/asset readiness tests.
 2. Review Claude's larger Round 12 backend and integrate only supported
    tactical contracts; V1 unvalidated grading stays opt-in.
-3. Build the final unified **draft integration branch** from #49,
-   which contains #43, #44, #46, #47, #48 and the relevant compatible
-   model acceptance backend from #41. Preserve the manual-overlooked
-   moment UI, explicit model consent and local RelationalInvariantsV0
-   inspection/model-input firewall. Integrate Claude's tactical #45
-   after evaluation and Antigravity's HD/native changes (including
-   safe camera/tire fixes from #42). Do NOT revert newer
-   app.js/coaching-experience.js/model-coaching.js to an older ancestor.
-   No `main` merge.
+3. Build the final unified **draft integration branch** from #50,
+   which now contains #43, #44, #46, #47, #48, #49 and compatible model
+   acceptance from #41. Preserve the blind review parent timeline
+   cutoff, masking of any preexisting AI result and separate Stage
+   A/B export, manual overlooked moments, model one-call consent and
+   RelationalInvariantsV0. Integrate Claude's tactical #45 after
+   evaluation and Antigravity's HD/native improvements (including
+   safe camera/trail fixes from #42). Do not revert newer app.js,
+   model-coaching.js, coaching-experience.js or the HD clock guard to
+   older ancestors. No `main` merge.
 4. Browser-test on an actual **native .replay file**: replay/player
    confirmation, 2D, actual HD geometry/textures/camera/boost/trails,
    split sync, source-backed shortlist, lesson->seek, evidence, model
