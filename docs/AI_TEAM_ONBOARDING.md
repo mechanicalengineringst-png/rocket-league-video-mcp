@@ -1,3 +1,5 @@
+> **OUTDATED HISTORICAL HANDOFF (15 November 2026).** This file describes the PR #4-era prototype and is retained for provenance. For current user-approved goals, previous native Rocket League Stats API research, all Round 5 branch statuses and what to do next, **READ FIRST:** [Replay Lab — Project Compass](replay-lab-project-compass.md). Do not infer current code or decisions from the dated sections below.
+
 # Rocket League AI Coach — Multi-model project handoff
 
 **Status:** active prototype, 15 November 2026  
