@@ -1,0 +1,194 @@
+{
+ "margin_under_test_s": 0.55,
+ "margin_generalization": {
+  "per_match": {
+   "match-85b96a2c": {
+    "pairs": 86,
+    "accuracy_at_margin": 0.957,
+    "resolved": 47
+   },
+   "match-b01f1e87": {
+    "pairs": 16,
+    "accuracy_at_margin": 1.0,
+    "resolved": 11
+   },
+   "match-ec685d6f": {
+    "pairs": 81,
+    "accuracy_at_margin": 0.963,
+    "resolved": 54
+   },
+   "match-a4de7fc2": {
+    "pairs": 68,
+    "accuracy_at_margin": 0.977,
+    "resolved": 44
+   },
+   "match-915b232a": {
+    "pairs": 70,
+    "accuracy_at_margin": 0.933,
+    "resolved": 45
+   },
+   "match-23b6d8ba": {
+    "pairs": 88,
+    "accuracy_at_margin": 0.86,
+    "resolved": 57
+   },
+   "match-9241f56d": {
+    "pairs": 82,
+    "accuracy_at_margin": 0.906,
+    "resolved": 53
+   },
+   "match-1b010c87": {
+    "pairs": 96,
+    "accuracy_at_margin": 0.912,
+    "resolved": 57
+   },
+   "match-aa5b0d14": {
+    "pairs": 89,
+    "accuracy_at_margin": 0.879,
+    "resolved": 58
+   },
+   "match-c2506aba": {
+    "pairs": 56,
+    "accuracy_at_margin": 1.0,
+    "resolved": 36
+   },
+   "match-b17e538f": {
+    "pairs": 16,
+    "accuracy_at_margin": 1.0,
+    "resolved": 11
+   },
+   "match-7cc40790": {
+    "pairs": 91,
+    "accuracy_at_margin": 0.898,
+    "resolved": 59
+   },
+   "match-eb2ada2f": {
+    "pairs": 80,
+    "accuracy_at_margin": 0.927,
+    "resolved": 55
+   },
+   "match-c0d8d46b": {
+    "pairs": 54,
+    "accuracy_at_margin": 0.97,
+    "resolved": 33
+   },
+   "match-2ec34d86": {
+    "pairs": 125,
+    "accuracy_at_margin": 0.902,
+    "resolved": 82
+   }
+  },
+  "leave_one_match_out": {
+   "match-85b96a2c": {
+    "margin_fit_on_others": 0.3,
+    "accuracy_on_this_match": 0.924,
+    "resolved": 66
+   },
+   "match-b01f1e87": {
+    "margin_fit_on_others": 0.3,
+    "accuracy_on_this_match": 1.0,
+    "resolved": 13
+   },
+   "match-ec685d6f": {
+    "margin_fit_on_others": 0.3,
+    "accuracy_on_this_match": 0.97,
+    "resolved": 66
+   },
+   "match-a4de7fc2": {
+    "margin_fit_on_others": 0.3,
+    "accuracy_on_this_match": 0.946,
+    "resolved": 56
+   },
+   "match-915b232a": {
+    "margin_fit_on_others": 0.3,
+    "accuracy_on_this_match": 0.914,
+    "resolved": 58
+   },
+   "match-23b6d8ba": {
+    "margin_fit_on_others": 0.3,
+    "accuracy_on_this_match": 0.875,
+    "resolved": 72
+   },
+   "match-9241f56d": {
+    "margin_fit_on_others": 0.3,
+    "accuracy_on_this_match": 0.891,
+    "resolved": 64
+   },
+   "match-1b010c87": {
+    "margin_fit_on_others": 0.3,
+    "accuracy_on_this_match": 0.907,
+    "resolved": 75
+   },
+   "match-aa5b0d14": {
+    "margin_fit_on_others": 0.3,
+    "accuracy_on_this_match": 0.838,
+    "resolved": 68
+   },
+   "match-c2506aba": {
+    "margin_fit_on_others": 0.3,
+    "accuracy_on_this_match": 0.976,
+    "resolved": 42
+   },
+   "match-b17e538f": {
+    "margin_fit_on_others": 0.3,
+    "accuracy_on_this_match": 1.0,
+    "resolved": 13
+   },
+   "match-7cc40790": {
+    "margin_fit_on_others": 0.3,
+    "accuracy_on_this_match": 0.873,
+    "resolved": 71
+   },
+   "match-eb2ada2f": {
+    "margin_fit_on_others": 0.3,
+    "accuracy_on_this_match": 0.906,
+    "resolved": 64
+   },
+   "match-c0d8d46b": {
+    "margin_fit_on_others": 0.3,
+    "accuracy_on_this_match": 0.905,
+    "resolved": 42
+   },
+   "match-2ec34d86": {
+    "margin_fit_on_others": 0.3,
+    "accuracy_on_this_match": 0.87,
+    "resolved": 100
+   }
+  },
+  "bootstrap_chosen_margin": {
+   "0.1": 3,
+   "0.15": 1,
+   "0.2": 10,
+   "0.25": 74,
+   "0.3": 123,
+   "0.35": 17,
+   "0.4": 4,
+   "0.45": 52,
+   "0.5": 1,
+   "0.55": 13,
+   "0.6": 1,
+   "0.65": 1
+  },
+  "bootstrap_resamples": 300
+ },
+ "interval_semantics": {
+  "car_touch_rows": 4689,
+  "touch_before_t_min": 0.067,
+  "touch_inside_interval": 0.479,
+  "touch_after_t_max": 0.454,
+  "zero_width_intervals": 0.472
+ },
+ "branch_informativeness": {
+  "ambiguous": {
+   "carrier": 202,
+   "focus": 160,
+   "neither": 32
+  },
+  "b_first": {
+   "carrier": 151,
+   "focus": 40,
+   "neither": 19
+  }
+ },
+ "note": "Public unknown-rank replays only; no high-rank data was available to test generalization."
+}

@@ -1,0 +1,89 @@
+{
+ "episodes": 625,
+ "judgment_available": 604,
+ "claims": 8164,
+ "claims_rejected": 0,
+ "truncation_checked": 127,
+ "truncation_identical": 127,
+ "judgment_withheld": 21,
+ "candidate_cases": 625,
+ "strata_available": {
+  "risky_aggression": 136,
+  "intelligent_restraint": 82,
+  "covered_aggression": 124,
+  "off_ball_defense": 83,
+  "other": 111,
+  "recovery": 65,
+  "withheld": 21,
+  "strong_positive": 3
+ },
+ "strata_sampled": {
+  "withheld": 6,
+  "intelligent_restraint": 6,
+  "covered_aggression": 6,
+  "other": 6,
+  "recovery": 6,
+  "strong_positive": 3,
+  "off_ball_defense": 6,
+  "risky_aggression": 6
+ },
+ "action_status_counts": {
+  "supported": {
+   "goal_side_hold": 334,
+   "shadow_delay": 266,
+   "fake_challenge": 66,
+   "immediate_challenge": 106,
+   "controlled_fifty_fifty": 115,
+   "clear_or_pass_to_space": 40,
+   "rotate_through_small_pads": 61
+  },
+  "conditional": {
+   "immediate_challenge": 252,
+   "controlled_fifty_fifty": 254,
+   "controlled_touch": 335,
+   "shadow_delay": 265,
+   "goal_side_hold": 76,
+   "yield_to_teammate": 169,
+   "clear_or_pass_to_space": 8,
+   "rotate_through_small_pads": 62,
+   "fake_challenge": 37
+  },
+  "contested": {
+   "yield_to_teammate": 37,
+   "immediate_challenge": 36,
+   "controlled_fifty_fifty": 25,
+   "controlled_touch": 22,
+   "clear_or_pass_to_space": 2
+  },
+  "refuted": {
+   "fake_challenge": 501,
+   "yield_to_teammate": 398,
+   "rotate_through_small_pads": 481,
+   "clear_or_pass_to_space": 554,
+   "immediate_challenge": 210,
+   "controlled_fifty_fifty": 210,
+   "controlled_touch": 247,
+   "goal_side_hold": 194,
+   "shadow_delay": 73
+  }
+ },
+ "reasonable_choices_per_judged_episode": {
+  "0": 1,
+  "1": 47,
+  "2": 97,
+  "3": 75,
+  "4": 116,
+  "5": 125,
+  "6": 110,
+  "7": 33
+ },
+ "decisive_conditions": {
+  "focus_first": 394,
+  "carrier_first": 296,
+  "teammate_first": 206,
+  "teammate_covers": 204,
+  "contact_away_from_second_opponent": 180,
+  "contest_level": 57,
+  "loose_ball_ours": 24
+ }
+}
