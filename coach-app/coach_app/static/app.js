@@ -2,6 +2,8 @@
 const $ = id => document.getElementById(id);
 const state = { replay: null, findings: [], focusId: null, selectedId: null, time: 0, playing: false, timer: null, overrides: new Map(), reviewFeedback: new Map(), view: {facing:true, travel:false, heights:false, trail:false, ballTrail:false, boostPads:true}, speed:1, momentFilter:'shortlist', videoUrl:null, videoOffset:0, videoAligned:false, lastCoachingRequestId: 0 };
 let currentViewMode = 'split';
+// Review-only observed telemetry, never input to the predecision coach.
+state.decisionLens = null;
 function announceReplaySync(){
   if(!state.replay)return;
   const focus=playerById(state.focusId);
@@ -38,11 +40,14 @@ function chooseTime(time){
   renderSceneInspector();
   if(state.replay.boostPadTimeline) renderBoostPads();
   syncVideoToReplay();
+  updateDecisionLensClock();
   announceReplaySync();
 }
 function setReplay(replay, opts={}){
   if(!replay || !Array.isArray(replay.players) || !Array.isArray(replay.frames) || !replay.frames.length)throw new Error('Invalid replay timeline.');
   stopPlay();removeVideo();state.replay=replay;state.findings=[];
+  // Never retain a previous match's pins or future-follow-through ghosts.
+  state.decisionLens=null;
   const boostPadModel = typeof ReplayLabBoostPadState !== 'undefined'
     ? ReplayLabBoostPadState.compile(replay.boostPadTimeline) : null;
   const padStatus=$('boostPadDataStatus');
@@ -63,6 +68,7 @@ function setReplay(replay, opts={}){
   $('playerSelect').replaceChildren(...replay.players.map(p=>{const o=document.createElement('option');o.value=p.id;o.textContent=`${p.name} — ${p.team.toUpperCase()}`;return o;}));
   $('playerSelect').value=state.focusId;
   for(const id of ['playerSelect','timeRange','playBtn','backBtn','forwardBtn','markBtn','exportBtn','aiBtn'])$(id).disabled=false;
+  renderDecisionLensPanel();
   $('timeRange').min=startTime();$('timeRange').max=replay.duration;$('startTimeLabel').textContent=fmt(startTime());$('endTime').textContent=fmt(replay.duration);
   $('uploadStatus').textContent=opts.demo?'Simulated example loaded. This is NOT an actual match.':(replay.playerMappingVerified===false?'Replay decoded, but player identities could not be verified from kickoff spawns.':('Decoded '+(replay.telemetrySampleCount||replay.frames.length)+' physics samples; '+(replay.eventCounts?.touch||0)+' touches, '+(replay.eventCounts?.goal_context||0)+' goals. Events are review observations, not proven mistakes.'));
   if(!opts.demo&&!state.focusConfirmed)$('uploadStatus').textContent+=' The recording player could not be identified: confirm "Who are we coaching?".';
@@ -504,6 +510,7 @@ function renderPitch(){
       'paint-order':'stroke',stroke:'#07131d','stroke-width':4},
     'TOUCH'+(who?' · '+who.name.slice(0,12):'')));
   }
+  renderDecisionLensOverlay(parent);
 }
 function renderSceneInspector(){
   // Stable one-line clock. Rebuilding large dynamic cards 30 times per second
@@ -549,6 +556,169 @@ function renderRecentActions(){
     list.append(btn);
   }
 }
+
+/* Decision Lens: freeze an observed t0, replay a tightly bounded pre/post
+ * sequence and optionally reveal true recorded future positions in the map.
+ * The backend's Stage 1 tactical assessment never receives these future
+ * samples. Neither this UI nor its labels infer an optimal move.
+ */
+function decisionLensMetric(label, value, description=''){
+  const box=document.createElement('div');box.className='lens-metric';
+  const name=document.createElement('span');name.textContent=label;
+  const amount=document.createElement('strong');amount.textContent=value;
+  box.append(name,amount);
+  if(description){
+    const extra=document.createElement('span');extra.className='lens-detail';
+    extra.textContent=description;box.append(extra);
+  }
+  return box;
+}
+function fmtUnits(n,suffix='u'){
+  return Number.isFinite(n) ? '≈'+Math.round(n/25)*25 .toLocaleString('en-US')+' '+suffix : 'Unknown';
+}
+function updateDecisionLensClock(){
+  const label=$('lensSummary'),lens=state.decisionLens;
+  if(!label)return;
+  if(!lens){label.textContent='Pin a coaching moment to compare positioning';return;}
+  label.textContent='t0 '+fmt(lens.window.t0)+' · '+(lens.loop?'looping · ':'')+
+    (lens.revealed?'actual follow-through shown':'future positions hidden');
+}
+function renderDecisionLensPanel(){
+  const lens=state.decisionLens,windowData=lens?.window;
+  const hasRealReplay=Boolean(state.replay && state.replay.source !== 'synthetic');
+  const hasReplay=Boolean(state.replay && state.focusConfirmed);
+  const ids=['lensApproachBtn','lensDecisionBtn','lensLoopBtn','lensRevealBtn',
+    'lensAfterBtn','lensClearBtn'];
+  for(const id of ids){const b=$(id);if(b)b.disabled=!windowData;}
+  if($('lensPinBtn'))$('lensPinBtn').disabled=!hasReplay;
+  if($('lensAfterBtn'))$('lensAfterBtn').disabled=!windowData?.after || !lens.revealed;
+  if($('lensRevealBtn')) {
+    $('lensRevealBtn').disabled=!windowData?.after;
+    $('lensRevealBtn').textContent=lens?.revealed?'Hide actual +2s':'Reveal actual +2s';
+  }
+  if($('lensLoopBtn')){
+    $('lensLoopBtn').disabled=!windowData || windowData.end-windowData.start<0.5;
+    $('lensLoopBtn').textContent=lens?.loop?'Stop scene loop':'Loop scene (−3 to +2s)';
+    $('lensLoopBtn').classList.toggle('active',Boolean(lens?.loop));
+  }
+  updateDecisionLensClock();
+  const holder=$('lensMetrics'),status=$('lensStatus');
+  if(!holder||!status)return;
+  holder.replaceChildren();
+  if(!windowData){
+    holder.append(decisionLensMetric('Selected moment','None','Pin a frame or choose a coaching node'));
+    status.textContent='No simulated outcomes or tactical grades are generated by this view.';
+    return;
+  }
+  const m=windowData.anchor.metrics;
+  holder.append(
+    decisionLensMetric('Focus → ball',fmtUnits(m.focusBall2D),'Flat distance at t0'),
+    decisionLensMetric('Focus ↔ teammate',fmtUnits(m.teammateSeparation2D),'Flat separation at t0'),
+    decisionLensMetric('Opponent → ball',fmtUnits(m.opponentBallNearest2D),'Nearest observed opponent'),
+    decisionLensMetric('Focal boost',Number.isFinite(m.focusBoost)?Math.round(m.focusBoost)+'%':'Unknown','Observed at t0'),
+    decisionLensMetric('Ball height',fmtUnits(m.ballHeight),'Recorded Z at t0'),
+    decisionLensMetric('Focal speed',fmtUnits(m.focusSpeed,'u/s'),'3D velocity magnitude')
+  );
+  if(lens.revealed && windowData.after){
+    const later=windowData.after.metrics;
+    const sep0=m.focusBall2D,sep1=later.focusBall2D;
+    const delta=Number.isFinite(sep0)&&Number.isFinite(sep1)?sep1-sep0:null;
+    holder.append(decisionLensMetric(
+      'Actual Δ focus–ball',Number.isFinite(delta)?(delta>=0?'+':'')+Math.round(delta)+' u':'Unknown',
+      'Recorded after t0 — not a prediction'));
+  }
+  const time=formatLensPrecise(windowData.t0);
+  const age=windowData.anchor.ageMs;
+  const before=(windowData.t0-windowData.start).toFixed(1);
+  const after=(windowData.end-windowData.t0).toFixed(1);
+  status.textContent=(hasRealReplay?'Recorded':'Simulated demonstration')+
+    ' sample '+age+'ms before t0 '+time+'; '+before+'s setup / '+after+'s follow-through. '+
+    (windowData.anchor.complete?'All four car/ball coordinates observed. ':
+      'Some contextual positions are missing. ')+
+    (lens.revealed?'Orange dashed marks show actual later positions, NOT alternatives.':
+      'Later positions are hidden until you explicitly reveal them.')+
+    ' No optimal move or tactical verdict is inferred.';
+}
+function formatLensPrecise(s){
+  return fmt(s)+'.'+String(Math.floor((s%1)*100)).padStart(2,'0');
+}
+function pinDecisionLens(t0,from='manual'){
+  if(!state.replay || !state.focusConfirmed)return false;
+  const engine=globalThis.ReplayLabDecisionLens;
+  const windowData=engine?.buildWindow(state.replay,state.focusId,t0);
+  if(!windowData){
+    if(from==='manual')show('No fresh recorded telemetry at this timestamp. Choose another frame.');
+    return false;
+  }
+  if(state.decisionLens?.loop)stopPlay();
+  state.decisionLens={window:windowData,revealed:false,loop:false,source:from};
+  const panel=$('decisionLensPanel');if(panel)panel.open=true;
+  renderDecisionLensPanel();renderPitch();
+  return true;
+}
+function clearDecisionLens(){
+  if(state.decisionLens?.loop)stopPlay();
+  state.decisionLens=null;
+  renderDecisionLensPanel();renderPitch();
+}
+function jumpDecisionLens(where){
+  const lens=state.decisionLens;if(!lens)return;
+  if(lens.loop)lens.loop=false;
+  stopPlay();
+  const w=lens.window;
+  chooseTime(where==='approach'?w.start:where==='after'&&lens.revealed?w.end:w.t0);
+  renderDecisionLensPanel();
+}
+function toggleDecisionLensLoop(){
+  const lens=state.decisionLens;if(!lens)return;
+  if(lens.loop){
+    lens.loop=false;stopPlay();renderDecisionLensPanel();return;
+  }
+  const w=lens.window;
+  if(w.end-w.start<0.5)return;
+  stopPlay();
+  lens.loop=true;
+  chooseTime(w.start);
+  renderDecisionLensPanel();
+  togglePlay();
+}
+function renderDecisionLensOverlay(parent){
+  const lens=state.decisionLens,w=lens?.window;
+  if(!w || !Array.isArray(w.anchor?.dots))return;
+  const group=el('g',{'pointer-events':'none',id:'decisionLensOverlay'});
+  const colors={focus:'#8df7df',teammate:'#99bfff',opponent:'#ffb77d',ball:'#e8f9ff'};
+  const drawAnchor=(dot,after=false)=>{
+    if(!Number.isFinite(dot.x)||!Number.isFinite(dot.y))return;
+    const x=sx(dot.x),y=sy(dot.y),color=after?'#ffcf8b':colors[dot.role];
+    const r=dot.role==='focus'?24:dot.role==='ball'?20:16;
+    group.append(el('circle',{
+      cx:x,cy:y,r:r+(after?4:0),fill:'none',stroke:color,
+      'stroke-width':after?1.8:2.3,
+      'stroke-dasharray':after?'4 6':'2 3',opacity:after?.65:.85
+    }));
+    if(dot.role==='focus'||dot.role==='ball'){
+      group.append(el('text',{
+        x:x+18,y:y-19,fill:color,'font-size':10,'font-weight':700,
+        'paint-order':'stroke',stroke:'#071924','stroke-width':3
+      },after?'+2s actual':'t0'));
+    }
+  };
+  // After snapshots are not drawn until explicitly revealed, regardless
+  // of current playback position. Traces consist only of observed frames.
+  if(lens.revealed&&w.after){
+    const focusAt0=w.anchor.dots.find(p=>p.role==='focus');
+    const ballAt0=w.anchor.dots.find(p=>p.role==='ball');
+    const traces=w.recordedAfterTrace;
+    if(focusAt0)drawTrail(group,[{t:w.t0,x:focusAt0.x,y:focusAt0.y},
+      ...traces.focus],'#ffcc81',3,false);
+    if(ballAt0)drawTrail(group,[{t:w.t0,x:ballAt0.x,y:ballAt0.y},
+      ...traces.ball],'#f4f0cd',2,true);
+    for(const dot of w.after.dots)drawAnchor(dot,true);
+  }
+  for(const dot of w.anchor.dots)drawAnchor(dot,false);
+  parent.append(group);
+}
+
 let playbackHandle=null;
 let lastPlayTimestamp=0;
 
@@ -576,6 +746,18 @@ function playTick(timestamp){
   const delta=Math.min(0.1,(timestamp-lastPlayTimestamp)/1000);
   lastPlayTimestamp=timestamp;
 
+  const lens=state.decisionLens;
+  if(lens?.loop){
+    const nextLoop=globalThis.ReplayLabDecisionLens?.loopNext(
+      state.time,delta,state.speed||1,lens.window);
+    if(nextLoop!==null && nextLoop!==undefined){
+      chooseTime(nextLoop);
+      playbackHandle=requestAnimationFrame(playTick);
+      return;
+    }
+    lens.loop=false;
+    renderDecisionLensPanel();
+  }
   const next=state.time+delta*(state.speed||1);
   if(next>=state.replay.duration){
     chooseTime(state.replay.duration);
@@ -801,7 +983,7 @@ function wire(){
   zone.ondragover=e=>{e.preventDefault();zone.classList.add('dragging');};
   zone.ondragleave=()=>zone.classList.remove('dragging');
   zone.ondrop=e=>{e.preventDefault();zone.classList.remove('dragging');loadFile(e.dataTransfer.files[0]);};
-  $('playerSelect').onchange=e=>{state.focusId=e.target.value;state.focusConfirmed=true;if(state.replay?.source!=='synthetic')remembered.set(state.focusId);state.overrides.clear();refreshFindings();chooseTime(state.time);window.coachingController?.resetForReplay(state.replay?.source==='synthetic');if(state.replay?.source!=='synthetic')loadDecisionCasesForCoaching(state.replay,state.focusId);};
+  $('playerSelect').onchange=e=>{clearDecisionLens();state.focusId=e.target.value;state.focusConfirmed=true;if(state.replay?.source!=='synthetic')remembered.set(state.focusId);state.overrides.clear();refreshFindings();chooseTime(state.time);window.coachingController?.resetForReplay(state.replay?.source==='synthetic');if(state.replay?.source!=='synthetic')loadDecisionCasesForCoaching(state.replay,state.focusId);};
   $('timeRange').oninput=e=>{stopPlay();chooseTime(Number(e.target.value));};
   $('playBtn').onclick=togglePlay;
   $('backBtn').onclick=()=>{stopPlay();chooseTime(state.time-2);};
@@ -842,6 +1024,27 @@ function wire(){
     window.coachingController = new CoachingExperienceController();
     window.coachingController.mount('coachingExperienceContainer');
   }
+  // Decision Lens is a real replay tool, separate from coaching verdicts.
+  if($('lensPinBtn'))$('lensPinBtn').onclick=()=>{
+    stopPlay();pinDecisionLens(state.time,'manual');
+  };
+  if($('lensClearBtn'))$('lensClearBtn').onclick=clearDecisionLens;
+  if($('lensApproachBtn'))$('lensApproachBtn').onclick=()=>jumpDecisionLens('approach');
+  if($('lensDecisionBtn'))$('lensDecisionBtn').onclick=()=>jumpDecisionLens('decision');
+  if($('lensAfterBtn'))$('lensAfterBtn').onclick=()=>jumpDecisionLens('after');
+  if($('lensLoopBtn'))$('lensLoopBtn').onclick=toggleDecisionLensLoop;
+  if($('lensRevealBtn'))$('lensRevealBtn').onclick=()=>{
+    if(!state.decisionLens?.window.after)return;
+    state.decisionLens.revealed=!state.decisionLens.revealed;
+    renderDecisionLensPanel();renderPitch();
+  };
+  window.addEventListener('replay-lab:coaching-moment',e=>{
+    const t0=e.detail?.t0;
+    if(Number.isFinite(t0) && state.replay && state.focusConfirmed)
+      pinDecisionLens(t0,'coaching');
+  });
+  renderDecisionLensPanel();
+
   const probeBtn = $('companionProbeBtn');
   if (probeBtn) probeBtn.onclick = checkCompanionStatus;
   const optIn = $('companionOptIn');
