@@ -155,6 +155,7 @@ class DecisionCaseRequest(BaseModel):
     replay: dict[str, Any]
     player_id: str | None = None
     evaluate: bool = False
+    analyze: bool = False  # opt-in t0-only tactical reading (coach_app.tactical_analysis)
 
     @field_validator('replay')
     @classmethod
@@ -198,8 +199,16 @@ async def decision_cases_endpoint(request: DecisionCaseRequest):
             if request.evaluate:
                 eval_res = evaluate_decision_case_heuristics(c)
                 item['evaluation'] = eval_res
+            if request.analyze:
+                from .tactical_analysis import analyze_case
+                item['analysis'] = analyze_case(c, request.replay).to_dict()
             output.append(item)
-        return {'cases': output, 'count': len(output), 'mode': 'opt_in_decision_engine'}
+        result = {'cases': output, 'count': len(output), 'mode': 'opt_in_decision_engine'}
+        if request.analyze and request.player_id:
+            from .tactical_analysis import find_shot_opportunities, rank
+            result['opportunities'] = [f.to_dict() for f in rank(find_shot_opportunities(request.replay, request.player_id),
+                                                                 request.player_id)]
+        return result
     except (KeyError, ValueError, TypeError) as e:
         raise HTTPException(422, f'Could not process decision cases: {e}') from e
 
