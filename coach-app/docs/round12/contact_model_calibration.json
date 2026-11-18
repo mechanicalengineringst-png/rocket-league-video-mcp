@@ -1,0 +1,60 @@
+{
+ "k": 1.155,
+ "cone_half_deg": 42.2,
+ "floor_uu_s": 300.0,
+ "touches": {
+  "fit": 196,
+  "held_out": 90,
+  "dropped": {
+   "next_touch_within_0.08s": 311,
+   "weak_touch": 850,
+   "airborne": 1101
+  }
+ },
+ "airborne_share_of_candidate_touches": 0.492,
+ "fit": {
+  "median_deg": 13.4,
+  "p75_deg": 42.2,
+  "n": 196
+ },
+ "held_out": {
+  "median_deg": 9.4,
+  "p75_deg": 41.4,
+  "p90_deg": 97.0,
+  "n": 90,
+  "baseline_centre_line": {
+   "median_deg": 46.4,
+   "p75_deg": 75.1
+  },
+  "baseline_car_velocity": {
+   "median_deg": 25.2,
+   "p75_deg": 73.4
+  }
+ },
+ "next_ball_validation_held_out": {
+  "touches": 47,
+  "confusion_pred_actual": {
+   "contested|opponents": 4,
+   "contested|own": 1,
+   "opponents|opponents": 33,
+   "opponents|own": 4,
+   "own|opponents": 3,
+   "own|own": 2
+  },
+  "model_accuracy_when_decided": 0.833,
+  "model_decided": 42,
+  "baseline_toucher_team_keeps": 0.149,
+  "baseline_always_opponents": 0.851,
+  "verdict": "NOT VALIDATED: the next-ball race does not beat the base rate; coaching uses only the validated outgoing-direction model (destination zones), not the race.",
+  "baseline_nearest_other_car": 0.787
+ },
+ "destination_zone_validation_held_out": {
+  "touches": 63,
+  "centre_zone_correct": 0.524,
+  "actual_zone_inside_modelled_band": 0.556,
+  "baseline_ball_stays_in_zone": 0.381,
+  "baseline_pre_touch_ball_velocity": 0.444,
+  "baseline_car_velocity_direction": 0.524
+ },
+ "note": "Public unknown-rank replays; ground contacts only; labels are decoder touch events (held out)."
+}

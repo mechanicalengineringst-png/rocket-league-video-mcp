@@ -237,9 +237,9 @@ def _lit(cond: dict[str, dict], lit: str) -> str:
     return HOLDS if st == FAILS else FAILS
 
 
-def _evaluate(cond: dict[str, dict]) -> dict[str, dict]:
+def _evaluate(cond: dict[str, dict], specs: dict[str, dict] | None = None) -> dict[str, dict]:
     res = {}
-    for action, spec in RATIONALES.items():
+    for action, spec in (RATIONALES if specs is None else specs).items():
         reasons = []
         for rid, lits, text in spec["reasons"]:
             sts = {lit: _lit(cond, lit) for lit in lits}
@@ -264,7 +264,8 @@ def _signature(ev: dict[str, dict]) -> dict[str, str]:
     return {a: v["status"] for a, v in ev.items()}
 
 
-def _decisive(cond: dict[str, dict], base: dict[str, str], limit: int = 4) -> list[dict]:
+def _decisive(cond: dict[str, dict], base: dict[str, str], limit: int = 4,
+              specs: dict[str, dict] | None = None) -> list[dict]:
     """Uncertain conditions whose resolution would change some action's status (one at a time)."""
     out = []
     for cid, c in cond.items():
@@ -274,7 +275,7 @@ def _decisive(cond: dict[str, dict], base: dict[str, str], limit: int = 4) -> li
         for val in (HOLDS, FAILS):
             alt = {k: dict(v) for k, v in cond.items()}
             alt[cid]["status"] = val
-            sig = _signature(_evaluate(alt))
+            sig = _signature(_evaluate(alt, specs))
             diff = {a: f"{base[a]} -> {sig[a]}" for a in base if sig[a] != base[a]}
             if diff:
                 changes[val] = diff
