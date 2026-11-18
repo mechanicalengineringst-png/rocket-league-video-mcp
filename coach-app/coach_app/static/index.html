@@ -93,6 +93,26 @@
         </div>
         <div class="timeline-legend"><span id="startTimeLabel">00:00</span><span id="endTime">—</span></div>
       </div>
+      <!-- Decision Lens: source-backed replay evidence, not a tactical verdict. -->
+      <details class="panel decision-lens" id="decisionLensPanel">
+        <summary>Decision Lens <span class="lens-summary-status" id="lensSummary">Pin a coaching moment to compare positioning</span></summary>
+        <div class="lens-body">
+          <p class="small-copy">Inspect the recorded positions at a decision, repeatedly replay its setup, and reveal the actual follow-through separately. This does not simulate alternatives or establish whether a decision was correct.</p>
+          <div class="lens-actions" role="group" aria-label="Decision Lens replay controls">
+            <button type="button" class="button-mini" id="lensPinBtn" disabled>Pin current frame</button>
+            <button type="button" class="button-mini" id="lensApproachBtn" disabled>−3s Approach</button>
+            <button type="button" class="button-mini" id="lensDecisionBtn" disabled>Decision t0</button>
+            <button type="button" class="button-mini" id="lensLoopBtn" disabled>Loop 5s scene</button>
+            <button type="button" class="button-mini" id="lensRevealBtn" disabled>Reveal actual +2s</button>
+            <button type="button" class="button-mini" id="lensAfterBtn" disabled>Jump to +2s</button>
+            <button type="button" class="button-mini" id="lensClearBtn" disabled>Clear Lens</button>
+          </div>
+          <div class="lens-metrics" id="lensMetrics" aria-label="Observed decision time measurements">
+            <p class="small-copy">No moment pinned. Select a coaching finding or pin the current replay time.</p>
+          </div>
+          <p class="small-copy lens-status" id="lensStatus" role="status">The 2D map will show recorded t0 positions. Future positions remain hidden until you reveal them.</p>
+        </div>
+      </details>
       <!-- Interactive AI Coaching Experience (Round 9) -->
       <section class="panel coaching-section" id="coachingSection" aria-label="Interactive AI Coaching Experience">
         <div id="coachingExperienceContainer"></div>
@@ -173,6 +193,7 @@
   </main>
   <div class="toast" id="toast" role="alert" aria-live="polite"></div>
   <script src="/static/viewer3d-math.js"></script>
+  <script src="/static/decision-lens.js"></script>
   <script src="/static/boost-pad-state.js"></script>
   <script src="/static/coaching-fixtures.js"></script>
   <script src="/static/coaching-experience.js"></script>

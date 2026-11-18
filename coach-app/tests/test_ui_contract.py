@@ -58,3 +58,31 @@ def test_native_replay_load_and_seek_are_explicit_and_not_websocket_probe_driven
     assert "companionMatchConfirmed" in js
     assert "A new browser replay is NOT proof" in js
     assert "transmission is NOT execution" in js
+
+
+def test_decision_lens_is_real_interactive_review_not_a_fake_tactical_verdict():
+    html = (ROOT / "index.html").read_text(encoding="utf-8")
+    js = (ROOT / "app.js").read_text(encoding="utf-8")
+    source = (ROOT / "decision-lens.js").read_text(encoding="utf-8")
+    coach = (ROOT / "coaching-experience.js").read_text(encoding="utf-8")
+
+    assert '<script src="/static/decision-lens.js"></script>' in html
+    assert '<details class="panel decision-lens" id="decisionLensPanel">' in html
+    for control in (
+        "lensPinBtn", "lensApproachBtn", "lensDecisionBtn",
+        "lensLoopBtn", "lensRevealBtn", "lensAfterBtn",
+        "lensClearBtn", "lensMetrics", "lensStatus",
+    ):
+        assert f'id="{control}"' in html
+        assert control in js
+    assert 'replay-lab:coaching-moment' in coach
+    assert 'replay-lab:coaching-moment' in js
+    assert 'pinDecisionLens' in js
+    assert 'loopNext' in js
+    assert 'renderDecisionLensOverlay' in js
+    assert "lens.revealed&&w.after" in js
+    assert "last recorded" in source.lower() or "last recorded" in source[:800].lower()
+    assert "predictionsMade:false" in source
+    assert "coachingGradeAssigned:false" in source
+    assert 'future_recording_separate' in source
+    assert "outcome" not in html.split('id="decisionLensPanel">',1)[1].split('</details>',1)[0].lower()
