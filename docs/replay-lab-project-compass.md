@@ -1,6 +1,6 @@
 # Replay Lab — Project Compass (read first)
 
-## CURRENT OPERATIONAL HANDOFF — 18 November 2026 / Round 12
+## CURRENT OPERATIONAL HANDOFF — 18 November 2026 / Round 12B
 
 **READ THIS SECTION FIRST; older entries below are historical and may
 contradict the current code.** GitHub PR heads and exact CI checks outrank
@@ -27,8 +27,9 @@ claim that the product has passed real-browser, real-game, or expert testing.
   League recreation; small 2D tactical pitch; synchronized HD+2D split view.
   The basic geometric 3D mode is **retired** (do not preserve as an option or
   split-view fallback). PR #24 contains the earlier actual HD-first UI; the
-  Antigravity PR #43 now removes it from the active coaching UI. PR #41
-  model-readiness and PR #42 additional HD refinements are still separate.
+  Antigravity PR #43 removed it from the active coaching UI. PR #47
+  now integrates PR #41 model transport/readiness into that frontend.
+  PR #42 camera/trails remain separate pending Antigravity's HD improvements.
 - **Develop BOTH visual backends:** (1) standalone, independent HD WebGL/WASM
   renderer with native-replay camera states where available and (2) optional
   native installed Rocket League replay companion via documented Stats API.
@@ -61,13 +62,16 @@ claim that the product has passed real-browser, real-game, or expert testing.
    candidate shortlist + <=4 lesson previews, no LLM, no fake fallback.
    Head `b2d0e66`, 369 passed/4 skipped, 3 workflows green.
 4. [PR #41](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/41)
-   **current latest ChatGPT coaching/testing branch**, stacked on #39.
+   **earlier ChatGPT coaching/testing branch**, stacked on #39.
    `/api/coach/model-readiness` no-network provider preflight,
    `round12-test-windows.cmd`, `scripts/round12_acceptance.py`,
    opt-in **one** sanitized real-model request, read-only native TCP port
    probe and privacy-safe diagnostics. Tested local HTTP provider stub,
    **NOT a real trained model or GC coaching quality**. Head `1152a5d`,
-   **392 passed/4 skipped**, all 3 workflows green.
+   **392 passed/4 skipped**, all 3 workflows green. The API, provider
+   transport, Windows acceptance runner and tests have now been carried
+   into integrated UI PR #47, so don't independently reapply PR #41
+   over newer frontend code.
 5. [PR #40](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/40)
    **Claude independent Round 11 tactical/evaluation branch** from #38,
    head `f05f73e`, 3 workflows green. Falsified a fixed 0.55 s V1 reach
@@ -135,21 +139,42 @@ claim that the product has passed real-browser, real-game, or expert testing.
    owner Windows replay here**; no native game acceptance. Full docs:
    `coach-app/docs/round12/DECISION_LENS_V0.md` on PR #46.
    This is actual user-facing UX, not proof of high-rank coaching quality.
-11. [PR #45](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/45)
+11. [PR #47](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/47)
+   **ChatGPT's substantial Round 12B actual AI-model coaching UI**, head
+   `09d6044e`, stacked on #46 (#43 -> #44 -> #46 -> #47).
+   Fixed a previously broken one-call review-bundle-to-episode mapping:
+   each lesson now carries EXACT audited
+   `decision_times`, `episode_start_s`, and `primary_t0`, rather
+   than the invalid outer review-bundle request. Users can now select a
+   real primary decision, check local model configuration, explicitly
+   authorize ONE model request, see only accepted source-cited
+   `model_proposal` statements, inspect original sources locally,
+   rate useful/incorrect/missing-context, and export feedback locally.
+   No conversational chatbot, no automatic spend or fabricated fallback.
+   Merges all compatible provider readiness/JSON parsing, Windows
+   native-replay test runner and real local HTTP model-stub checks
+   previously in #41. **Exact head verified:** **405 Python passed /
+   13 skipped**, **25/25 Node viewer/Decision Lens/model-UI tests**,
+   all 3 GitHub workflows green. No real paid/local trained provider
+   tested; source checks DO NOT verify strategic quality. Docs:
+   `coach-app/docs/round12b/ACTUAL_MODEL_COACHING_UI.md`
+   on #47. Keep this coaching UI branch as frontend baseline when
+   Antigravity advances HD on its separate branch.
+12. [PR #45](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/45)
    **Claude's Round 12 tactical intelligence PR**, head `619914f`,
    stacked on Claude's earlier #40. Introduces an experimental,
    opt-in situation-aware `CoachingReportV1` with two-stage findings.
    Claude's PR body states its real replay cohort evaluation is still
    in progress, so its integration and empirical merit are **pending**.
    Do not confuse this tactic backend branch with the HD UI branch.
-12. [PR #28](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/28)
+13. [PR #28](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/28)
    Earlier native Stats API companion, independently drafted. Real
    Rocket League loading/seek/POV/pause/speed **NOT verified in a live
    running game**. Antigravity #43 provides another implementation;
    reconcile after source review and real game acceptance. A listening
    port is not game authentication; actual Windows game testing requires
    owner's explicit permission.
-13. [PR #25](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/25)
+14. [PR #25](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/25)
    is this canonical project compass. It remains a separate docs-only
    draft; future sessions should read the linked branch version rather than
    assume this file is already on `main`.
@@ -180,12 +205,13 @@ claim that the product has passed real-browser, real-game, or expert testing.
    native replay load and strict WebGL/asset readiness tests.
 2. Review Claude's larger Round 12 backend and integrate only supported
    tactical contracts; V1 unvalidated grading stays opt-in.
-3. Build the final unified **draft integration branch** from #43
-   through #44 and #46's real Decision Lens UX, plus model acceptance
-   #41, indexed camera/tire-shader fixes #42 and Claude's tactical
-   #45 (after its cohort evaluation and contract review). Resolve actual
-   conflicts; preserve event-source timing and model-version gating.
-   Do not overwrite newer UI with an older ancestor. No `main` merge.
+3. Build the final unified **draft integration branch** from #47,
+   which already contains #43, #44, #46 and the compatible model
+   readiness/acceptance code from #41. Integrate Claude's tactical #45
+   (once evaluation supports its versioned contract) and Antigravity's
+   upcoming HD/native branch, including safe camera/tire-shader #42
+   changes. DO NOT reapply obsolete app.js, coach controller or API
+   from a base ancestor over PR #47. No `main` merge.
 4. Browser-test on an actual **native .replay file**: replay/player
    confirmation, 2D, actual HD geometry/textures/camera/boost/trails,
    split sync, source-backed shortlist, lesson->seek, evidence, model
