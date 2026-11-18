@@ -18,6 +18,8 @@ from collections import Counter, defaultdict
 from pathlib import Path
 from typing import Any
 
+from .clip_media_gate import InvalidReviewVideo, verify_clip_media
+
 CHOICES = ("challenge", "shadow", "fake", "other", "unclear")
 DETECTOR_CHOICES = ("challenge", "shadow", "unclear")
 CONFIDENCES = ("low", "medium", "high")
@@ -372,6 +374,13 @@ def main() -> None:
             f = source_dir / row["source_clip_file"]
             _need(f.is_file() and f.resolve().parent == source_dir,
                   f"Clip missing from source directory: {f.name}")
+            # A valid filename/EBML header is NOT evidence of usable replay
+            # video. Refuse 1-frame placeholders and mismatched durations
+            # before any reviewer packet is written.
+            try:
+                verify_clip_media(f, row["clip_end_s"] - row["clip_start_s"])
+            except InvalidReviewVideo as error:
+                raise ValueError(f"{f.name}: {error}") from error
             source_files.append((f, row["blinded_clip_file"]))
         args.output_dir.mkdir(parents=True, exist_ok=True)
         target_dir = args.output_dir / "clips"

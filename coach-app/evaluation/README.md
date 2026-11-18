@@ -482,3 +482,37 @@ For each requested t0 it chooses only the latest OUTPUT frame at or before t0 (d
 Every result currently says native_packet_freshness: unverifiable. An experimental nativeUpdateTimeS optional field from any future decoder is reported only as an UNVERIFIED hint, never a certificate; impossible post-row/post-t0 time hints are rejected. This project currently has no authoritative source-time extractor. Never promote inferred visual states to coaching facts on this evidence alone.
 
 NEXT: Independently implement and audit a raw native-actor-update source-time collector. Measure real replay per-actor update intervals, match them to dense ndarray samples, and quantify uncertainty around the exact decision times. Only then add a calibrated production coaching freshness policy. The current auditor changes no replay data or live coaching, does not call a model, and makes no unsupported native freshness claims.
+
+## Round 5 critical source-video integrity gate (Antigravity handoff)
+
+Antigravity Round 5 branch feature/replay-fidelity-near-native-20261117
+contains a proposed "clip exporter" whose create_minimal_webm_clip writes
+a WebM/VP8 *container and a single dummy video frame*. Its unit tests
+check container magic and manifests, NOT rendered Rocket League match
+footage. This is NOT a playable decision-window exporter and must never
+be used to obtain expert blind ratings. The backend currently has no
+real replay-to-WebM exporter capable of producing all needed anonymized
+candidate footage. That remains an upstream integration blocker.
+
+The commitment_review prepare CLI now requires ffprobe (from FFmpeg)
+on PATH and checks *each selected source clip* before copying anything.
+It fails closed if ffprobe is absent, the stream is missing, reported
+duration differs from its manifest interval, frame rate is too low, or
+there are too few video frames to represent the required interval.
+At least 15 FPS and a majority of expected temporal frames must be
+present. A one-frame WebM with a fake long duration will not pass.
+The code specifically does not accept a header-only fallback.
+
+Example usage remains:
+
+    python -m evaluation.commitment_review prepare --manifest private_manifest.json --clips-dir private_clip_files --output-dir private_review
+
+This mechanical gate does **not** prove the video depicts the chosen
+replay, has a neutral outlined target car, preserves the exact t0 offset,
+or removes identity and outcome hints. Before giving any files to a
+reviewer, manually inspect EVERY clip at its beginning, t0 neighborhood
+and ending for correct replay/player, smooth/legible visuals, correct
+timing, visible outcomes, scoreboard or gamertags. Use a preregistered
+independent shadow/nonchallenge source. Keep the private mapping
+separate from the reviewed videos. Never advertise reviewed-coaching
+accuracy until actual humans have submitted independent ratings.
