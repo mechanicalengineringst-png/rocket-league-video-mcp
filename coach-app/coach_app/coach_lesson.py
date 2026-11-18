@@ -27,7 +27,7 @@ SECTIONS = frozenset((
 ))
 MODEL_CLAIM_KEYS = frozenset((
     "claim_id", "node_id", "section", "epistemic_type",
-    "temporal_scope", "cited_evidence_ids", "predicate_checks", "text",
+    "temporal_scope", "cited_evidence_ids", "predicate_checks", "text", "tactical_claim_ids",
 ))
 REF = re.compile(r"^(N[1-4])/(E\.[A-Za-z0-9_.-]+|C\.[A-Za-z0-9_.-]+|U\.[A-Za-z0-9_.-]+)$")
 MODEL_ID = re.compile(r"^[a-zA-Z][a-zA-Z0-9_.:-]{0,63}$")
@@ -87,7 +87,7 @@ def _baseline_facts(primary: dict[str, Any]) -> list[dict[str, Any]]:
     return out
 
 
-def _checked_draft_claim(claim: dict[str, Any], packet: dict[str, Any]) -> tuple[dict | None, list[str]]:
+def _checked_draft_claim(claim: dict[str, Any], packet: dict[str, Any], tactical_context: dict[str, Any]) -> tuple[dict | None, list[str]]:
     """Validate global citations, their availability AT the target node and facts.
 
     Each node's own claim verifier enforces source types and typed numeric
@@ -125,6 +125,26 @@ def _checked_draft_claim(claim: dict[str, Any], packet: dict[str, Any]) -> tuple
     preds = claim.get("predicate_checks", [])
     if not isinstance(preds, list) or len(preds) > 12:
         return None, errors + ["Invalid typed predicate list."]
+
+    # Tactical claim IDs are a *second evidence link*, not a proof that the
+    # English recommendation is strategically sound. They must be produced by
+    # the verified local TacticalOptions engine, at the cited decision only.
+    tactical_refs = claim.get("tactical_claim_ids", [])
+    if (not isinstance(tactical_refs, list) or len(tactical_refs) > 8
+            or len(set(tactical_refs)) != len(tactical_refs)
+            or not all(isinstance(v, str) for v in tactical_refs)):
+        return None, errors + ["Malformed tactical claim IDs."]
+    tactical_index = {c["claim_id"]: c for c in tactical_context.get("claims", [])}
+    for tactical_ref in tactical_refs:
+        cited_claim = tactical_index.get(tactical_ref)
+        if cited_claim is None or cited_claim["node_id"] != nid:
+            errors.append("Tactical claim ID does not belong to this decision.")
+            continue
+        if not any(source in refs for source in cited_claim["evidence_refs"]):
+            errors.append("Tactical claim is not linked to its underlying cited evidence.")
+        if (cited_claim["epistemic_type"] == "UNKNOWN_INFORMATION"
+                and typ != "UNKNOWN_INFORMATION"):
+            errors.append("An unknown tactical claim cannot support a positive assertion.")
 
     by_node: dict[str, list[str]] = {}
     checks_by_node: dict[str, list[dict[str, Any]]] = {}
@@ -240,6 +260,7 @@ def _checked_draft_claim(claim: dict[str, Any], packet: dict[str, Any]) -> tuple
         "claim_id": claim_id, "node_id": nid, "section": section,
         "epistemic_type": typ, "text": text.strip(),
         "evidence_refs": list(refs), "predicate_checks": checked,
+        "tactical_claim_ids": list(tactical_refs),
         "review_status": "needs_semantic_review",
         "review_warnings": list(dict.fromkeys(warnings + [
             "Evidence matching does not establish tactical correctness or English entailment.",
@@ -283,7 +304,7 @@ def build_lesson_from_episode(episode: dict[str, Any], *, model_draft: dict[str,
                 rejected.append({"index": i, "reason": "Missing or duplicate claim id."})
                 continue
             seen.add(cid)
-            checked, errors = _checked_draft_claim(claim, packet)
+            checked, errors = _checked_draft_claim(claim, packet, tactical_context)
             if status == "abstain" and checked and checked["epistemic_type"] != "UNKNOWN_INFORMATION":
                 checked, errors = None, ["Primary decision lacks usable evidence; positive verdict abstained."]
             if checked:
