@@ -86,6 +86,37 @@ try {
   }
   console.log(`HD viewer rendered WebGL canvas with ${meshes} meshes; visual fidelity remains unverified.`);
 
+  // 7c. The new Decision Lens is a genuine interaction, not a static badge.
+  // The selected coaching node pins a recorded t0 snapshot. The actual
+  // +2s recording must be hidden until the tester explicitly reveals it.
+  const lensPanel=page.locator('#decisionLensPanel');
+  await lensPanel.waitFor({state:'visible'});
+  const pinned=await lensPanel.evaluate(el=>el.open);
+  if (!pinned) throw new Error('Selecting a real coaching moment failed to open Decision Lens.');
+  const before=await page.locator('#lensMetrics .lens-metric').count();
+  if (before < 6) throw new Error('Decision-time source metrics were not rendered.');
+  const futureInitially=await page.locator('#lensMetrics').textContent();
+  if ((futureInitially||'').includes('Actual Δ focus')) {
+    throw new Error('Post-decision distances leaked before explicit reveal.');
+  }
+  await page.click('#lensRevealBtn');
+  const after=await page.locator('#lensMetrics').textContent();
+  if (!(after||'').includes('Actual Δ focus')) {
+    throw new Error('Actual recorded follow-through did not appear after reveal.');
+  }
+  const ghostLabels=await page.locator('#decisionLensOverlay text').allTextContents();
+  if (!ghostLabels.includes('+2s actual')) {
+    throw new Error('Recorded +2s ghost markers did not appear on the tactical map.');
+  }
+  await page.click('#lensLoopBtn');
+  await page.waitForTimeout(500);
+  const loopState=await page.locator('#lensLoopBtn').textContent();
+  if (!loopState?.includes('Stop scene loop')) {
+    throw new Error('Bounded Decision Lens playback loop did not start.');
+  }
+  await page.click('#lensLoopBtn');
+  console.log('Verified: t0 metrics, explicit future reveal and synchronized scene replay loop.');
+
   // 8. Test Tester Feedback functionality
   const usefulBtn = await page.waitForSelector('.feedback-btn.useful', { timeout: 10000 });
   await usefulBtn.click();
