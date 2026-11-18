@@ -131,8 +131,8 @@ def _checked_draft_claim(claim: dict[str, Any], packet: dict[str, Any], tactical
     # the verified local TacticalOptions engine, at the cited decision only.
     tactical_refs = claim.get("tactical_claim_ids", [])
     if (not isinstance(tactical_refs, list) or len(tactical_refs) > 8
-            or len(set(tactical_refs)) != len(tactical_refs)
-            or not all(isinstance(v, str) for v in tactical_refs)):
+            or not all(isinstance(v, str) for v in tactical_refs)
+            or len(set(tactical_refs)) != len(tactical_refs)):
         return None, errors + ["Malformed tactical claim IDs."]
     tactical_index = {c["claim_id"]: c for c in tactical_context.get("claims", [])}
     for tactical_ref in tactical_refs:
