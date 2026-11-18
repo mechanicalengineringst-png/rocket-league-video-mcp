@@ -117,6 +117,27 @@
       <section class="panel coaching-section" id="coachingSection" aria-label="Interactive AI Coaching Experience">
         <div id="coachingExperienceContainer"></div>
       </section>
+      <!-- Optional real AI inference. One explicit user action per model call;
+           deterministic baseline and offline review remain available. -->
+      <details class="panel model-coach-panel" id="modelCoachPanel">
+        <summary>AI coaching proposals <span id="modelCoachReadiness" class="model-coach-readiness">Checking model settings</span></summary>
+        <div class="model-coach-body">
+          <p class="small-copy">One explicitly authorized request analyzes the selected decision using a model already configured on your local server. The remote provider (if configured) receives a sanitized pre-decision evidence packet, not the raw replay file. Model use may cost money. Source-matched claims are still <strong>unverified tactical hypotheses</strong>.</p>
+          <p id="modelCoachSelected" class="model-coach-selected">Select a real coaching moment.</p>
+          <div class="model-coach-actions">
+            <button type="button" id="modelCoachRefreshBtn" class="button-mini">Check model configuration</button>
+            <label class="view-toggle model-coach-consent">
+              <input id="modelCoachConsent" type="checkbox" />
+              I authorize <strong>one</strong> model request using sanitized decision evidence; I understand it may incur provider charges.
+            </label>
+            <button type="button" id="modelCoachRunBtn" class="button button-primary" disabled>Generate AI coaching for this decision</button>
+            <button type="button" id="modelCoachExportBtn" class="button-mini">Export AI testing feedback (local JSON)</button>
+          </div>
+          <p id="modelCoachStatus" class="small-copy model-coach-status" role="status" aria-live="polite">No model request has been made.</p>
+          <div id="modelCoachResults" class="model-coach-results" aria-label="Accepted model suggestions and feedback"></div>
+          <div id="modelCoachEvidence" class="model-coach-evidence" aria-label="Locally retrieved source evidence"></div>
+        </div>
+      </details>
       <details class="video-panel panel" id="videoPanel">
         <summary>Optional gameplay video <span>Attach an MP4 / WebM recording for visual context</span></summary>
         <div class="video-body">
@@ -197,6 +218,7 @@
   <script src="/static/boost-pad-state.js"></script>
   <script src="/static/coaching-fixtures.js"></script>
   <script src="/static/coaching-experience.js"></script>
+  <script src="/static/model-coaching.js"></script>
   <script src="/static/app.js" defer></script>
   <script src="/static/hd-bridge.js" defer></script>
 </body>
