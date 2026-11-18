@@ -414,3 +414,53 @@ Known limitations:
 - Run the broader 60-case tactical-quality study **after** timing/provenance
   issues have been resolved. Don't merge research modules into live coaching
   without expert review.
+
+## Round 5: Paired, replay-grouped comparison before claiming a coaching improvement
+
+Use the same frozen independently reviewed cases and two actual candidate-system
+prediction exports. Do not let a model with one cherry-picked correct answer
+appear stronger than a system that attempts every difficult case.
+
+From coach-app:
+
+```bash
+python -m evaluation.paired_compare \
+  --cases local_review/cases.json \
+  --predictions local_review/predictions.json \
+  --reviews local_review/resolved.json \
+  --system-a baseline-rules \
+  --system-b candidate-model \
+  --bootstrap-samples 2000 \
+  --output PRIVATE_paired_comparison.json
+```
+
+The tool reuses the strict predecision evidence, review and prediction
+validators from evaluation.score, then compares *both* systems on the exact same
+two-reviewer consensus cases. Expert-disputed, indeterminate or unreviewed
+moments are reported separately, never promoted into ground truth.
+
+Four distinct metrics are reported:
+- grounded_correct: correct expert-consensus label WITH citations referencing
+  keys available at t0; missing/abstained/uncited outputs count as zero.
+- grounded_coverage: fraction of reviewed cases receiving any citation-valid
+  non-abstaining assessment (not a semantic correctness guarantee).
+- false_blame_on_sound: risk accusations on moments expert reviewers marked
+  sound, even when those accusations have no valid citations.
+- unsupported_attempt: an attempted non-abstaining output with absent, unknown
+  or duplicated evidence citations.
+
+For each metric, read the case-weighted rate and the equal-match-weighted rate.
+A replay with 50 highly correlated moments must not silently outweigh a replay
+with five. A deterministic cluster bootstrap resamples whole match groups,
+never individual frames, to provide an *exploratory* 95% interval for the
+equal-match difference (first system minus second). An interval is omitted
+rather than invented if fewer than three match groups contain eligible cases.
+No p-value, population generalization, expert truth or automatic architecture
+winner is asserted. Interpretation still requires matching comparable player
+skill, mode, source quality, and reliable human judgments.
+
+The standard benchmark evaluation.score remains the canonical raw scorer.
+paired_compare is independent of all live coaching endpoints and does not call
+or train any AI model. It is a measurement tool, not evidence that either
+current system is high-rank accurate. Before publishing comparisons, audit the
+cohort provenance, independent selection rates and every source-video clip.
