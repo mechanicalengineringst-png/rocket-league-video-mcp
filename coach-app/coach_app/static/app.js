@@ -576,6 +576,17 @@ function decisionLensMetric(label, value, description=''){
 function fmtUnits(n,suffix='u'){
   return Number.isFinite(n) ? '≈'+(Math.round(n/25)*25).toLocaleString('en-US')+' '+suffix : 'Unknown';
 }
+function lensOffsetLabel(w){
+  if(!w)return '2';
+  const n=Math.max(0,w.end-w.t0);
+  return Math.abs(n-Math.round(n))<0.02?String(Math.round(n)):n.toFixed(1);
+}
+function cancelDecisionLensLoop(){
+  if(state.decisionLens?.loop){
+    state.decisionLens.loop=false;
+    renderDecisionLensPanel();
+  }
+}
 function updateDecisionLensClock(){
   const label=$('lensSummary'),lens=state.decisionLens;
   if(!label)return;
@@ -591,14 +602,21 @@ function renderDecisionLensPanel(){
     'lensAfterBtn','lensClearBtn'];
   for(const id of ids){const b=$(id);if(b)b.disabled=!windowData;}
   if($('lensPinBtn'))$('lensPinBtn').disabled=!hasReplay;
+  if($('lensApproachBtn'))$('lensApproachBtn').textContent=windowData?
+    '−'+(windowData.t0-windowData.start).toFixed(1)+'s Approach':'−3s Approach';
+  if($('lensAfterBtn'))$('lensAfterBtn').textContent=windowData?
+    'Jump to +'+lensOffsetLabel(windowData)+'s':'Jump to +2s';
   if($('lensAfterBtn'))$('lensAfterBtn').disabled=!windowData?.after || !lens?.revealed;
   if($('lensRevealBtn')) {
     $('lensRevealBtn').disabled=!windowData?.after;
-    $('lensRevealBtn').textContent=lens?.revealed?'Hide actual +2s':'Reveal actual +2s';
+    $('lensRevealBtn').textContent=(lens?.revealed?'Hide':'Reveal')+
+      ' actual +'+lensOffsetLabel(windowData)+'s';
   }
   if($('lensLoopBtn')){
     $('lensLoopBtn').disabled=!windowData || windowData.end-windowData.start<0.5;
-    $('lensLoopBtn').textContent=lens?.loop?'Stop scene loop':'Loop scene (−3 to +2s)';
+    $('lensLoopBtn').textContent=lens?.loop?'Stop scene loop':
+      windowData?'Loop scene (−'+(windowData.t0-windowData.start).toFixed(1)+
+        ' / +'+lensOffsetLabel(windowData)+'s)':'Loop scene (−3 to +2s)';
     $('lensLoopBtn').classList.toggle('active',Boolean(lens?.loop));
   }
   updateDecisionLensClock();
@@ -700,7 +718,7 @@ function renderDecisionLensOverlay(parent){
       group.append(el('text',{
         x:x+18,y:y-19,fill:color,'font-size':10,'font-weight':700,
         'paint-order':'stroke',stroke:'#071924','stroke-width':3
-      },after?'+2s actual':'t0'));
+      },after?'+'+lensOffsetLabel(w)+'s actual':'t0'));
     }
   };
   // After snapshots are not drawn until explicitly revealed, regardless
@@ -984,10 +1002,10 @@ function wire(){
   zone.ondragleave=()=>zone.classList.remove('dragging');
   zone.ondrop=e=>{e.preventDefault();zone.classList.remove('dragging');loadFile(e.dataTransfer.files[0]);};
   $('playerSelect').onchange=e=>{clearDecisionLens();state.focusId=e.target.value;state.focusConfirmed=true;if(state.replay?.source!=='synthetic')remembered.set(state.focusId);state.overrides.clear();refreshFindings();chooseTime(state.time);window.coachingController?.resetForReplay(state.replay?.source==='synthetic');if(state.replay?.source!=='synthetic')loadDecisionCasesForCoaching(state.replay,state.focusId);};
-  $('timeRange').oninput=e=>{stopPlay();chooseTime(Number(e.target.value));};
+  $('timeRange').oninput=e=>{stopPlay();cancelDecisionLensLoop();chooseTime(Number(e.target.value));};
   $('playBtn').onclick=togglePlay;
-  $('backBtn').onclick=()=>{stopPlay();chooseTime(state.time-2);};
-  $('forwardBtn').onclick=()=>{stopPlay();chooseTime(state.time+2);};
+  $('backBtn').onclick=()=>{stopPlay();cancelDecisionLensLoop();chooseTime(state.time-2);};
+  $('forwardBtn').onclick=()=>{stopPlay();cancelDecisionLensLoop();chooseTime(state.time+2);};
   $('playSpeed').onchange=e=>{
     const speed=Number(e.target.value);state.speed=Number.isFinite(speed)&&speed>0?speed:1;
     if(state.videoUrl&&state.videoAligned)$('gameVideo').playbackRate=state.speed;
