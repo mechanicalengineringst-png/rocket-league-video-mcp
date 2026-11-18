@@ -16,6 +16,7 @@ from typing import Any
 from .claim_verifier import CLAIM_TYPES, NUMBER_IN_PROSE, verify_stage1_claims
 from .episode_stage1 import SCHEMA as PACKET_SCHEMA, build_stage1_episode_packet
 from .stage1_packet import Stage1PacketError, _copy_json_safe
+from .tactical_coach_adapter import build_verified_tactical_context
 
 SCHEMA = "CoachLessonV0"
 DRAFT_SCHEMA = "CoachDraftV0"
@@ -254,6 +255,7 @@ def build_lesson_from_episode(episode: dict[str, Any], *, model_draft: dict[str,
     Invalid individual claims are discarded and reported, not shown as facts.
     """
     packet = build_stage1_episode_packet(episode)
+    tactical_context = build_verified_tactical_context(packet)
     primary = packet["nodes"][-1]
     status = packet["status"]
     base_claims = _baseline_facts(primary)
@@ -315,6 +317,7 @@ def build_lesson_from_episode(episode: dict[str, Any], *, model_draft: dict[str,
             "model_hypothesis_not_expert_validated" if assessment != "undetermined"
             else "no_verified_tactical_verdict")},
         "claims": base_claims + accepted,
+        "tactical_options": tactical_context,  # uncalibrated menu, NOT an expert verdict
         "earlier_factors": [
             {"hypothesis_id": h["id"], "earlier_node": h["earlier_node"],
              "evidence_refs": h["evidence_refs"], "status": "hypothesis_unverified"}
