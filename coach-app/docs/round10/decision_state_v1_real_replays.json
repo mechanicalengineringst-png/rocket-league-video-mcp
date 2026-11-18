@@ -1,0 +1,156 @@
+{
+ "episodes": 625,
+ "status_ok": 455,
+ "claims": 5371,
+ "claims_rejected": 0,
+ "truncation_checked": 127,
+ "truncation_identical": 127,
+ "status_partial": 149,
+ "status_abstain": 21,
+ "profile": {
+  "forced_contest": 394,
+  "mixed": 168,
+  "restraint_window": 42
+ },
+ "ball_state": {
+  "contested": 394,
+  "opponent_first": 210
+ },
+ "stance_by_action_v1": {
+  "immediate_challenge": {
+   "defensible_gamble": 202,
+   "robustly_defensible": 211,
+   "questionable": 42,
+   "undetermined": 149
+  },
+  "controlled_fifty_fifty": {
+   "defensible_gamble": 152,
+   "not_available": 210,
+   "robustly_defensible": 138,
+   "undetermined": 104
+  },
+  "controlled_touch": {
+   "not_available": 604
+  },
+  "clear_or_pass_to_space": {
+   "defensible_gamble": 152,
+   "not_available": 210,
+   "robustly_defensible": 138,
+   "undetermined": 104
+  },
+  "shadow_delay": {
+   "defensible_tradeoff": 290,
+   "robustly_defensible": 210,
+   "undetermined": 104
+  },
+  "goal_side_hold": {
+   "defensible_tradeoff": 290,
+   "robustly_defensible": 210,
+   "undetermined": 104
+  },
+  "fake_challenge": {
+   "defensible_tradeoff": 290,
+   "robustly_defensible": 210,
+   "undetermined": 104
+  },
+  "yield_to_teammate": {
+   "not_available": 398,
+   "defensible_tradeoff": 206
+  },
+  "rotate_through_small_pads": {
+   "defensible_tradeoff": 562,
+   "questionable": 42
+  }
+ },
+ "supported_choices_per_episode_v1": {
+  "1": 62,
+  "2": 42,
+  "3": 40,
+  "4": 25,
+  "5": 83,
+  "6": 62,
+  "7": 212,
+  "8": 78
+ },
+ "robust_choices_per_episode_v1": {
+  "0": 256,
+  "3": 275,
+  "4": 73
+ },
+ "defensible_options_per_episode_v0": {
+  "3": 70,
+  "4": 46,
+  "5": 254,
+  "6": 209,
+  "7": 25
+ },
+ "eval_next_touch_own_team_by_ball_state": {
+  "contested": {
+   "n": 383,
+   "hits": 161,
+   "rate": 0.42
+  },
+  "opponent_first": {
+   "n": 199,
+   "hits": 42,
+   "rate": 0.211
+  }
+ },
+ "eval_opponent_regained_after_actual_challenge_by_v1_stance": {
+  "defensible_gamble": {
+   "n": 115,
+   "hits": 22,
+   "rate": 0.191
+  },
+  "robustly_defensible": {
+   "n": 124,
+   "hits": 28,
+   "rate": 0.226
+  },
+  "questionable": {
+   "n": 21,
+   "hits": 6,
+   "rate": 0.286
+  },
+  "undetermined": {
+   "n": 86,
+   "hits": 22,
+   "rate": 0.256
+  }
+ },
+ "eval_opponent_regained_after_actual_challenge_by_v0_stance": {
+  "questionable": {
+   "n": 56,
+   "hits": 14,
+   "rate": 0.25
+  },
+  "defensible": {
+   "n": 283,
+   "hits": 62,
+   "rate": 0.219
+  },
+  "defensible_with_conditions": {
+   "n": 7,
+   "hits": 2,
+   "rate": 0.286
+  }
+ },
+ "eval_opponent_regained_after_actual_delay_by_v1_profile": {
+  "mixed": {
+   "n": 58,
+   "hits": 23,
+   "rate": 0.397
+  },
+  "forced_contest": {
+   "n": 77,
+   "hits": 32,
+   "rate": 0.416
+  },
+  "restraint_window": {
+   "n": 10,
+   "hits": 4,
+   "rate": 0.4
+  }
+ },
+ "caveat": "Public unknown-rank replays; retrospective fields used only for scoring; the regain proxy mixes decision, execution and later play and is not a measure of decision quality."
+}
