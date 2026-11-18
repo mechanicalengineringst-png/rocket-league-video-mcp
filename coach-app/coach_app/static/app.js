@@ -712,7 +712,7 @@ function renderDecisionLensOverlay(parent){
     group.append(el('circle',{
       cx:x,cy:y,r:r+(after?4:0),fill:'none',stroke:color,
       'stroke-width':after?1.8:2.3,
-      'stroke-dasharray':after?'4 6':'2 3',opacity:after?.65:.85
+      'stroke-dasharray':after?'4 6':'2 3',opacity:after ? 0.65 : 0.85
     }));
     if(dot.role==='focus'||dot.role==='ball'){
       group.append(el('text',{
