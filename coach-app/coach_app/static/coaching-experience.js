@@ -355,61 +355,71 @@
      * Ask coaching follow-up question
      */
     async askQuestion(questionText, questionType) {
-      if (!questionText || !questionText.trim()) return;
-      if (this.isAnswering) return;
-
-      const qText = questionText.trim();
-      const qType = questionType || this.inferQuestionType(qText);
-
-      // Add user message
-      this.chatHistory.push({
-        sender: 'user',
-        text: qText,
-        citations: []
-      });
-
+      if (!questionText?.trim() || this.isAnswering) return;
+      const qText = questionText.trim().slice(0, 500);
+      const ep = this.activeEpisode;
+      this.chatHistory.push({sender:'user',text:qText,citations:[]});
       this.isAnswering = true;
       this.renderChatList();
-
       try {
-        // Attempt backend /api/coach-question if live replay is loaded
-        let answerData = null;
-        if (global.state && global.state.replay && this.activeEpisode.episode_id.startsWith('ep-case-')) {
-          const caseId = this.activeEpisode.episode_id.replace(/^ep-/, '');
-          const res = await fetch('/api/coach-question', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              replay: global.state.replay,
-              player_id: global.state.focusId || this.activeEpisode.player_id,
-              case_id: caseId,
-              question_type: qType,
-              question: qText
-            })
-          });
-          if (res.ok) {
-            answerData = await res.json();
-          }
-        }
-
-        // If backend returned answer, use it; otherwise use deterministic offline QA engine
-        if (answerData && answerData.answer) {
-          this.chatHistory.push({
-            sender: 'coach',
-            text: answerData.answer,
-            citations: answerData.citations || []
-          });
+        if (!ep?.backendRequest) {
+          // A demo must never pretend to be an evidence-verified live conversation.
+          this.chatHistory.push({sender:'coach',
+            text: 'This is a simulated demonstration. No live evidence-navigation or model conversation is available for this example.',
+            citations:[]});
         } else {
-          const answer = this.generateDeterministicAnswer(qText, qType);
-          this.chatHistory.push(answer);
+          const res = await fetch('/api/coach/followup', {
+            method:'POST',headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({...ep.backendRequest, mode:'deterministic', question:qText})
+          });
+          if (!res.ok) throw new Error('Evidence-navigation request failed (' + res.status + ').');
+          const data = await res.json();
+          if (data.schema !== 'CoachFollowupV0' || data.mode !== 'local_evidence_navigation')
+            throw new Error('Unrecognized coaching response.');
+          this.chatHistory.push({
+            sender:'coach',
+            text:'Evidence navigation (not AI conversation): ' + String(data.answer || 'No supported answer.'),
+            citations:(data.related_refs || []).filter(ref => typeof ref === 'string')
+          });
         }
       } catch (err) {
-        console.error('Coaching QA error:', err);
-        const fallback = this.generateDeterministicAnswer(qText, qType);
-        this.chatHistory.push(fallback);
+        this.chatHistory.push({sender:'coach',
+          text:'Evidence-navigation unavailable. No replay measurements or citations have been inferred.',
+          citations:[]});
       } finally {
         this.isAnswering = false;
         this.renderChatList();
+      }
+    }
+
+    async inspectEvidenceReference(id) {
+      const ep = this.activeEpisode;
+      if (!ep?.backendRequest) {
+        this.inspectEvidence((this.activeNode?.coaching?.observed_evidence || []).find(e => e.id === id)
+          || {id, label:'Demo citation',kind:'hypothesis',value:'No real replay source'});
+        return;
+      }
+      try {
+        const res = await fetch('/api/coach/evidence',{
+          method:'POST',headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({...ep.backendRequest,mode:'deterministic',evidence_refs:[id]})
+        });
+        if (!res.ok) throw new Error('Backend did not verify this evidence ID (' + res.status + ').');
+        const data = await res.json();
+        if (data.schema !== 'CoachEvidenceLookupV0' || data.retrospective_exposed !== false)
+          throw new Error('Unsupported evidence response.');
+        const item = (data.records || []).find(r=>r.id===id);
+        if (!item) throw new Error('Citation missing from reconstructed episode.');
+        const kind = item.kind || (item.category==='unverified_contributor_hypothesis'?'hypothesis':'derived');
+        this.inspectEvidence({id,kind,label:item.category||'Source record',
+          value:item.value === undefined ? (item.what || 'No numerical value') : JSON.stringify(item.value),
+          unit:item.unit || '',
+          provenance:JSON.stringify(item.provenance || item.verification || 'backend_source'),
+          description:'Server-verified reference lookup. Semantic tactical meaning is not expert verified.'});
+      } catch (err) {
+        this.inspectEvidence({id,kind:'unknown',label:'Unverified source',
+          value:'Unavailable',provenance:'none',
+          description:'The backend could not resolve this citation: ' + err.message});
       }
     }
 
@@ -433,59 +443,10 @@
     /**
      * Deterministic, Stage-1 compliant answer generator with explicit evidence citations
      */
-    generateDeterministicAnswer(question, qType) {
-      const node = this.activeNode || (this.activeEpisode && this.activeEpisode.nodes[this.activeEpisode.nodes.length - 1]);
-      const coaching = (node && node.coaching) || {};
-      const evidence = coaching.observed_evidence || [];
-      const alts = coaching.feasible_alternatives || [];
-      const earlier = coaching.earlier_contributors || [];
-
-      let answerText = '';
-      let citations = [];
-
-      switch (qType) {
-        case 'alternative_feasibility': {
-          const shadowAlt = alts.find(a => a.id.includes('shadow') || a.id.includes('hold'));
-          if (shadowAlt) {
-            answerText = `Shadowing was evaluated as **${shadowAlt.feasibility_label}** at t0 (${node.t0}s). With ${node.car_state ? node.car_state.boost : 24} boost [E.focus.boost], turning towards your own back-post allows matching the attacker's speed while your teammate completes recovery [E.teammate.spacing]. Diving into the 50/50 from a straight attack angle surrendered all recovery momentum.`;
-            citations = ['E.focus.boost', 'E.teammate.spacing'];
-          } else {
-            answerText = `At t0 (${node.t0}s), staying patient preserves goal-side coverage. Aggressive commitment carries high risk because your recovery window exceeds 2.5 seconds.`;
-          }
-          break;
-        }
-
-        case 'teammate_actions': {
-          const tmSpacing = evidence.find(e => e.id.includes('teammate.spacing') || e.id.includes('teammate'));
-          answerText = `At t0, your teammate was approximately ${node.teammate_state ? node.teammate_state.distance_to_focus : 2300} units behind play [E.teammate.spacing] with an estimated cover time of >2.0 seconds [E.teammate.cover_time]. Because second man was not yet established goal-side, a missed challenge or high flick eliminates both defenders.`;
-          citations = ['E.teammate.spacing', 'E.teammate.cover_time'];
-          break;
-        }
-
-        case 'what_would_change': {
-          answerText = `If your car had 60+ boost at t0 [E.focus.boost], a fast aerial challenge or rapid directional pivot would become physically feasible. However, because 28 boost was spent during the earlier N1 transition [D.N1-N2.boost], your low-boost state eliminated high-aerial reachability, leaving grounded fake-challenge or shadow defense as the only sound choices.`;
-          citations = ['E.focus.boost', 'D.N1-N2.boost'];
-          break;
-        }
-
-        case 'practice_priority': {
-          answerText = `**Key Takeaway**: ${coaching.takeaway || 'Prioritize buying time for your second man in 2v2 situations.'}\n\n**Practice Drill**: Set up custom training packs for 1st-man shadow defense from midfield. Focus on turning car-cam away from the play, feathering boost, and challenging only after the ball has left the opponent's roof.`;
-          break;
-        }
-
-        case 'why_flagged':
-        default: {
-          answerText = `${coaching.headline || 'Reviewed decision moment.'} At t0 (${node.t0}s), the opponent possessed tight ball control [E.opponent.possession] while your car approached at ${node.car_state ? node.car_state.speed_uups : 1670} uu/s [E.focus.speed]. Committing forward under these conditions surrendered positional leverage without teammate backline cover [E.teammate.spacing].`;
-          citations = ['E.opponent.possession', 'E.focus.speed', 'E.teammate.spacing'];
-          break;
-        }
-      }
-
-      return {
-        sender: 'coach',
-        text: answerText,
-        citations: citations
-      };
+    generateDeterministicAnswer() {
+      return {sender:'coach',
+        text:'A simulated example cannot supply verified measurements or live coaching answers.',
+        citations:[]};
     }
 
     /**
@@ -811,7 +772,7 @@
 
     formatMarkdown(text) {
       if (!text) return '';
-      return text
+      return escapeHTML(text)
         .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
         .replace(/\n\n/g, '<br/><br/>')
         .replace(/\[(E\.[a-zA-Z0-9_.]+|D\.[a-zA-Z0-9_.]+|N\d\/[a-zA-Z0-9_.]+)\]/g, '<span class="inline-cit">[$1]</span>');
@@ -832,7 +793,7 @@
         document.body.append(modal);
       }
 
-      const kindClass = item.kind || 'observation';
+      const kindClass = item.kind || 'unknown';
       const kindLabel = {
         observation: 'OBSERVED TELEMETRY (Raw Replay)',
         derived: 'DERIVED / ESTIMATED MODEL',
@@ -846,7 +807,7 @@
           <div class="modal-header">
             <div>
               <span class="modal-epistemic-tag tag-${kindClass}">${kindLabel}</span>
-              <h3 id="modalEvidenceTitle" class="modal-title">${item.label || item.id}</h3>
+              <h3 id="modalEvidenceTitle" class="modal-title">${escapeHTML(item.label || item.id)}</h3>
             </div>
             <button id="closeInspectorBtn" class="modal-close-btn" type="button" aria-label="Close inspector">✕</button>
           </div>
@@ -854,14 +815,14 @@
           <div class="modal-body">
             <div class="inspector-value-box">
               <span class="val-label">Recorded Value at t0:</span>
-              <strong class="val-number">${item.value}</strong>
-              ${item.unit ? `<span class="val-unit">(${item.unit})</span>` : ''}
+              <strong class="val-number">${escapeHTML(item.value)}</strong>
+              ${item.unit ? `<span class="val-unit">(${escapeHTML(item.unit)})</span>` : ''}
             </div>
 
             <div class="inspector-details-table">
               <div class="detail-row">
                 <span class="detail-key">Evidence ID:</span>
-                <span class="detail-val"><code>${item.id}</code></span>
+                <span class="detail-val"><code>${escapeHTML(item.id)}</code></span>
               </div>
               <div class="detail-row">
                 <span class="detail-key">Cutoff Timestamp:</span>
@@ -869,19 +830,19 @@
               </div>
               <div class="detail-row">
                 <span class="detail-key">Provenance Source:</span>
-                <span class="detail-val">${item.provenance || 'Replay Telemetry Sampler'}</span>
+                <span class="detail-val">${escapeHTML(item.provenance || 'Unknown')}</span>
               </div>
               <div class="detail-row">
                 <span class="detail-key">Description:</span>
-                <span class="detail-val">${item.description || item.label}</span>
+                <span class="detail-val">${escapeHTML(item.description || item.label)}</span>
               </div>
             </div>
 
             <div class="epistemic-explanation">
               <strong>Epistemic Guarantee:</strong>
               ${kindClass === 'observation'
-                ? 'This value was measured directly from the uncorrupted subtr-actor network packet replication stream. No extrapolation was performed.'
-                : 'This value was derived through physical kinematics (velocity, distance, trajectory). It is an estimate subject to physical assumptions.'}
+                ? 'Replay-derived observation. Source freshness and tactical interpretation remain independently unverified.'
+                : 'Evidence classification is provisional; derived or unknown values must not be treated as direct observation.'}
             </div>
           </div>
 
@@ -964,11 +925,7 @@
       // Evidence chips click -> Inspector modal
       const chipBtns = this.container.querySelectorAll('.evidence-chip');
       chipBtns.forEach(btn => {
-        btn.onclick = () => {
-          const eid = btn.getAttribute('data-evidence-id');
-          const ev = (this.activeNode.coaching?.observed_evidence || []).find(e => e.id === eid);
-          if (ev) this.inspectEvidence(ev);
-        };
+        btn.onclick = () => this.inspectEvidenceReference(btn.getAttribute('data-evidence-id'));
       });
 
       // Quick prompt pills
@@ -997,22 +954,7 @@
       // Clickable citations in chat
       const citTags = this.container.querySelectorAll('.citation-tag');
       citTags.forEach(tag => {
-        tag.onclick = () => {
-          const cid = tag.getAttribute('data-citation-id');
-          const ev = (this.activeNode.coaching?.observed_evidence || []).find(e => e.id === cid);
-          if (ev) {
-            this.inspectEvidence(ev);
-          } else {
-            this.inspectEvidence({
-              id: cid,
-              label: cid,
-              value: 'Telemetric constraint',
-              kind: 'observation',
-              provenance: 'packet_citation',
-              description: 'Referenced evidence from decision packet.'
-            });
-          }
-        };
+        tag.onclick = () => this.inspectEvidenceReference(tag.getAttribute('data-citation-id'));
       });
     }
 
