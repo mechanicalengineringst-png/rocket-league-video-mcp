@@ -216,3 +216,16 @@ def test_malformed_unhashable_model_fields_are_rejected_not_crashes():
     c["predicate_checks"][0]["relation"] = ["eq"]
     assert result(pkt, c)["status"] == "rejected"
 
+def test_numeric_claim_with_units_is_checked_and_2v2_does_not_count_as_a_claim_number():
+    packet = _packet()
+    c = claim(ref="E.focus.boost", path=[], value=50.0,
+              text="In 2v2 you had 50 boost but might have had a 0.7s recovery advantage.")
+    r = result(packet, c)
+    assert r["status"] == "rejected"
+    assert any("0.7" in e for e in r["errors"])
+
+    c["text"] = "In 2v2 you had 50 boost; first-man pressure was a possible option."
+    r2 = result(packet, c)
+    assert r2["status"] == "needs_semantic_review"
+    assert r2["errors"] == []
+
