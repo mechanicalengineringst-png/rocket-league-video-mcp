@@ -124,7 +124,7 @@
       anchor,after,
       recordedAfterTrace:after ? collectTrace(replay,t0,end,playerId) : {focus:[],ball:[]},
       temporalBoundary:'anchor_at_or_before_t0_future_recording_separate',
-      source:'recorded_replay_telemetry_not_simulated',
+      source:replay.source === 'synthetic' ? 'explicit_simulated_demo' : 'recorded_replay_telemetry',
       predictionsMade:false,
       coachingGradeAssigned:false
     };
