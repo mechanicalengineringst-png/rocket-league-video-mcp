@@ -1,0 +1,84 @@
+{
+ "episodes": 625,
+ "status_ok": 455,
+ "claims": 8185,
+ "claims_rejected": 0,
+ "truncation_checked": 127,
+ "truncation_identical": 127,
+ "status_partial": 170,
+ "abstain_reasons": {
+  "Teammate cover is unknown.": 170,
+  "An opponent's earliest touch is unknown, so the contest timing is unknown.": 21
+ },
+ "stance_by_action": {
+  "immediate_challenge": {
+   "questionable": 120,
+   "defensible": 470,
+   "defensible_with_conditions": 35
+  },
+  "controlled_fifty_fifty": {
+   "not_available": 418,
+   "defensible": 177,
+   "questionable": 8,
+   "not_assessable": 21,
+   "defensible_with_conditions": 1
+  },
+  "fake_challenge": {
+   "defensible": 389,
+   "not_available": 215,
+   "not_assessable": 21
+  },
+  "shadow_delay": {
+   "defensible": 406,
+   "defensible_with_conditions": 200,
+   "questionable": 19
+  },
+  "goal_side_hold": {
+   "defensible": 557,
+   "defensible_with_conditions": 68
+  },
+  "rotate_through_small_pads": {
+   "questionable": 102,
+   "defensible_with_conditions": 301,
+   "defensible": 222
+  },
+  "controlled_touch": {
+   "not_available": 602,
+   "not_assessable": 21,
+   "defensible": 2
+  },
+  "clear_or_pass_to_space": {
+   "not_available": 389,
+   "defensible": 215,
+   "not_assessable": 21
+  },
+  "yield_to_teammate": {
+   "not_available": 487,
+   "defensible": 138
+  }
+ },
+ "defensible_options_per_episode": {
+  "3": 70,
+  "4": 63,
+  "5": 258,
+  "6": 209,
+  "7": 25
+ },
+ "held_out_contest_band_check": {
+  "focus_late_close": {
+   "focus_touched_next": 81,
+   "n": 369,
+   "rate": 0.22
+  },
+  "even": {
+   "focus_touched_next": 77,
+   "n": 184,
+   "rate": 0.418
+  },
+  "focus_first": {
+   "focus_touched_next": 28,
+   "n": 29,
+   "rate": 0.966
+  }
+ }
+}
