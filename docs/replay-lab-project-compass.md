@@ -44,6 +44,19 @@
 
 **Integration graph:** Claude PR #22 → ChatGPT Stage 1 packet PR #27 → ChatGPT claim verifier PR #29; Claude episode assembler branches directly from #22 and will require explicit later rebase/integration. Antigravity PR #28 is stacked on PR #20 but unrelated to these tactical branches. ChatGPT PR #26 fixes legacy Gemini review in a different viewer branch; avoid cherry-picking or merging entire unrelated chains. Gemini produces evaluation spec only. **No merges into main.** When reviewing any PR, verify CI on its exact SHA, not only its ancestor.
 
+## Round 8 — Gemini expert-evaluation proposal RECEIVED (18 November 2026 UTC)
+
+Gemini delivered `replay_lab_round8_evaluation_package.md` as a 495-line **RL-EvalPilot-12** design with 12 tactical cases, predecision acceptable-action sets, outcome/false-blame traps, a proposed two-stage human review, blinded A/B grading, JSONL examples, per-claim error categories, and follow-up questions. **This is a research/design artifact, NOT code, a validated public-replay cohort, or completed expert ratings.** Gemini correctly disclosed no direct repo access.
+
+**Critical source-verified integration decisions** in [Round 8 Evaluation Package Review](REPLAY_LAB_ROUND8_GEMINI_EVAL_PACKAGE_REVIEW.md):
+1. B01–B05 bucket definitions often select on **post-t0** goals, misses, 50/50 outcomes; use in coordinator-only adversarial stress sampling, NEVER as Stage 1 features; preserve a separately tagged outcome-blind reference sample and PR #16's existing independently-sampled controls. Do not claim representative false-blame rates from these 12 cases.
+2. Gemini's Phase 1 asks about the focal player's *actual* observed action while hiding future frames; that classification belongs to Claude's separate `retrospective` block. First freeze the acceptable action set at t0; afterward judge the observed action in a separately labeled step.
+3. PR #16's existing tactical `review.html` is **a standalone JSON packet interface with no embedded replay viewer, server-signed lock or cryptographic freeze**. The commitment-timing `commitment_review.html` is a separate 40-clip study. PR #27 is a model data serializer, not a video scrubber. Gemini's new proposed endpoints/UI are unimplemented.
+4. Existing `subtr_replays.py` emits resampled 30Hz rows and normalized boost 0–100, not validated `boxcars.stale_ticks` age data; Claude's booster/state caveats stand. Gemini's `automated_selector_predicates` includes future outcome metadata in its synthetic manifest; never forward it to a Stage 1 model or the deterministic baseline.
+5. PR #16's strict `pre_decision_evidence` and four-way verdict schema are **not compatible by default** with Gemini's proposed multi-action/nine-dimension schema. Implement an explicit mapping/validation layer, not a blind copy. Rubric D1–D8 plus separate D9 follow-up. ChatGPT claim verifier PR #29 checks typed facts, NOT semantic truth of free text.
+
+**Next focused engineering step**: small strict adapter from Claude PR #22's DecisionEvidenceV0, through Stage 1 PR #27, into PR #16's actual evidence packets, preserving time provenance or abstaining when it cannot be established. Then revise the pilot reviewer forms/manifest and test on synthetic cases before curating real clips. Antigravity native companion PR #28 remains independent; user consent required for cloud calls, public-replay downloads and live-game config changes. No LLM benchmark run, expert ratings, or 12 confirmed cases yet.
+
 ## 1. Mission: build an exceptional coach, not a replay viewer
 
 Player uploads a **native Rocket League \`.replay\` file**, selects who is being coached, and receives a **few insightful, evidence-grounded, high-skill lessons** about decisions they would not necessarily notice themselves. Show both **excellent** and **questionable** decisions, explain strategic tradeoffs and *feasible alternatives*, allow follow-up questions, and identify meaningful trends across matches.
