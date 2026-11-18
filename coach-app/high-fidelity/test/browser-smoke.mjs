@@ -14,9 +14,12 @@ if(!fixture || !existsSync(fixture)){
 const base=process.env.HD_TEST_URL || 'http://127.0.0.1:4173/static/hd-player/';
 const output=path.resolve('test-artifacts');
 mkdirSync(output,{recursive:true});
+// Use Playwright's installed cross-platform Chromium by default. For a
+// developer's local Windows Chrome, set HD_CHROME_EXECUTABLE explicitly.
+const chromeExecutable=process.env.HD_CHROME_EXECUTABLE?.trim();
 const browser=await chromium.launch({
   headless:true,
-  executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',
+  ...(chromeExecutable?{executablePath:chromeExecutable}:{}),
   args:[
     '--enable-webgl',
     '--use-angle=swiftshader',
