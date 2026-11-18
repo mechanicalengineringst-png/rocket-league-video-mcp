@@ -82,8 +82,10 @@ def assess_defender(st: StrategicState, choice: ChoiceLabel | None, case_id: str
         Statement("derived", f"Earliest feasible touch at t0: the ball carrier {_fmt(fx['_carrier_t'])}, "
                              f"this defender {_fmt(fx['_focus_t'])}.", ["opponents", "focus"],
                   ["Kinematic lower bounds (reachability model); real players are often slower."]),
-        Statement("derived", f"The teammate could be goal-side in {_fmt(fx['_cover_t'])}.", ["mate"],
-                  ["Goal-side point: a third of the way from the ball to the own goal."]),
+        Statement("derived", "The teammate is already between the ball and the own goal." if fx["_cover_t"] == 0.0
+                  else f"The teammate could be goal-side in {_fmt(fx['_cover_t'])}.", ["mate"],
+                  ["Goal-side: between the ball and the own goal within 1500 uu of that line, or a point a third "
+                   "of the way from the ball to the own goal."]),
     ]
     if st.margin_s is not None:
         lo, hi = st.margin_interval
