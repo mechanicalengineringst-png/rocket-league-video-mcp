@@ -65,6 +65,12 @@ Same corner, but the ball is high on the backboard and the opponent is in the ai
 
 **Observation only.** Aerial and wall mechanics are not modelled; only observations are given.
 
+- Your teammate needed 3.13 s to get goal-side, too late if you were beaten
+- You were not goal-side of the ball
+- You were on the ground
+- You had 45 boost
+- You were your team's last player back
+
 
 
 # Scenario: restraint_then_conceded (SYNTHETIC)
@@ -112,14 +118,14 @@ An opponent dribbles at us with support; we are low on boost, the teammate is fa
 
 **Takeaway (practice).** Read: the nearest opponent could touch the ball first (0.3 s vs your 2.2 s), you were goal-side of the ball and the ball was 4120 uu from your goal: room to give ground. In that picture, shadow and delay is the sound option (time for your teammate to recover). Clear or pass to space would risk this: the clear lands with their second player while you are out of position.
 
-**What you did (retrospective):** Consistent with the decision-time read. You chose to shadow and delay, which the decision-time evidence supports. Reason: the opponent is first; stay goal-side and give ground. The goal that followed does not make the choice wrong.
+**What you did (retrospective):** Consistent with the decision-time read. You chose to hold goal-side, which the decision-time evidence supports. Reason: you are the last line; hold it. The goal that followed does not make the choice wrong.
 Next 5 s: opponent +0.5 s; goal by opponents +3.5 s. *The assessment below uses only the decision-time ledger and the observed action; the outcome is shown for context and does not change it.*
 
 <sub>Evidence: 15 decision-time claims (valid); numbers traced to E.ball.position, E.cover.teammate, E.focus.boost, E.reach.focus, E.reach.opponent_1, E.reach.opponent_2, E.reach.teammate.</sub>
 
 
 
-**Alternative future `shadow_then_save`** (Stage A unchanged): You chose to shadow and delay, which the decision-time evidence supports. Reason: the opponent is first; stay goal-side and give ground. Outcome: no goal within 5 s.
+**Alternative future `shadow_then_save`** (Stage A unchanged): You chose to hold goal-side, which the decision-time evidence supports. Reason: you are the last line; hold it. Outcome: no goal within 5 s.
 
 # Scenario: challenge_works_anyway (SYNTHETIC)
 
@@ -220,7 +226,7 @@ We and the nearest opponent reach the ball at about the same time; the teammate 
 
 **Takeaway (practice).** Read: arrival order could not be separated (earliest touches 0.8 s vs 0.8 s, allowing for model error and approach uncertainty): a genuine contest, your teammate was already goal-side and no opponent had the ball under control. In that picture, controlled 50/50 is the sound option (neutralises their touch without over-committing). Fake challenge would risk this: a patient carrier simply gets more time.
 
-**What you did (retrospective):** Defensible under an assumption. You chose to shadow and delay. It is defensible if focus first, carrier first, which the replay cannot confirm.
+**What you did (retrospective):** Defensible under an assumption. You chose to shadow and delay. It is defensible if the nearest opponent could touch the ball first (0.8 s vs your 0.8 s), which the replay cannot confirm.
 Next 5 s: no touches. *The assessment below uses only the decision-time ledger and the observed action; the outcome is shown for context and does not change it.*
 
 <sub>Evidence: 14 decision-time claims (valid); numbers traced to E.ball.position, E.focus.boost, E.reach.focus, E.reach.opponent_1, E.reach.opponent_2, E.reach.teammate, Q.carrier_closing_speed.</sub>
@@ -392,17 +398,17 @@ We are deep in their half after a challenge with little boost; an opponent is co
 - Your teammate was already goal-side
 - An opponent was first to a ball in or heading into your half
 
-**Interpretation (several defensible).** At decision time the evidence supports detour for big boost / return through small pads, because you had only 10 boost, your teammate was already goal-side, the nearest big pad was up and the big-boost detour cost only 0.47 s more than returning directly (4.03 s). It argues against return directly: your teammate was already goal-side.
+**Interpretation (several defensible).** At decision time the evidence supports return through small pads / detour for big boost, because you had only 10 boost and 3 available small pads lay on the direct route. It argues against return directly: your teammate was already goal-side.
 
 **Options**
 
 | Option | At t0 | Gains / preserves | Sacrifices / risks |
 |---|---|---|---|
-| Detour for big boost | supported | a full tank for the next challenge or save | time: 0.47 s longer than returning directly; being out of the play while an opponent attacks |
 | Return through small pads | supported | refill on the way: 3 available small pads lie on the line back; near-direct timing | small detours from the straight line; any detour while an opponent is attacking |
+| Detour for big boost | supported | a full tank for the next challenge or save | time: 0.47 s longer than returning directly; being out of the play while an opponent attacks |
 | Return directly | refuted | the fastest way back: 4.03 s to the goal-side point; defensive coverage | boost: you arrive with 10 and cannot challenge strongly |
 
-**Takeaway (recognition).** More than one choice holds up: detour for big boost or return through small pads. What makes both reasonable: you had only 10 boost, your teammate was already goal-side and the nearest big pad was up. What was not on: return directly.
+**Takeaway (recognition).** More than one choice holds up: return through small pads or detour for big boost. What makes both reasonable: you had only 10 boost, 3 available small pads lay on the direct route and your teammate was already goal-side. What was not on: return directly.
 
 **What you did (retrospective):** Consistent with the decision-time read. You chose to detour for big boost, which the decision-time evidence supports. Reason: covered, low on boost, and the big pad costs little extra time. Other choices were also defensible here.
 Next 5 s: no touches. *The assessment below uses only the decision-time ledger and the observed action; the outcome is shown for context and does not change it.*

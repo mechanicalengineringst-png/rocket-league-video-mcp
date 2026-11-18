@@ -350,6 +350,26 @@ def _fragments(spec_list, cond, nums):
     return out
 
 
+def _you(text: str) -> str:
+    for a, b in (("The focus player is", "You are"), ("the focus player is", "you are"), ("The focus player has", "You have"),
+                 ("the focus player has", "you have"), ("the focus player's", "your"), ("The focus player", "You"),
+                 ("the focus player", "you")):
+        text = text.replace(a, b)
+    return text
+
+
+def _required_reading(lit: str, cond: dict, nums: _Numbers) -> str:
+    """How a premise would read if it had the status a reason needs (for 'defensible if ...')."""
+    cid = lit.lstrip("!")
+    need = FAILS if lit.startswith("!") else HOLDS
+    r = _reading(cid, need, nums)
+    if r:
+        return r
+    base = _you(cond[cid]["text"]).rstrip(".") if cid in cond else cid.replace("_", " ")
+    base = base[0].lower() + base[1:]
+    return base if need == HOLDS else f"it is not the case that {base}"
+
+
 def _premise_reading(lits: list[str], cond: dict, nums: _Numbers) -> list[str]:
     out = []
     for lit in lits:
@@ -359,7 +379,7 @@ def _premise_reading(lits: list[str], cond: dict, nums: _Numbers) -> list[str]:
         st = cond[cid]["status"]
         r = _reading(cid, st, nums)
         if r is None:
-            base = _reading(cid, HOLDS, nums) or cond[cid]["text"].rstrip(".").lower()
+            base = _reading(cid, HOLDS, nums) or _you(cond[cid]["text"]).rstrip(".").lower()
             r = (base if st == HOLDS else f"not the case that {base}" if st == FAILS
                  else f"unknown whether {base}" if st == UNKNOWN else f"unclear whether {base}")
         out.append(r)
@@ -427,7 +447,9 @@ def build_stage_a(situation: dict, rationale: dict, packet: dict, *, finding_id:
         alts.append({
             "action": a, "label": prof["label"], "family": prof["family"], "status": v["status"],
             "why": [{"reason": r["text"], "premises": _premise_reading([p["condition"] for p in r["premises"]], cond, nums),
-                     "uncertain_premises": r["uncertain_premises"]} for r in why],
+                     "uncertain_premises": r["uncertain_premises"],
+                     "uncertain_premises_text": [_required_reading(u, cond, nums) for u in r["uncertain_premises"]]}
+                    for r in why],
             "ruled_out_because": blocking,
             "defeaters_present": [d["defeater"] for d in v["defeaters"] if d["status"] == "present"],
             "defeaters_present_text": [_and(_premise_reading(d["conditions"], cond, nums)) for d in v["defeaters"]
@@ -443,7 +465,7 @@ def build_stage_a(situation: dict, rationale: dict, packet: dict, *, finding_id:
     decisive = rationale.get("decisive_information", [])
     unobs = [{"condition": cid, "text": c["text"]} for cid, c in cond.items() if c["status"] == UNOBS]
     for d in decisive:
-        d["question"] = "whether " + (_reading(d["condition"], HOLDS, nums) or d["text"].rstrip(".").lower())
+        d["question"] = "whether " + (_reading(d["condition"], HOLDS, nums) or _you(d["text"]).rstrip(".").lower())
     if rationale.get("judgment") == "withheld":
         kind = "hard_to_judge"
     elif len(fams_ok) >= 2:
@@ -463,7 +485,7 @@ def build_stage_a(situation: dict, rationale: dict, packet: dict, *, finding_id:
         limits.append("Some premises are unobservable from replay data: " + ", ".join(u["condition"] for u in unobs) + ".")
     return {**base, "kind": kind, "decision_context": ctx, "alternatives": alts, "interpretation": interp,
             "assumptions": {"decisive": [{"condition": d["condition"], "current": d["current"], "text": d["text"],
-                                          "question": "whether " + (_reading(d["condition"], HOLDS, nums) or d["text"].rstrip(".").lower()),
+                                          "question": "whether " + (_reading(d["condition"], HOLDS, nums) or _you(d["text"]).rstrip(".").lower()),
                                           "if_true": d["if_true"], "if_false": d["if_false"], "how_to_resolve": d["how_to_resolve"]}
                                          for d in decisive],
                             "unobservable": unobs},
@@ -664,13 +686,15 @@ def build_stage_b(stage_a: dict, replay: dict, situation: dict) -> dict[str, Any
     if fam_status == "supported":
         verdict, text = "sound", f"You chose to {label}, which the decision-time evidence supports."
         if x and x["why"]:
-            text += f" Reason: {x['why'][0]['reason'].rstrip('.').lower()}."
+            text += f" Reason: {_you(x['why'][0]['reason']).rstrip('.').lower()}."
         if stage_a["kind"] == "several_defensible":
             text += " Other choices were also defensible here."
     elif fam_status == "conditional":
-        unc = sorted({u for a in alts.values() if a["family"] == obs["family"] for w in a["why"] for u in w["uncertain_premises"]})
+        x0 = x if x and x["status"] == "conditional" else next(
+            (a for a in alts.values() if a["family"] == obs["family"] and a["status"] == "conditional"), None)
+        unc = list(dict.fromkeys(t for w in (x0 or {}).get("why", [])[:1] for t in w["uncertain_premises_text"]))
         verdict = "defensible_if"
-        text = f"You chose to {label}. It is defensible if " + (", ".join(u.lstrip('!').replace('_', ' ') for u in unc) or "its premises hold") + \
+        text = f"You chose to {label}. It is defensible if " + (" and ".join(unc) or "its premises hold") + \
                ", which the replay cannot confirm."
     elif fam_status == "contested":
         verdict = "risky"
