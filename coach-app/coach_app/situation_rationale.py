@@ -416,6 +416,9 @@ BASE_ACTIONS = {
 }
 
 
+OBSERVATION_KEYS = ("focus_goal_side", "teammate_deeper", "boost_for_recovery", "teammate_covers", "focus_grounded")
+
+
 def specs_for(cls: str) -> dict[str, dict]:
     if cls in SPECS:
         return SPECS[cls]
@@ -441,9 +444,13 @@ def analyze_situation(stage1_episode_packet: dict[str, Any], replay_prefix: dict
     out = {"schema": SCHEMA, "version": VERSION, "situation_class": cls, "t0": t0, "node_id": node["node_id"],
            "uses_retrospective": False}
     if not situation.get("supported_for_judgment", cls in SUPPORTED_FOR_JUDGMENT):
+        obs = {}
+        if packet["status"] != "abstain":      # ground-truth observations only; nothing about the aerial itself
+            full = _conditions(_State(packet), _Claims(node["node_id"]))
+            obs = {k: v for k, v in full.items() if k in OBSERVATION_KEYS and v["status"] in (HOLDS, FAILS)}
         return {**out, "judgment": "withheld", "reasons_for_withholding":
                 ["Aerial and wall mechanics are not modelled; only observations are given."],
-                "conditions": {}, "actions": {}, "quantities": {}, "claims": [], "decisive_information": []}
+                "conditions": {}, "observations": obs, "actions": {}, "quantities": {}, "claims": [], "decisive_information": []}
     if packet["status"] == "abstain":
         return {**out, "judgment": "withheld", "reasons_for_withholding": ["No decision-time frame."],
                 "conditions": {}, "actions": {}, "quantities": {}, "claims": [], "decisive_information": []}

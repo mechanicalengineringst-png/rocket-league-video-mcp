@@ -384,10 +384,14 @@ def build_stage_a(situation: dict, rationale: dict, packet: dict, *, finding_id:
             "situation": {"class": cls, "label": CLASS_LABEL[cls], "why_it_matters": WHY_IT_MATTERS[cls],
                           "selection": salience or {}}}
     if rationale.get("judgment") == "withheld" and not rationale.get("conditions"):
-        return {**base, "kind": "observation_only", "decision_context": [], "alternatives": [],
+        obs = rationale.get("observations", {})
+        nums = _numbers(packet, rationale) if obs and packet.get("status") != "abstain" else _Numbers()
+        ctx = [{"condition": k, "status": v["status"], "statement": v["text"], "reading": _premise_reading([k], obs, nums)[0],
+                "evidence": v["evidence"], "quantities": [], "claim_id": None, "margin_sensitivity": None} for k, v in obs.items()]
+        return {**base, "kind": "observation_only", "decision_context": ctx, "alternatives": [],
                 "interpretation": {"kind": "observation_only", "text": " ".join(rationale.get("reasons_for_withholding", []))},
                 "assumptions": [], "takeaway": {"kind": "observation_only", "text": None, "basis": []},
-                "numbers": {}, "claims": [], "limits": rationale.get("reasons_for_withholding", [])}
+                "numbers": nums.vals, "claims": [], "limits": rationale.get("reasons_for_withholding", [])}
     cond, acts = rationale["conditions"], rationale["actions"]
     nums = _numbers(packet, rationale)
     # decision context: certain conditions with readings, then uncertain ones

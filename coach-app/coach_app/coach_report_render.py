@@ -25,6 +25,8 @@ def render_markdown(report: dict[str, Any], *, player_label: str = "you") -> str
                 f"*Why this moment:* {', '.join(sit['selection'].get('why_selected', []))}. {sit['why_it_matters']}", ""]
         if f["kind"] == "observation_only" or f.get("status") != "ok":
             out += [f"**Observation only.** {f['interpretation']['text']}", ""]
+            out += [f"- {c['reading'][0].upper() + c['reading'][1:]}" for c in f.get("decision_context", []) if c.get("reading")]
+            out.append("")
             continue
         out += ["**What the situation was (at decision time)**", ""]
         for c in f["decision_context"]:

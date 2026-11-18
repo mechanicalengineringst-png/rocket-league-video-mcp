@@ -38,6 +38,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from evaluate_decision_state_v1 import opponent_regained  # noqa: E402
 
 
+def _situation_rationale(d: dict, pid: str, t: float, packet: dict, team: str) -> dict:
+    """Round 12 system on the same packet: first-defender specs, replay truncated at t0 (study cases are first-defender)."""
+    from coach_app.situation_rationale import analyze_situation
+    cut = dict(d, frames=[f for f in d["frames"] if f["t"] <= t], events=[e for e in d["events"] if e.get("t", 0) <= t])
+    sit = {"situation_class": "first_defender", "t0": t, "player_id": pid, "team": team, "supported_for_judgment": True}
+    return analyze_situation(packet, cut, sit)
+
+
 def prepare(cache: Path, mdir: Path, out: Path, per_stratum: int, seed: str) -> dict:
     rows = {r["case_id"]: r for r in json.loads((mdir / "PRIVATE_candidate_manifest.json").read_text())}
     side = json.loads((mdir / "PRIVATE_candidate_provenance.json").read_text())
@@ -81,7 +89,8 @@ def prepare(cache: Path, mdir: Path, out: Path, per_stratum: int, seed: str) -> 
             "systems": {"action_rationale_v0": ms.rationale_labels(rat),
                         "action_rationale_v0_evidence_only": ms.rationale_evidence_only_labels(rat),
                         "decision_state_v1": ms.decision_state_v1_labels(analyze_decision_state(packet)),
-                        "tactical_options_v0": ms.tactical_options_v0_labels(analyze_tactical_options(packet))},
+                        "tactical_options_v0": ms.tactical_options_v0_labels(analyze_tactical_options(packet)),
+                        "situation_rationale_v1": ms.situation_rationale_labels(_situation_rationale(d, pid, t, packet, team))},
             "rationale_summary": ms.summarise_rationale(rat),
             "retrospective": {"observed_action": choice, "outcome": {"opponents_regained": opponent_regained(d, t, pid)}},
         })
