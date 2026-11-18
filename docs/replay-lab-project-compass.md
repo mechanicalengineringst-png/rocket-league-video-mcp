@@ -84,10 +84,14 @@ claim that the product has passed real-browser, real-game, or expert testing.
    is ChatGPT's **separate Round 12 HD camera QA patch stacked on #24**.
    Indexes recorded Ball/Car Cam, rear view and other camera events once
    with O(log n) seeks instead of per-frame rescans, adds large-history
-   tests and an exhaustive user-reported-issues/visual QA list at
+   tests. **Also fixes an upstream-confirmed SupersonicTrailV2 shader
+   mismatch**: the previous soft trail patch targeted textured ribbons,
+   while actual tires use an untextured shader; added reversible soft-edge
+   shading and tests of the actual shader shape. User-reported issues and
+   visual QA matrix:
    `coach-app/high-fidelity/docs/ROUND12_CAMERA_AND_VISUAL_ACCEPTANCE.md`.
-   **CI pending at this snapshot; not visually verified**. Do not overwrite
-   Antigravity's working frontend; cherry-pick/reconcile selectively.
+   **Actual real-replay shader/visual comparison remains unverified.**
+   Do not overwrite Antigravity's working frontend; cherry-pick selectively.
 8. [PR #28](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/28)
    optional native Stats API companion, independently drafted. Real
    Rocket League loading/seek/POV/pause/speed **NOT verified in a live
@@ -110,8 +114,10 @@ claim that the product has passed real-browser, real-game, or expert testing.
 - **UX:** prior 2D clutter/trails/rings/TOUCH labels and too many generic
   findings; compact 2D boost/position map and **actual HD** for mechanics.
 - **Status:** PR #24 includes partial camera, quality and UI changes. PR #42
-  makes camera-state lookup cheaper/deterministic. Neither green JS tests
-  nor a built Vite bundle prove the underlying 3D visuals are fixed.
+  makes camera-state lookup cheaper/deterministic and corrects the actual
+  untextured tire-ribbon shader path previously ignored by the Soft setting.
+  Neither green JS tests nor a built Vite bundle prove the underlying 3D
+  visuals are fixed.
   Capture actual before/after real-replay screenshots/short clips, report
   defects and preserve footage privately. **Do not claim pixel-native
   camera fidelity when analog inputs are unavailable.**
