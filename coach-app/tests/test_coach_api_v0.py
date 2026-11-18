@@ -14,7 +14,7 @@ client = TestClient(app)
 
 def payload():
     return {
-        "replay": episode_replay(),
+        "replay": copy.deepcopy(episode_replay()),  # never mutate shared PLAYERS fixture
         "player_id": "b1",
         "decision_times": [2.0, 6.0, 10.0],
         "episode_start_s": 0.5,
