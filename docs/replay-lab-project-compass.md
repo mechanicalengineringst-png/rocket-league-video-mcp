@@ -73,9 +73,10 @@ claim that the product has passed real-browser, real-game, or expert testing.
    head `f05f73e`, 3 workflows green. Falsified a fixed 0.55 s V1 reach
    margin; introduced condition-based `ActionRationaleV0`, a blind expert
    study harness and unknown-aware options. **No real human expert ratings**.
-   Claude is now assigned a larger Round 12 advance in end-to-end tactics,
-   action alternatives, possession/support/pressing and useful coaching
-   outputs. Its Round 12 PR is **not yet reported** at this checkpoint.
+   Claude's **draft Round 12 PR #45** is now published separately with
+   `CoachingReportV1` (situation-aware two-stage coaching, experimental
+   opt-in). Its draft currently says that cohort evaluation is still
+   running; do not assume expert-validated coaching or merge it early.
 6. [PR #24](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/24)
    is the **separate HD-first 2D + standalone 3D + split UI** lineage.
    Its viewer uses `@rlrml/player`, `@rlrml/subtr-actor`, Three.js,
@@ -119,14 +120,34 @@ claim that the product has passed real-browser, real-game, or expert testing.
    Coach MVP, general CI and Replay Viewer 3D passed.** The higher skipped
    count reflects absent private native replay fixture paths in CI;
    GitHub green does NOT mean browser-HD or live-game acceptance.
-10. [PR #28](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/28)
+10. [PR #46](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/46)
+   **ChatGPT's substantive Round 12 Decision Lens V0 workspace**, stacked
+   on #44 (#43 -> #44 -> #46), head `14971b9`. Uses a verified
+   decision-time **floor sample (<=t0)** to show recorded focus/teammate/
+   opponent/ball positions, horizontal distances, boost, ball Z and speed;
+   one-click predecision approach and **bounded 5-second HD+2D loop**;
+   separately reveals **actual** postdecision car/ball trails/ghosts
+   without predicting alternatives or grading gameplay. Selecting a
+   source-backed coaching node pins t0; manual pin also available. Node
+   tests, static contracts, and real-replay Playwright checks were added;
+   **CI pending at this checkpoint**. Full docs:
+   `coach-app/docs/round12/DECISION_LENS_V0.md` on PR #46.
+   This is actual UX/product code, not a new tactical quality claim.
+11. [PR #45](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/45)
+   **Claude's Round 12 tactical intelligence PR**, head `619914f`,
+   stacked on Claude's earlier #40. Introduces an experimental,
+   opt-in situation-aware `CoachingReportV1` with two-stage findings.
+   Claude's PR body states its real replay cohort evaluation is still
+   in progress, so its integration and empirical merit are **pending**.
+   Do not confuse this tactic backend branch with the HD UI branch.
+12. [PR #28](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/28)
    Earlier native Stats API companion, independently drafted. Real
    Rocket League loading/seek/POV/pause/speed **NOT verified in a live
    running game**. Antigravity #43 provides another implementation;
    reconcile after source review and real game acceptance. A listening
    port is not game authentication; actual Windows game testing requires
    owner's explicit permission.
-11. [PR #25](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/25)
+13. [PR #25](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/25)
    is this canonical project compass. It remains a separate docs-only
    draft; future sessions should read the linked branch version rather than
    assume this file is already on `main`.
@@ -157,11 +178,12 @@ claim that the product has passed real-browser, real-game, or expert testing.
    native replay load and strict WebGL/asset readiness tests.
 2. Review Claude's larger Round 12 backend and integrate only supported
    tactical contracts; V1 unvalidated grading stays opt-in.
-3. Build the final unified **draft integration branch** from #43,
-   selectively layering native/HD gating #44, model acceptance #41,
-   indexed camera/tire-shader fixes #42, and Claude's latest tactical
-   work. Review overlapping branches rather than overwriting newest
-   code with an old ancestor. No `main` merge.
+3. Build the final unified **draft integration branch** from #43
+   through #44 and #46's real Decision Lens UX, plus model acceptance
+   #41, indexed camera/tire-shader fixes #42 and Claude's tactical
+   #45 (after its cohort evaluation and contract review). Resolve actual
+   conflicts; preserve event-source timing and model-version gating.
+   Do not overwrite newer UI with an older ancestor. No `main` merge.
 4. Browser-test on an actual **native .replay file**: replay/player
    confirmation, 2D, actual HD geometry/textures/camera/boost/trails,
    split sync, source-backed shortlist, lesson->seek, evidence, model
