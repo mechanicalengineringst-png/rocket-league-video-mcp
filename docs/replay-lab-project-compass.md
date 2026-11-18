@@ -203,9 +203,10 @@ claim that the product has passed real-browser, real-game, or expert testing.
    provider call, cost, raw replay upload or experimental V1 input.
    New Python spatial polarity/future-leakage/API tests, HTTP model
    transport contract check and JS no-cost/stale-player tests.
-   **CI pending final exact-head Python/general checks at this
-   checkpoint; Replay Viewer 3D 34/34 JS tests green.** No actual
-   trained-provider or owner-replay strategic merit verification.
+   **CI VERIFIED on exact head `4093fafa`: 417 Python passed /
+   13 skipped / 1 warning, 34/34 JavaScript tests and all three GitHub
+   workflows green.** No actual trained-provider or owner-replay
+   strategic merit verification.
    `coach-app/docs/round12d/RELATIONAL_INVARIANTS_V0.md` on PR #49.
    Gemini's full recovery-debt/2-ply numeric thresholds and native PLL
    claims are **research hypotheses not yet API/physics validated**;
