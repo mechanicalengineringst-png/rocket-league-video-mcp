@@ -20,6 +20,7 @@ from .episode_discovery import DiscoveryError, discover_episode_candidates
 from .episode_stage1 import build_stage1_episode_packet
 from .stage1_packet import Stage1PacketError
 from .review_bundle import build_review_bundle
+from .relational_invariants import build_relational_invariants
 
 router = APIRouter(tags=["coaching"])
 MAX_JSON_BYTES = 24 * 1024 * 1024
@@ -146,6 +147,9 @@ def coach_capabilities():
         "automatic_episode_selection": False,
         "source_backed_candidate_discovery": "EpisodeCandidatesV0",
         "single_request_review_bundle": "CoachReviewBundleV0",
+        "local_scene_relations": "RelationalInvariantsV0",
+        "scene_relations_use_model": False,
+        "scene_relations_predict_outcomes": False,
         "review_bundle_max_previews": 4,
         "review_bundle_invokes_model": False,
         "candidate_discovery_is_tactical_grading": False,
@@ -197,6 +201,22 @@ async def coach_review_bundle_endpoint(request: Request):
         )
     except (DiscoveryError, ValueError, TypeError, KeyError, OverflowError) as exc:
         raise HTTPException(422, "Could not safely build this replay review bundle.") from exc
+
+
+@router.post("/api/coach/scene-relations")
+async def coach_scene_relations_endpoint(request: Request):
+    """Local-only measured geometry; not a tactical verdict or model call."""
+    req = await _read_json_request(request, EpisodeLessonRequest)
+    if req.mode != "deterministic" or req.experimental_tactical_v1:
+        raise HTTPException(422, "Scene relations require local deterministic mode.")
+    episode = await run_in_threadpool(_build_episode, req)
+    try:
+        return await run_in_threadpool(
+            build_relational_invariants,
+            await run_in_threadpool(build_stage1_episode_packet, episode),
+        )
+    except (Stage1PacketError, ValueError, TypeError) as exc:
+        raise HTTPException(422, "Could not safely compute local source-backed geometry.") from exc
 
 
 @router.post("/api/coach/lesson")
