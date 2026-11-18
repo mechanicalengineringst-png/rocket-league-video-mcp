@@ -92,13 +92,20 @@ def test_model_transport_gets_only_stage1_packet_when_explicitly_enabled(monkeyp
             assert json["model"] == "owner-approved-model"
             assert len(json["messages"]) == 2
             content = json["messages"][1]["content"]
-            packet = __import__("json").loads(content.split("\n", 1)[1])
+            model_inputs = __import__("json").loads(content.split("\n", 1)[1])
+            packet = model_inputs["stage1_episode"]
+            tactics = model_inputs["tactical_options"]
             assert packet["schema"] == "Stage1EpisodePacketV0"
+            assert tactics["schema"] == "CoachTacticalContextV0"
+            assert tactics["node_id"] == "N3"
+            assert len(tactics["options"]) == 9
+            assert tactics["calibration"]["expert_validated"] is False
+            assert tactics["validation"]["semantic_tactical_accuracy_verified"] is False
             assert "retrospective" not in packet
             assert "selection" not in content
             assert "PRIVATE_OUTCOME" not in content
             assert all("source" not in n["packet"] for n in packet["nodes"])
-            made_calls.append(packet)
+            made_calls.append(model_inputs)
             return FakeResponse()
 
     monkeypatch.setattr(coach_model.httpx, "AsyncClient", FakeClient)

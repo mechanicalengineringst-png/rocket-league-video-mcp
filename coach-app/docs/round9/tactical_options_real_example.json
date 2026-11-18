@@ -1,0 +1,575 @@
+{
+ "schema": "TacticalOptionsV0",
+ "policy": {
+  "version": "tactical-options-policy/0.1",
+  "contest_first_s": 0.15,
+  "contest_even_s": 0.3,
+  "fake_range_s": 1.0,
+  "possession_window_s": 0.3,
+  "cover_window_s": 1.0,
+  "spill_close_s": 0.6,
+  "immediate_threat_s": 0.6,
+  "low_boost": 25.0,
+  "shadow_room_uu": 2500.0,
+  "note": "Bands are uncalibrated hypotheses; expert tactical-merit ratings should replace them."
+ },
+ "node_id": "N3",
+ "t0": 20.995,
+ "information_cutoff_s": 20.995,
+ "is_primary": true,
+ "claims_verify_with": "claim_verifier.verify_stage1_claims(node packet, claims)",
+ "uses_retrospective": false,
+ "picks_single_best": false,
+ "status": "ok",
+ "state": {
+  "carrier_slot": "opponent_1",
+  "carrier_t": 0.5,
+  "second_opponent_slot": "opponent_2",
+  "second_opponent_t": 2.9,
+  "focus_t": 0.9,
+  "teammate_t": 1.8,
+  "cover_t": 1.733,
+  "contest_window_s": 0.4,
+  "spill_support_s": 2.4,
+  "cover_margin_s": 1.233,
+  "ball_rel_y": -3551.38,
+  "ball_to_own_goal_uu": 3441.032,
+  "ball_speed_toward_own_goal": -536.2,
+  "focus_goal_side": true,
+  "teammate_goal_side": true,
+  "teammate_deeper_than_focus": false,
+  "focus_boost": 87.7,
+  "focus_on_ground": true,
+  "focus_to_own_goal_uu": 2347.055,
+  "contest_band": "focus_late_close",
+  "covered": false,
+  "second_opponent_close": false,
+  "immediate_threat": true,
+  "low_boost": false,
+  "possession_available": false,
+  "teammate_can_play": false,
+  "claims": {
+   "focus_reach": "N3.c1",
+   "teammate_reach": "N3.c2",
+   "carrier_reach": "N3.c3",
+   "second_reach": "N3.c4",
+   "cover": "N3.c5",
+   "focus_boost": "N3.c6",
+   "ball": "N3.c7"
+  }
+ },
+ "threats": {
+  "immediate_threat": true,
+  "carrier_slot": "opponent_1",
+  "second_opponent_close": false
+ },
+ "teammate_support": {
+  "covered": false,
+  "teammate_deeper_than_focus": false,
+  "teammate_can_play": false,
+  "team_context_claims": [
+   "N3.c13",
+   "N3.c9"
+  ],
+  "attribution": "Constraints created by the teammate's position are team context; they are not attributed to the focus player's decision."
+ },
+ "options": [
+  {
+   "action": "immediate_challenge",
+   "physically_feasible": "yes",
+   "feasibility_claims": [
+    "N3.c1"
+   ],
+   "supporting_claims": [
+    "N3.c10"
+   ],
+   "limiting_claims": [
+    "N3.c8",
+    "N3.c9"
+   ],
+   "severe_limit_claims": [
+    "N3.c9"
+   ],
+   "strategic_stance": "questionable",
+   "depends_on_teammate": true,
+   "defensive_risk": "elevated",
+   "team_context_claims": [
+    "N3.c9",
+    "N3.c13"
+   ],
+   "depends_on_unobservable": [
+    "flip availability",
+    "carrier's intent"
+   ]
+  },
+  {
+   "action": "controlled_fifty_fifty",
+   "physically_feasible": "no",
+   "feasibility_claims": [
+    "N3.c8"
+   ],
+   "supporting_claims": [],
+   "limiting_claims": [
+    "N3.c9"
+   ],
+   "severe_limit_claims": [],
+   "strategic_stance": "not_available",
+   "depends_on_teammate": true,
+   "defensive_risk": "elevated",
+   "team_context_claims": [
+    "N3.c9",
+    "N3.c13"
+   ],
+   "depends_on_unobservable": [
+    "flip availability",
+    "contact angle the player intends"
+   ]
+  },
+  {
+   "action": "fake_challenge",
+   "physically_feasible": "yes",
+   "feasibility_claims": [
+    "N3.c8",
+    "N3.c12"
+   ],
+   "supporting_claims": [
+    "N3.c8",
+    "N3.c12"
+   ],
+   "limiting_claims": [],
+   "severe_limit_claims": [],
+   "strategic_stance": "defensible",
+   "depends_on_teammate": false,
+   "defensive_risk": "not_elevated",
+   "team_context_claims": [],
+   "depends_on_unobservable": [
+    "carrier's intent and read of the fake",
+    "camera awareness"
+   ]
+  },
+  {
+   "action": "shadow_delay",
+   "physically_feasible": "yes",
+   "feasibility_claims": [
+    "N3.c12"
+   ],
+   "supporting_claims": [
+    "N3.c8",
+    "N3.c9"
+   ],
+   "limiting_claims": [],
+   "severe_limit_claims": [],
+   "strategic_stance": "defensible",
+   "depends_on_teammate": false,
+   "defensive_risk": "not_elevated",
+   "team_context_claims": [],
+   "depends_on_unobservable": [
+    "camera awareness of the second opponent"
+   ]
+  },
+  {
+   "action": "goal_side_hold",
+   "physically_feasible": "yes",
+   "feasibility_claims": [
+    "N3.c12"
+   ],
+   "supporting_claims": [
+    "N3.c11",
+    "N3.c9"
+   ],
+   "limiting_claims": [],
+   "severe_limit_claims": [],
+   "strategic_stance": "defensible",
+   "depends_on_teammate": true,
+   "defensive_risk": "not_elevated",
+   "team_context_claims": [
+    "N3.c9",
+    "N3.c13"
+   ],
+   "depends_on_unobservable": [
+    "camera awareness"
+   ]
+  },
+  {
+   "action": "rotate_through_small_pads",
+   "physically_feasible": "yes",
+   "feasibility_claims": [
+    "N3.c6"
+   ],
+   "supporting_claims": [],
+   "limiting_claims": [
+    "N3.c11"
+   ],
+   "severe_limit_claims": [
+    "N3.c11"
+   ],
+   "strategic_stance": "questionable",
+   "depends_on_teammate": true,
+   "defensive_risk": "elevated",
+   "team_context_claims": [
+    "N3.c9",
+    "N3.c13"
+   ],
+   "depends_on_unobservable": [
+    "teammate's intended rotation (comms)"
+   ]
+  },
+  {
+   "action": "controlled_touch",
+   "physically_feasible": "no",
+   "feasibility_claims": [
+    "N3.c8"
+   ],
+   "supporting_claims": [],
+   "limiting_claims": [],
+   "severe_limit_claims": [],
+   "strategic_stance": "not_available",
+   "depends_on_teammate": false,
+   "defensive_risk": "elevated",
+   "team_context_claims": [],
+   "depends_on_unobservable": [
+    "ball spin",
+    "player's dribbling execution"
+   ]
+  },
+  {
+   "action": "clear_or_pass_to_space",
+   "physically_feasible": "no",
+   "feasibility_claims": [
+    "N3.c8"
+   ],
+   "supporting_claims": [
+    "N3.c11"
+   ],
+   "limiting_claims": [],
+   "severe_limit_claims": [],
+   "strategic_stance": "not_available",
+   "depends_on_teammate": false,
+   "defensive_risk": "elevated",
+   "team_context_claims": [],
+   "depends_on_unobservable": [
+    "contact angle and ball destination"
+   ]
+  },
+  {
+   "action": "yield_to_teammate",
+   "physically_feasible": "no",
+   "feasibility_claims": [],
+   "supporting_claims": [],
+   "limiting_claims": [
+    "N3.c11",
+    "N3.c9"
+   ],
+   "severe_limit_claims": [],
+   "strategic_stance": "not_available",
+   "depends_on_teammate": true,
+   "defensive_risk": "unknown",
+   "team_context_claims": [
+    "N3.c9",
+    "N3.c13"
+   ],
+   "depends_on_unobservable": [
+    "teammate's intent (comms)"
+   ]
+  }
+ ],
+ "defensible_options": [
+  "fake_challenge",
+  "shadow_delay",
+  "goal_side_hold"
+ ],
+ "multiple_defensible": true,
+ "abstain_reasons": [],
+ "unknown_claims": [],
+ "unknowns": [],
+ "not_observable": [
+  "What each player could see (camera direction, ball cam). Positions are recorded, not perceived.",
+  "Controller inputs and intent.",
+  "Quick chat, voice calls and agreements between teammates.",
+  "Ball spin.",
+  "Whether each car still had a flip or dodge available.",
+  "Exact boost between replicated updates.",
+  "Network latency each player experienced."
+ ],
+ "earlier_contributors": [
+  {
+   "hypothesis_id": "H.1",
+   "earlier_node": "N1",
+   "kind": "advance",
+   "observed_changes": [
+    {
+     "change_id": "D.N1-N2.focus.advance_toward_opponent_goal",
+     "value": 1592,
+     "unit": "uu",
+     "known_at_s": 16.995
+    }
+   ],
+   "evidence_refs": [
+    "D.N1-N2.focus.advance_toward_opponent_goal",
+    "N1/E.focus.position",
+    "N2/E.focus.position"
+   ],
+   "bears_on_actions": [
+    "shadow_delay",
+    "goal_side_hold"
+   ],
+   "status": "hypothesis_unverified",
+   "would_need": "Expert review of the earlier decision with its own decision-time evidence; the observed change alone does not show the earlier choice was a mistake or a cause."
+  },
+  {
+   "hypothesis_id": "H.2",
+   "earlier_node": "N2",
+   "kind": "roles",
+   "observed_changes": [
+    {
+     "change_id": "D.N2-N3.roles.own",
+     "value": {
+      "from_first": "teammate",
+      "to_first": "focus",
+      "from_confidence": "estimate",
+      "to_confidence": "estimate"
+     },
+     "unit": null,
+     "known_at_s": 20.995
+    }
+   ],
+   "evidence_refs": [
+    "D.N2-N3.roles.own",
+    "N2/E.roles.own",
+    "N3/E.roles.own"
+   ],
+   "bears_on_actions": [
+    "yield_to_teammate",
+    "immediate_challenge"
+   ],
+   "status": "hypothesis_unverified",
+   "would_need": "Expert review of the earlier decision with its own decision-time evidence; the observed change alone does not show the earlier choice was a mistake or a cause."
+  },
+  {
+   "hypothesis_id": "H.3",
+   "earlier_node": "N2",
+   "kind": "teammate_cover",
+   "observed_changes": [
+    {
+     "change_id": "D.N2-N3.teammate_cover",
+     "value": {
+      "from_s": 0.0,
+      "to_s": 1.733
+     },
+     "unit": "s after each node's t0",
+     "known_at_s": 20.995
+    }
+   ],
+   "evidence_refs": [
+    "D.N2-N3.teammate_cover",
+    "N2/E.cover.teammate",
+    "N3/E.cover.teammate"
+   ],
+   "bears_on_actions": [
+    "immediate_challenge",
+    "controlled_fifty_fifty",
+    "shadow_delay"
+   ],
+   "status": "hypothesis_unverified",
+   "would_need": "Expert review of the earlier decision with its own decision-time evidence; the observed change alone does not show the earlier choice was a mistake or a cause."
+  }
+ ],
+ "claims": [
+  {
+   "claim_id": "N3.c1",
+   "epistemic_type": "PHYSICALLY_ESTIMATED_FEASIBILITY",
+   "temporal_scope": "PRE_DECISION",
+   "cited_evidence_ids": [
+    "E.reach.focus"
+   ],
+   "text": "The focus player can touch the ball at the earliest 0.9 s after the decision (kinematic lower bound).",
+   "predicate_checks": [
+    {
+     "evidence_id": "E.reach.focus",
+     "value_path": [
+      "t_min_s"
+     ],
+     "relation": "eq",
+     "stated_value": 0.9
+    }
+   ]
+  },
+  {
+   "claim_id": "N3.c2",
+   "epistemic_type": "PHYSICALLY_ESTIMATED_FEASIBILITY",
+   "temporal_scope": "PRE_DECISION",
+   "cited_evidence_ids": [
+    "E.reach.teammate"
+   ],
+   "text": "The teammate can touch the ball at the earliest 1.8 s after the decision (kinematic lower bound).",
+   "predicate_checks": [
+    {
+     "evidence_id": "E.reach.teammate",
+     "value_path": [
+      "t_min_s"
+     ],
+     "relation": "eq",
+     "stated_value": 1.8
+    }
+   ]
+  },
+  {
+   "claim_id": "N3.c3",
+   "epistemic_type": "PHYSICALLY_ESTIMATED_FEASIBILITY",
+   "temporal_scope": "PRE_DECISION",
+   "cited_evidence_ids": [
+    "E.reach.opponent_1"
+   ],
+   "text": "The nearest opponent can touch the ball at the earliest 0.5 s after the decision (kinematic lower bound).",
+   "predicate_checks": [
+    {
+     "evidence_id": "E.reach.opponent_1",
+     "value_path": [
+      "t_min_s"
+     ],
+     "relation": "eq",
+     "stated_value": 0.5
+    }
+   ]
+  },
+  {
+   "claim_id": "N3.c4",
+   "epistemic_type": "PHYSICALLY_ESTIMATED_FEASIBILITY",
+   "temporal_scope": "PRE_DECISION",
+   "cited_evidence_ids": [
+    "E.reach.opponent_2"
+   ],
+   "text": "The other opponent can touch the ball at the earliest 2.9 s after the decision (kinematic lower bound).",
+   "predicate_checks": [
+    {
+     "evidence_id": "E.reach.opponent_2",
+     "value_path": [
+      "t_min_s"
+     ],
+     "relation": "eq",
+     "stated_value": 2.9
+    }
+   ]
+  },
+  {
+   "claim_id": "N3.c5",
+   "epistemic_type": "PHYSICALLY_ESTIMATED_FEASIBILITY",
+   "temporal_scope": "PRE_DECISION",
+   "cited_evidence_ids": [
+    "E.cover.teammate"
+   ],
+   "text": "The teammate could be goal-side at the earliest 1.73 s after the decision.",
+   "predicate_checks": [
+    {
+     "evidence_id": "E.cover.teammate",
+     "value_path": [],
+     "relation": "eq",
+     "stated_value": 1.73
+    }
+   ]
+  },
+  {
+   "claim_id": "N3.c6",
+   "epistemic_type": "OBSERVED_FACT",
+   "temporal_scope": "PRE_DECISION",
+   "cited_evidence_ids": [
+    "E.focus.boost"
+   ],
+   "text": "The focus player has 87.7 boost (freshness unverified).",
+   "predicate_checks": [
+    {
+     "evidence_id": "E.focus.boost",
+     "value_path": [],
+     "relation": "eq",
+     "stated_value": 87.7
+    }
+   ]
+  },
+  {
+   "claim_id": "N3.c7",
+   "epistemic_type": "OBSERVED_FACT",
+   "temporal_scope": "PRE_DECISION",
+   "cited_evidence_ids": [
+    "E.ball.position"
+   ],
+   "text": "The ball is at height 371 uu.",
+   "predicate_checks": [
+    {
+     "evidence_id": "E.ball.position",
+     "value_path": [
+      2
+     ],
+     "relation": "eq",
+     "stated_value": 371
+    }
+   ]
+  },
+  {
+   "claim_id": "N3.c8",
+   "epistemic_type": "TACTICAL_INFERENCE",
+   "temporal_scope": "PRE_DECISION",
+   "cited_evidence_ids": [
+    "E.reach.focus",
+    "E.reach.opponent_1"
+   ],
+   "text": "The nearest opponent can touch first; the focus player is close enough to pressure or fake."
+  },
+  {
+   "claim_id": "N3.c9",
+   "epistemic_type": "TACTICAL_INFERENCE",
+   "temporal_scope": "PRE_DECISION",
+   "cited_evidence_ids": [
+    "E.cover.teammate",
+    "E.reach.opponent_1"
+   ],
+   "text": "The teammate cannot get goal-side in time to cover a beaten challenge."
+  },
+  {
+   "claim_id": "N3.c10",
+   "epistemic_type": "TACTICAL_INFERENCE",
+   "temporal_scope": "PRE_DECISION",
+   "cited_evidence_ids": [
+    "E.reach.opponent_2",
+    "E.reach.opponent_1"
+   ],
+   "text": "The other opponent is far from a loose ball."
+  },
+  {
+   "claim_id": "N3.c11",
+   "epistemic_type": "TACTICAL_INFERENCE",
+   "temporal_scope": "PRE_DECISION",
+   "cited_evidence_ids": [
+    "E.reach.opponent_1",
+    "E.ball.position"
+   ],
+   "text": "An opponent can play the ball soon in or toward the own half."
+  },
+  {
+   "claim_id": "N3.c12",
+   "epistemic_type": "OBSERVED_FACT",
+   "temporal_scope": "PRE_DECISION",
+   "cited_evidence_ids": [
+    "E.focus.position",
+    "E.ball.position"
+   ],
+   "text": "The focus player is goal-side of the ball."
+  },
+  {
+   "claim_id": "N3.c13",
+   "epistemic_type": "OBSERVED_FACT",
+   "temporal_scope": "PRE_DECISION",
+   "cited_evidence_ids": [
+    "E.teammate.position",
+    "E.focus.position"
+   ],
+   "text": "The teammate is further up-field than the focus player."
+  }
+ ],
+ "layers": {
+  "observed": "claims of type OBSERVED_FACT",
+  "feasibility": "claims of type PHYSICALLY_ESTIMATED_FEASIBILITY and options[].physically_feasible",
+  "interpretation": "claims of type TACTICAL_INFERENCE and options[].strategic_stance",
+  "hypothetical": "options are alternatives, not predictions of what would have happened",
+  "outcomes": "not available here (Stage 2)"
+ }
+}
