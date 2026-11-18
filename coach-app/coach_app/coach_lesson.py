@@ -16,7 +16,7 @@ from typing import Any
 from .claim_verifier import CLAIM_TYPES, NUMBER_IN_PROSE, verify_stage1_claims
 from .episode_stage1 import SCHEMA as PACKET_SCHEMA, build_stage1_episode_packet
 from .stage1_packet import Stage1PacketError, _copy_json_safe
-from .tactical_coach_adapter import build_verified_tactical_context
+from .tactical_coach_adapter import build_verified_tactical_context, build_verified_experimental_decision_state_v1
 
 SCHEMA = "CoachLessonV0"
 DRAFT_SCHEMA = "CoachDraftV0"
@@ -269,14 +269,21 @@ def _checked_draft_claim(claim: dict[str, Any], packet: dict[str, Any], tactical
     }, []
 
 
-def build_lesson_from_episode(episode: dict[str, Any], *, model_draft: dict[str, Any] | None = None) -> dict[str, Any]:
+def build_lesson_from_episode(episode: dict[str, Any], *, model_draft: dict[str, Any] | None = None,
+                              experimental_tactical_v1: bool = False) -> dict[str, Any]:
     """Make a usable, timestamped lesson; no model calls or future outcomes.
 
     model_draft is a candidate structured proposal, never granted authority.
     Invalid individual claims are discarded and reported, not shown as facts.
     """
+    if experimental_tactical_v1 and model_draft is not None:
+        raise CoachDraftError("Experimental V1 is deterministic-only and cannot enter the model prompt.")
     packet = build_stage1_episode_packet(episode)
     tactical_context = build_verified_tactical_context(packet)
+    experimental_v1 = (
+        build_verified_experimental_decision_state_v1(packet)
+        if experimental_tactical_v1 else None
+    )
     primary = packet["nodes"][-1]
     status = packet["status"]
     base_claims = _baseline_facts(primary)
@@ -338,7 +345,8 @@ def build_lesson_from_episode(episode: dict[str, Any], *, model_draft: dict[str,
             "model_hypothesis_not_expert_validated" if assessment != "undetermined"
             else "no_verified_tactical_verdict")},
         "claims": base_claims + accepted,
-        "tactical_options": tactical_context,  # uncalibrated menu, NOT an expert verdict
+        "tactical_options": tactical_context,  # uncalibrated V0 menu, NOT an expert verdict
+        **({"experimental_decision_state_v1": experimental_v1} if experimental_tactical_v1 else {}),
         "earlier_factors": [
             {"hypothesis_id": h["id"], "earlier_node": h["earlier_node"],
              "evidence_refs": h["evidence_refs"], "status": "hypothesis_unverified"}

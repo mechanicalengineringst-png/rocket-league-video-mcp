@@ -164,3 +164,179 @@ def build_verified_tactical_context(packet: dict[str, Any]) -> dict[str, Any]:
                        "retrospective_used": False},
     }
     return _copy_json_safe(output)
+
+
+
+# The Round 10 model is deliberately isolated from the stable V0 tactical menu.
+# This call is made ONLY after the explicit deterministic-lesson opt-in; it is
+# never supplied to the optional model prompt without a separate future review.
+V1_STANCES = frozenset(("robustly_defensible", "defensible_gamble", "defensible_tradeoff",
+                       "questionable", "undetermined", "not_available"))
+V1_BRANCHES = frozenset(("focus_touches_first", "carrier_touches_first", "simultaneous_contact"))
+V1_REACH = frozenset(("primary", "possible", "only_if_execution_fails", "unknown"))
+V1_EXPOSURE = frozenset(("limited", "covered", "exposed", "ambiguous", "unknown"))
+
+
+def build_verified_experimental_decision_state_v1(packet: dict[str, Any]) -> dict[str, Any]:
+    """Audit the opt-in V1 output before publishing a source-backed *hypothesis*.
+
+    Verifies source references, numeric predicates, action completeness, branch
+    vocabulary and Stage 1 cutoff. It cannot prove tactical causality or that a
+    given stance is a good Rocket League decision.
+    """
+    from .decision_state_v1 import (
+        CALIBRATION, POLICY as V1_POLICY, SCHEMA as V1_SCHEMA,
+        analyze_decision_state,
+    )
+    if (not isinstance(packet, dict) or packet.get("schema") != EPISODE_SCHEMA
+            or packet.get("retrospective_present") is not False or "retrospective" in packet):
+        raise Stage1PacketError("Experimental V1 requires a sanitized Stage 1 episode.")
+    nodes = packet.get("nodes", [])
+    if not isinstance(nodes, list) or not nodes or nodes[-1].get("is_primary") is not True:
+        raise Stage1PacketError("Experimental V1 requires a primary decision node.")
+    primary = nodes[-1]
+    nid, t0 = primary["node_id"], primary["t0"]
+    raw = analyze_decision_state(packet, focus_node_id=nid)
+    if (not isinstance(raw, dict) or raw.get("schema") != V1_SCHEMA
+            or raw.get("node_id") != nid or raw.get("t0") != t0
+            or raw.get("information_cutoff_s") != t0 or raw.get("uses_retrospective") is not False
+            or raw.get("picks_single_best") is not False
+            or raw.get("status") not in ("ok", "partial", "abstain")):
+        raise TacticalOptionsError("Experimental V1 returned an invalid Stage 1 decision.")
+    policy = raw.get("policy")
+    cal = raw.get("calibration")
+    if (not isinstance(policy, dict) or policy.get("version") != V1_POLICY["version"]
+            or not isinstance(cal, dict) or cal.get("order_margin_s") != CALIBRATION["order_margin_s"]
+            or not _valid_finite(cal.get("order_margin_s"))
+            or not 0.05 <= cal["order_margin_s"] <= 2.0):
+        raise TacticalOptionsError("Experimental V1 policy/calibration is unrecognized.")
+    # The V1 engine may mark a result abstain even if its internal diagnostic
+    # object contains explanatory action hypotheses. Publish NONE of those as
+    # advice. The stable V0 output remains available as the comparison baseline.
+    if raw["status"] == "abstain":
+        return _copy_json_safe({
+            "schema": V1_SCHEMA, "status": "abstain", "node_id": nid, "t0_s": t0,
+            "information_cutoff_s": t0, "calibration": cal,
+            "analysis_type": "experimental_uncalibrated_tactical_hypotheses",
+            "scenario": None, "branches": [], "actions": [], "claims": [],
+            "abstain_reasons": ["Required decision-time evidence was not available."],
+            "validation": {
+                "stage1_claims_checked": 0, "rejected_claims": 0,
+                "retrospective_used": False, "semantic_tactical_accuracy_verified": False,
+                "expert_validated": False, "best_move_established": False,
+                "model_called": False, "v0_unchanged": True,
+            },
+            "caveat": "Experimental V1 abstained; no supported tactical recommendation.",
+        })
+    source_claims = raw.get("claims")
+    if not isinstance(source_claims, list) or len(source_claims) > MAX_CLAIMS:
+        raise TacticalOptionsError("V1 claim list is missing or too large.")
+    claim_ids = [c.get("claim_id") for c in source_claims if isinstance(c, dict)]
+    if (len(claim_ids) != len(source_claims) or len(set(claim_ids)) != len(claim_ids)
+            or any(not isinstance(cid, str) or not cid.startswith(nid + ".c") for cid in claim_ids)):
+        raise TacticalOptionsError("V1 claim identifiers are invalid.")
+    verified = verify_stage1_claims(primary["packet"], source_claims)
+    if (verified.get("all_structural_checks_passed") is not True
+            or len(verified.get("results", [])) != len(source_claims)
+            or any(c.get("status") == "rejected" for c in verified["results"])):
+        raise TacticalOptionsError("V1 contains an unsupported decision-time claim.")
+    verified_map = {entry["claim_id"]: entry for entry in verified["results"]}
+    if set(verified_map) != set(claim_ids):
+        raise TacticalOptionsError("V1 claim verification did not cover every claim.")
+    claims = []
+    for claim in source_claims:
+        refs = claim.get("cited_evidence_ids")
+        text = claim.get("text")
+        if (not isinstance(refs, list) or len(refs) > 25
+                or not all(isinstance(ref, str) and ref.startswith(("E.", "C.")) for ref in refs)
+                or not isinstance(text, str) or len(text) > 1200):
+            raise TacticalOptionsError("V1 contains malformed claim evidence or text.")
+        claims.append({
+            "claim_id": claim["claim_id"], "epistemic_type": claim["epistemic_type"],
+            "text": text, "evidence_refs": [f"{nid}/{ref}" for ref in refs],
+            "review_status": verified_map[claim["claim_id"]]["status"],
+            "semantic_accuracy_verified": False,
+            "review_warnings": verified_map[claim["claim_id"]].get("warnings", []),
+        })
+
+    actions = raw.get("actions")
+    if not isinstance(actions, list):
+        raise TacticalOptionsError("V1 actions must be a list.")
+    if raw["status"] == "abstain":
+        if actions or claims:
+            raise TacticalOptionsError("V1 abstention cannot produce actionable options.")
+    elif len(actions) != len(ACTIONS):
+        raise TacticalOptionsError("V1 must evaluate all action families.")
+    names = set()
+    reported_actions = []
+    for action in actions:
+        if not isinstance(action, dict):
+            raise TacticalOptionsError("V1 action record is malformed.")
+        name, stance, available, refs = (action.get("action"), action.get("stance"),
+                                         action.get("physically_feasible"), action.get("claims"))
+        if (name not in ACTIONS or name in names or stance not in V1_STANCES
+                or available not in FEASIBILITY or not isinstance(refs, list)
+                or len(refs) > 25 or any(ref not in verified_map for ref in refs)
+                or (available == "no" and stance != "not_available")
+                or (available == "unknown" and stance not in ("undetermined", "not_available"))):
+            raise TacticalOptionsError("V1 action violates the known stance/reference contract.")
+        names.add(name)
+        exposed = action.get("exposed_branches")
+        if (not isinstance(exposed, list)
+                or any(b not in V1_BRANCHES for b in exposed)
+                or len(exposed) != len(set(exposed))):
+            raise TacticalOptionsError("V1 action contains invalid branch references.")
+        for field in ("reasons", "named_cost", "named_upside"):
+            v = action.get(field)
+            if v is not None and (not isinstance(v, str) or len(v) > 700):
+                raise TacticalOptionsError("V1 action contains malformed explanation.")
+        reported_actions.append({
+            "action": name, "physical_feasibility": available,
+            "experimental_stance": stance,
+            "reasons": action.get("reasons"),
+            "named_cost": action.get("named_cost"), "named_upside": action.get("named_upside"),
+            "supporting_claims": refs,
+            "exposed_branches": exposed,
+            "semantic_tactical_accuracy_verified": False,
+        })
+    if raw["status"] != "abstain" and names != set(ACTIONS):
+        raise TacticalOptionsError("V1 omits required action families.")
+    branches = raw.get("branches", [])
+    if not isinstance(branches, list) or (raw["status"] != "abstain" and len(branches) != 3):
+        raise TacticalOptionsError("V1 branch comparison is incomplete.")
+    seen_branches = set()
+    for branch in branches:
+        if not isinstance(branch, dict):
+            raise TacticalOptionsError("Malformed contact branch.")
+        name, reach, consequence = (branch.get("branch"), branch.get("reachability"),
+                                     branch.get("consequence"))
+        if (name not in V1_BRANCHES or name in seen_branches or reach not in V1_REACH
+                or not isinstance(consequence, dict)
+                or consequence.get("exposure") not in V1_EXPOSURE):
+            raise TacticalOptionsError("Invalid V1 contact branch or exposure.")
+        seen_branches.add(name)
+    if raw["status"] != "abstain" and seen_branches != V1_BRANCHES:
+        raise TacticalOptionsError("V1 omits a contact branch.")
+    # Source-backed terms and estimated branches are displayed separately:
+    # nothing in this structure is an expert-validated tactical grade.
+    output = {
+        "schema": V1_SCHEMA, "status": raw["status"], "node_id": nid, "t0_s": t0,
+        "information_cutoff_s": t0, "calibration": cal,
+        "analysis_type": "experimental_uncalibrated_tactical_hypotheses",
+        "scenario": raw.get("scenario"),
+        "branches": branches,
+        "actions": reported_actions,
+        "claims": claims,
+        "abstain_reasons": raw.get("abstain_reasons", []),
+        "validation": {
+            "stage1_claims_checked": len(claims), "rejected_claims": 0,
+            "retrospective_used": False, "semantic_tactical_accuracy_verified": False,
+            "expert_validated": False, "best_move_established": False,
+            "model_called": False, "v0_unchanged": True,
+        },
+        "caveat": (
+            "Experiment only: public unknown-rank calibration; outcome proxy did not "
+            "validate tactical stance quality. Do not present as a player grade."
+        ),
+    }
+    return _copy_json_safe(output)

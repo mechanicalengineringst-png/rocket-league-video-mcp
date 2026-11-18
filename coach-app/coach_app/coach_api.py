@@ -16,6 +16,7 @@ from pydantic import BaseModel, Field, field_validator
 from .coach_lesson import CoachDraftError, answer_evidence_followup, build_lesson_from_episode, lookup_episode_evidence
 from .coach_model import CoachModelDisabled, CoachModelError, model_enabled, propose_coach_draft
 from .episode_evidence import EpisodeError, build_episode_evidence
+from .episode_discovery import DiscoveryError, discover_episode_candidates
 from .episode_stage1 import build_stage1_episode_packet
 from .stage1_packet import Stage1PacketError
 
@@ -32,6 +33,7 @@ class EpisodeLessonRequest(BaseModel):
     episode_start_s: float
     primary_t0: float
     mode: Literal["deterministic", "model"] = "deterministic"
+    experimental_tactical_v1: bool = False
 
     @field_validator("replay")
     @classmethod
@@ -77,6 +79,25 @@ class EpisodeEvidenceRequest(EpisodeLessonRequest):
     evidence_refs: list[str] = Field(min_length=1, max_length=20)
 
 
+class EpisodeCandidatesRequest(BaseModel):
+    replay: dict[str, Any]
+    player_id: str = Field(min_length=1, max_length=256)
+    max_candidates: int = Field(default=8, ge=1, le=12)
+    horizon_s: float | None = None
+
+    @field_validator("replay")
+    @classmethod
+    def require_2v2(cls, r: dict[str, Any]) -> dict[str, Any]:
+        return EpisodeLessonRequest.validate_replay(r)
+
+    @field_validator("horizon_s")
+    @classmethod
+    def finite_horizon(cls, t: float | None) -> float | None:
+        if t is not None and (not math.isfinite(t) or t < 0):
+            raise ValueError("Discovery horizon must be a finite nonnegative number.")
+        return t
+
+
 async def _read_json_request(request: Request, model_class: type[BaseModel]) -> BaseModel:
     if request.headers.get("content-type", "").split(";")[0].strip().lower() != "application/json":
         raise HTTPException(415, "Send the coaching request as application/json.")
@@ -116,14 +137,41 @@ def coach_capabilities():
         "model_requires_request_opt_in": True,
         "stage": "predecision",
         "automatic_episode_selection": False,
+        "source_backed_candidate_discovery": "EpisodeCandidatesV0",
+        "candidate_discovery_is_tactical_grading": False,
+        "experimental_decision_state_v1": "explicit_opt_in_deterministic_only",
+        "experimental_v1_expert_validated": False,
+        "experimental_v1_default_enabled": False,
         "tactical_accuracy_expert_verified": False,
     }
+
+
+@router.post("/api/coach/candidates")
+async def coach_candidates_endpoint(request: Request):
+    """Source-backed full-match review candidates; no tactical blame or model call.
+
+    Returns an inspectable (comparison timestamp, primary timestamp) pair
+    for each candidate; use the same times with /api/coach/lesson. These
+    are observed-state comparisons, not asserted chains of decisions.
+    """
+    req = await _read_json_request(request, EpisodeCandidatesRequest)
+    try:
+        return await run_in_threadpool(
+            discover_episode_candidates, req.replay, req.player_id,
+            max_candidates=req.max_candidates, horizon_s=req.horizon_s,
+        )
+    except (DiscoveryError, ValueError, TypeError, KeyError, OverflowError) as exc:
+        raise HTTPException(422, "Could not safely discover source-backed review candidates.") from exc
 
 
 @router.post("/api/coach/lesson")
 async def coach_lesson_endpoint(request: Request):
     """Build a lesson from a manually selected 5-20s 2v2 sequence."""
     req = await _read_json_request(request, EpisodeLessonRequest)
+    # V1 has not demonstrated expert merit. Compare it locally and explicitly;
+    # never forward its inferred stances or branch consequences to a model.
+    if req.experimental_tactical_v1 and req.mode != "deterministic":
+        raise HTTPException(422, "Experimental V1 is available for deterministic lessons only.")
     # No model call unless the explicit request AND server gates are both open.
     if req.mode == "model" and not model_enabled():
         raise HTTPException(403, "Optional coaching model is disabled by default.")
@@ -134,7 +182,10 @@ async def coach_lesson_endpoint(request: Request):
             draft = await propose_coach_draft(packet)
         else:
             draft = None
-        return await run_in_threadpool(build_lesson_from_episode, episode, model_draft=draft)
+        return await run_in_threadpool(
+            build_lesson_from_episode, episode, model_draft=draft,
+            experimental_tactical_v1=req.experimental_tactical_v1,
+        )
     except CoachModelDisabled as e:
         raise HTTPException(503, str(e)) from e
     except (CoachModelError, CoachDraftError) as e:

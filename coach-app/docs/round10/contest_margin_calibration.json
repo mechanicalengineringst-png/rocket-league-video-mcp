@@ -1,0 +1,340 @@
+{
+ "method": "Calibrate the \"who reaches the ball first\" ambiguity margin from real replays (Round 10).",
+ "target_accuracy": 0.9,
+ "matches": {
+  "fit": 10,
+  "held_out": 5
+ },
+ "note": "Public unknown-rank replays; the margin describes the kinematic model's ordering error, not expert judgement. 'all' pairs include players who chose not to go for the ball, so their order mixes choice with capability; 'raced' pairs (both touched within the horizon) isolate capability and are used for the margin.",
+ "all": {
+  "pairs": {
+   "fit": 4569,
+   "held_out": 2470
+  },
+  "chosen": {
+   "margin_s": 1.0,
+   "fit_accuracy": 0.899,
+   "fit_resolved": 2168,
+   "held_out_accuracy": 0.914,
+   "held_out_resolved": 1162
+  },
+  "table": [
+   {
+    "margin_s": 0.0,
+    "fit_accuracy": 0.787,
+    "fit_resolved": 4569,
+    "held_out_accuracy": 0.805,
+    "held_out_resolved": 2470
+   },
+   {
+    "margin_s": 0.05,
+    "fit_accuracy": 0.791,
+    "fit_resolved": 4514,
+    "held_out_accuracy": 0.809,
+    "held_out_resolved": 2442
+   },
+   {
+    "margin_s": 0.1,
+    "fit_accuracy": 0.797,
+    "fit_resolved": 4365,
+    "held_out_accuracy": 0.817,
+    "held_out_resolved": 2368
+   },
+   {
+    "margin_s": 0.15,
+    "fit_accuracy": 0.803,
+    "fit_resolved": 4207,
+    "held_out_accuracy": 0.826,
+    "held_out_resolved": 2284
+   },
+   {
+    "margin_s": 0.2,
+    "fit_accuracy": 0.808,
+    "fit_resolved": 4049,
+    "held_out_accuracy": 0.831,
+    "held_out_resolved": 2212
+   },
+   {
+    "margin_s": 0.25,
+    "fit_accuracy": 0.815,
+    "fit_resolved": 3909,
+    "held_out_accuracy": 0.842,
+    "held_out_resolved": 2139
+   },
+   {
+    "margin_s": 0.3,
+    "fit_accuracy": 0.822,
+    "fit_resolved": 3764,
+    "held_out_accuracy": 0.844,
+    "held_out_resolved": 2063
+   },
+   {
+    "margin_s": 0.35,
+    "fit_accuracy": 0.829,
+    "fit_resolved": 3632,
+    "held_out_accuracy": 0.852,
+    "held_out_resolved": 1981
+   },
+   {
+    "margin_s": 0.4,
+    "fit_accuracy": 0.834,
+    "fit_resolved": 3529,
+    "held_out_accuracy": 0.854,
+    "held_out_resolved": 1915
+   },
+   {
+    "margin_s": 0.45,
+    "fit_accuracy": 0.846,
+    "fit_resolved": 3370,
+    "held_out_accuracy": 0.858,
+    "held_out_resolved": 1856
+   },
+   {
+    "margin_s": 0.5,
+    "fit_accuracy": 0.848,
+    "fit_resolved": 3259,
+    "held_out_accuracy": 0.859,
+    "held_out_resolved": 1788
+   },
+   {
+    "margin_s": 0.55,
+    "fit_accuracy": 0.856,
+    "fit_resolved": 3131,
+    "held_out_accuracy": 0.868,
+    "held_out_resolved": 1714
+   },
+   {
+    "margin_s": 0.6,
+    "fit_accuracy": 0.861,
+    "fit_resolved": 3037,
+    "held_out_accuracy": 0.87,
+    "held_out_resolved": 1659
+   },
+   {
+    "margin_s": 0.65,
+    "fit_accuracy": 0.868,
+    "fit_resolved": 2898,
+    "held_out_accuracy": 0.878,
+    "held_out_resolved": 1584
+   },
+   {
+    "margin_s": 0.7,
+    "fit_accuracy": 0.873,
+    "fit_resolved": 2810,
+    "held_out_accuracy": 0.882,
+    "held_out_resolved": 1522
+   },
+   {
+    "margin_s": 0.75,
+    "fit_accuracy": 0.877,
+    "fit_resolved": 2670,
+    "held_out_accuracy": 0.887,
+    "held_out_resolved": 1440
+   },
+   {
+    "margin_s": 0.8,
+    "fit_accuracy": 0.884,
+    "fit_resolved": 2578,
+    "held_out_accuracy": 0.891,
+    "held_out_resolved": 1391
+   },
+   {
+    "margin_s": 0.85,
+    "fit_accuracy": 0.891,
+    "fit_resolved": 2421,
+    "held_out_accuracy": 0.896,
+    "held_out_resolved": 1302
+   },
+   {
+    "margin_s": 0.9,
+    "fit_accuracy": 0.893,
+    "fit_resolved": 2356,
+    "held_out_accuracy": 0.904,
+    "held_out_resolved": 1268
+   },
+   {
+    "margin_s": 0.95,
+    "fit_accuracy": 0.897,
+    "fit_resolved": 2239,
+    "held_out_accuracy": 0.912,
+    "held_out_resolved": 1187
+   },
+   {
+    "margin_s": 1.0,
+    "fit_accuracy": 0.899,
+    "fit_resolved": 2168,
+    "held_out_accuracy": 0.914,
+    "held_out_resolved": 1162
+   }
+  ]
+ },
+ "raced": {
+  "pairs": {
+   "fit": 737,
+   "held_out": 361
+  },
+  "chosen": {
+   "margin_s": 0.55,
+   "fit_accuracy": 0.908,
+   "fit_resolved": 476,
+   "held_out_accuracy": 0.965,
+   "held_out_resolved": 226
+  },
+  "table": [
+   {
+    "margin_s": 0.0,
+    "fit_accuracy": 0.825,
+    "fit_resolved": 737,
+    "held_out_accuracy": 0.892,
+    "held_out_resolved": 361
+   },
+   {
+    "margin_s": 0.05,
+    "fit_accuracy": 0.833,
+    "fit_resolved": 725,
+    "held_out_accuracy": 0.894,
+    "held_out_resolved": 358
+   },
+   {
+    "margin_s": 0.1,
+    "fit_accuracy": 0.846,
+    "fit_resolved": 694,
+    "held_out_accuracy": 0.911,
+    "held_out_resolved": 337
+   },
+   {
+    "margin_s": 0.15,
+    "fit_accuracy": 0.853,
+    "fit_resolved": 679,
+    "held_out_accuracy": 0.915,
+    "held_out_resolved": 330
+   },
+   {
+    "margin_s": 0.2,
+    "fit_accuracy": 0.862,
+    "fit_resolved": 637,
+    "held_out_accuracy": 0.921,
+    "held_out_resolved": 315
+   },
+   {
+    "margin_s": 0.25,
+    "fit_accuracy": 0.874,
+    "fit_resolved": 619,
+    "held_out_accuracy": 0.934,
+    "held_out_resolved": 302
+   },
+   {
+    "margin_s": 0.3,
+    "fit_accuracy": 0.887,
+    "fit_resolved": 582,
+    "held_out_accuracy": 0.944,
+    "held_out_resolved": 288
+   },
+   {
+    "margin_s": 0.35,
+    "fit_accuracy": 0.886,
+    "fit_resolved": 562,
+    "held_out_accuracy": 0.953,
+    "held_out_resolved": 274
+   },
+   {
+    "margin_s": 0.4,
+    "fit_accuracy": 0.885,
+    "fit_resolved": 539,
+    "held_out_accuracy": 0.954,
+    "held_out_resolved": 259
+   },
+   {
+    "margin_s": 0.45,
+    "fit_accuracy": 0.895,
+    "fit_resolved": 522,
+    "held_out_accuracy": 0.957,
+    "held_out_resolved": 256
+   },
+   {
+    "margin_s": 0.5,
+    "fit_accuracy": 0.896,
+    "fit_resolved": 499,
+    "held_out_accuracy": 0.958,
+    "held_out_resolved": 238
+   },
+   {
+    "margin_s": 0.55,
+    "fit_accuracy": 0.908,
+    "fit_resolved": 476,
+    "held_out_accuracy": 0.965,
+    "held_out_resolved": 226
+   },
+   {
+    "margin_s": 0.6,
+    "fit_accuracy": 0.915,
+    "fit_resolved": 459,
+    "held_out_accuracy": 0.968,
+    "held_out_resolved": 218
+   },
+   {
+    "margin_s": 0.65,
+    "fit_accuracy": 0.919,
+    "fit_resolved": 430,
+    "held_out_accuracy": 0.972,
+    "held_out_resolved": 212
+   },
+   {
+    "margin_s": 0.7,
+    "fit_accuracy": 0.927,
+    "fit_resolved": 411,
+    "held_out_accuracy": 0.97,
+    "held_out_resolved": 199
+   },
+   {
+    "margin_s": 0.75,
+    "fit_accuracy": 0.925,
+    "fit_resolved": 387,
+    "held_out_accuracy": 0.969,
+    "held_out_resolved": 192
+   },
+   {
+    "margin_s": 0.8,
+    "fit_accuracy": 0.921,
+    "fit_resolved": 365,
+    "held_out_accuracy": 0.968,
+    "held_out_resolved": 186
+   },
+   {
+    "margin_s": 0.85,
+    "fit_accuracy": 0.931,
+    "fit_resolved": 335,
+    "held_out_accuracy": 0.977,
+    "held_out_resolved": 173
+   },
+   {
+    "margin_s": 0.9,
+    "fit_accuracy": 0.932,
+    "fit_resolved": 325,
+    "held_out_accuracy": 0.982,
+    "held_out_resolved": 163
+   },
+   {
+    "margin_s": 0.95,
+    "fit_accuracy": 0.934,
+    "fit_resolved": 303,
+    "held_out_accuracy": 0.98,
+    "held_out_resolved": 153
+   },
+   {
+    "margin_s": 1.0,
+    "fit_accuracy": 0.932,
+    "fit_resolved": 295,
+    "held_out_accuracy": 0.98,
+    "held_out_resolved": 147
+   }
+  ]
+ },
+ "chosen": {
+  "margin_s": 0.55,
+  "fit_accuracy": 0.908,
+  "fit_resolved": 476,
+  "held_out_accuracy": 0.965,
+  "held_out_resolved": 226
+ }
+}
