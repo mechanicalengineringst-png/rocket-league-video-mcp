@@ -206,3 +206,13 @@ def test_inequality_checks_are_relative_to_source_values_not_assumed_probability
     assert result(pkt, c)["status"] == "structured_fact_verified"
     c["predicate_checks"][0]["relation"] = "gte"
     assert result(pkt, c)["status"] == "rejected"
+
+def test_malformed_unhashable_model_fields_are_rejected_not_crashes():
+    pkt = _packet()
+    c = claim()
+    c["epistemic_type"] = {"surprise": "object"}
+    assert result(pkt, c)["status"] == "rejected"
+    c = claim()
+    c["predicate_checks"][0]["relation"] = ["eq"]
+    assert result(pkt, c)["status"] == "rejected"
+
