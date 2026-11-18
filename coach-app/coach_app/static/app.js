@@ -45,7 +45,7 @@ function chooseTime(time){
 }
 function setReplay(replay, opts={}){
   if(!replay || !Array.isArray(replay.players) || !Array.isArray(replay.frames) || !replay.frames.length)throw new Error('Invalid replay timeline.');
-  stopPlay();removeVideo();state.replay=replay;state.findings=[];
+  stopPlay();removeVideo();window.manualReviewUI?.invalidate('Load and manually pin a real replay moment to review.');state.replay=replay;state.findings=[];
   // Never retain a previous match's pins or future-follow-through ghosts.
   state.decisionLens=null;
   const boostPadModel = typeof ReplayLabBoostPadState !== 'undefined'
@@ -602,6 +602,7 @@ function renderDecisionLensPanel(){
     'lensAfterBtn','lensClearBtn'];
   for(const id of ids){const b=$(id);if(b)b.disabled=!windowData;}
   if($('lensPinBtn'))$('lensPinBtn').disabled=!hasReplay;
+  window.manualReviewUI?.render();
   if($('lensApproachBtn'))$('lensApproachBtn').textContent=windowData?
     '−'+(windowData.t0-windowData.start).toFixed(1)+'s Approach':'−3s Approach';
   if($('lensAfterBtn'))$('lensAfterBtn').textContent=windowData?
@@ -670,12 +671,16 @@ function pinDecisionLens(t0,from='manual'){
   }
   if(state.decisionLens?.loop)stopPlay();
   state.decisionLens={window:windowData,revealed:false,loop:false,source:from};
+  window.manualReviewUI?.invalidate(
+    from==='manual' ? 'Ready to review this pinned time using local source evidence.' :
+    'Pin the current replay frame yourself to ask the coach about a missed moment.');
   const panel=$('decisionLensPanel');if(panel)panel.open=true;
   renderDecisionLensPanel();renderPitch();
   return true;
 }
 function clearDecisionLens(){
   if(state.decisionLens?.loop)stopPlay();
+  window.manualReviewUI?.invalidate('Pin another real replay moment to review.');
   state.decisionLens=null;
   renderDecisionLensPanel();renderPitch();
 }
@@ -1049,6 +1054,17 @@ function wire(){
       () => ({replay:state.replay, focusId:state.focusId,
         focusConfirmed:state.focusConfirmed,coach:window.coachingController}));
     window.modelCoachingUI.mount();
+  }
+  // Manual missed-moment review is a local deterministic EpisodeEvidenceV0
+  // operation. Its result becomes a regular selectable episode. AI still
+  // requires the user's separate one-request consent inside model-coaching.
+  if (globalThis.ReplayLabManualReview?.ManualReviewController) {
+    window.manualReviewUI=new ReplayLabManualReview.ManualReviewController(
+      ()=>({replay:state.replay,focusId:state.focusId,
+        focusConfirmed:state.focusConfirmed,pinned:state.decisionLens}),
+      (lesson,request,metadata)=>
+        window.coachingController?.addVerifiedLesson(lesson,request,metadata));
+    window.manualReviewUI.mount();
   }
   // Decision Lens is a real replay tool, separate from coaching verdicts.
   if($('lensPinBtn'))$('lensPinBtn').onclick=()=>{

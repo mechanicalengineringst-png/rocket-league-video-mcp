@@ -1204,3 +1204,22 @@
 .model-feedback>strong{width:100%;font-size:12px}
 .model-feedback button.active{border-color:#77ddce;background:#113d41;color:#c5f5e9}
 .model-feedback-note{width:100%;min-height:56px;border:1px solid #315565;border-radius:6px;color:#e1f3f5;background:#071b26;padding:9px;font:12px/1.4 inherit}
+
+/* Owner-selected missed-moment coaching: one deterministic local action,
+   never a silent third-party model request or hindsight-grade shortcut. */
+.lens-manual-review{
+  display:flex;flex-direction:column;gap:7px;
+  padding:10px 11px;border:1px solid #315a67;background:#0a2932;
+  border-radius:8px;max-width:100%;min-width:0;
+}
+.lens-manual-review-action{
+  align-self:flex-start;max-width:100%;
+  padding:9px 12px;font-weight:750;color:#c8f5e7;
+  border:1px solid #579e9a;background:#0e3a41;
+}
+.lens-manual-review-action:disabled{
+  opacity:.45;cursor:not-allowed;
+}
+#lensManualReviewStatus{
+  padding:0;margin:0;color:#a8cbd2;overflow-wrap:anywhere;
+}

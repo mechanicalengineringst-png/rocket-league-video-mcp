@@ -109,3 +109,25 @@ def test_real_model_coaching_ui_has_explicit_consent_and_no_fake_fallback():
     assert "source" in model.lower() and "evidence_refs" in model
     assert "model_coaching_reviews" in coach
     assert "candidate_id" in coach and "episodeRequest" in coach
+
+
+def test_manual_overlooked_moment_can_be_requested_without_a_model():
+    html = (ROOT / "index.html").read_text(encoding="utf-8")
+    manual = (ROOT / "manual-review.js").read_text(encoding="utf-8")
+    app = (ROOT / "app.js").read_text(encoding="utf-8")
+    coach = (ROOT / "coaching-experience.js").read_text(encoding="utf-8")
+    assert '<script src="/static/manual-review.js"></script>' in html
+    assert 'id="lensManualReviewBtn"' in html
+    assert 'id="lensManualReviewStatus"' in html
+    assert "ReplayLabManualReview.ManualReviewController" in app
+    assert "buildManualRequest" in manual
+    assert "mode:'deterministic',experimental_tactical_v1:false" in manual
+    assert "ManualReviewController" in manual
+    assert "This selection is not a confirmed mistake." in manual
+    assert "selection_source: manuallySelected ? 'manual' : 'automatic'" in coach
+    assert "defer_activation: true" in coach
+    assert "ownerPinOpen" in coach
+    assert "manual" in coach
+    # A manual source-only review must never automatically pay a provider.
+    assert "mode:'model'" not in manual
+    assert "mode: 'model'" not in manual

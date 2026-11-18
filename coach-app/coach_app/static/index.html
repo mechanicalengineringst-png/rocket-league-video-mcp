@@ -107,6 +107,10 @@
             <button type="button" class="button-mini" id="lensAfterBtn" disabled>Jump to +2s</button>
             <button type="button" class="button-mini" id="lensClearBtn" disabled>Clear Lens</button>
           </div>
+          <div class="lens-manual-review">
+            <button type="button" class="button-mini lens-manual-review-action" id="lensManualReviewBtn" disabled>Review this overlooked moment (local)</button>
+            <p id="lensManualReviewStatus" class="small-copy" role="status" aria-live="polite">Pin a moment yourself to request source-backed analysis even when the automatic coach found nothing. No model calls.</p>
+          </div>
           <div class="lens-metrics" id="lensMetrics" aria-label="Observed decision time measurements">
             <p class="small-copy">No moment pinned. Select a coaching finding or pin the current replay time.</p>
           </div>
@@ -219,6 +223,7 @@
   <script src="/static/coaching-fixtures.js"></script>
   <script src="/static/coaching-experience.js"></script>
   <script src="/static/model-coaching.js"></script>
+  <script src="/static/manual-review.js"></script>
   <script src="/static/app.js" defer></script>
   <script src="/static/hd-bridge.js" defer></script>
 </body>

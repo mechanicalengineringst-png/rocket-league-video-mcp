@@ -143,11 +143,17 @@
       });
       const replayPlayer = request.replay?.players?.find(p => p.id === request.player_id);
       const isExpV1 = Boolean(request.experimental_tactical_v1);
+      const manuallySelected = decisionCase.selection_source === 'manual';
       const ep = {
         schema: 'CoachLessonV0', source: 'backend_stage1',
-        episode_id: 'backend-' + request.player_id + '-' + String(time),
+        selection_source: manuallySelected ? 'manual' : 'automatic',
+        episode_id: (manuallySelected ? 'manual-' : 'backend-') +
+          request.player_id + '-' + String(time),
         title: String(decisionCase.title || 'Replay tactical decision'),
-        subtitle: isExpV1 ? 'EXPERIMENTAL V1 STANCES / UNVALIDATED RESEARCH' : 'SOURCE-BACKED / DETERMINISTIC V0 BASELINE',
+        subtitle: manuallySelected
+          ? 'YOU SELECTED THIS MOMENT / SOURCE-BACKED OBSERVATION, NOT A DETECTED MISTAKE'
+          : isExpV1 ? 'EXPERIMENTAL V1 STANCES / UNVALIDATED RESEARCH'
+                    : 'SOURCE-BACKED / DETERMINISTIC V0 BASELINE',
         is_experimental_v1: isExpV1,
         player_id: request.player_id, player_name: replayPlayer?.name || 'Selected player',
         backendRequest: request,
@@ -155,7 +161,7 @@
           length_s: time - request.episode_start_s, stage1_horizon_s: time},
         nodes, retrospective: null
       };
-      this.addLiveEpisode(ep);
+      this.addLiveEpisode(ep, {activate: decisionCase.defer_activation !== true});
     }
 
     /**
@@ -1068,12 +1074,18 @@
       if (!bundle || bundle.schema !== 'CoachReviewBundleV0') return;
       this.isDemo = false;
       this.bundle = bundle;
-      this.episodes = [];
+      // A delayed automatic shortlist response must never erase an
+      // owner-pinned manual review or steal the user's current scene.
+      const activeManualId = this.activeEpisode?.selection_source === 'manual'
+        ? this.activeEpisode.episode_id : null;
+      const ownerPinOpen = global.manualReviewUI?.context?.()?.pinned?.source === 'manual';
+      this.episodes = this.episodes.filter(ep => ep.selection_source === 'manual');
       const previews = bundle.previews || [];
       const candidates = bundle.discovery?.candidates || [];
 
       if (!candidates.length && !previews.length) {
-        this.setLiveStatus('No source-backed review moments found for this player. Use manual timeline exploration.');
+        this.setLiveStatus('No automatically discovered coaching leads. You can still pin and locally review a moment yourself.');
+        if (this.episodes.length) this.render();
         return;
       }
 
@@ -1106,15 +1118,24 @@
         this.addVerifiedLesson(p.lesson, episodeRequest, {
           candidate_id: p.candidate_id,
           title: titleStr,
-          t0: p.primary_t0
+          t0: p.primary_t0,
+          defer_activation: true
         });
       }
 
       if (!this.episodes.length) {
         this.setLiveStatus('Review bundle returned ' + candidates.length + ' leads, but no preview lessons were generated. You can select moments from the timeline.');
       } else {
-        this.liveStatus = 'Loaded ' + this.episodes.length + ' source-backed review moments from review bundle.';
-        this.selectEpisode(this.episodes[0].episode_id);
+        this.liveStatus = 'Loaded ' + previews.length + ' automatic leads; manually reviewed moments remain available.';
+        if (activeManualId && this.episodes.some(ep=>ep.episode_id===activeManualId)) {
+          this.selectEpisode(activeManualId);
+        } else if (ownerPinOpen) {
+          this.render(); // keep the user's pinned scene while its local review runs
+        } else {
+          const auto = this.episodes.find(ep=>ep.selection_source!=='manual');
+          if (auto) this.selectEpisode(auto.episode_id);
+          else this.render();
+        }
       }
     }
 
@@ -1155,6 +1176,10 @@
             player_name: this.activeEpisode?.player_name || 'unselected',
             duration_s: global.state?.replay?.duration ?? null,
             total_episodes: this.episodes.length,
+            user_selected_review_moments: this.episodes.filter(
+              ep=>ep.selection_source==='manual').length,
+            automatically_discovered_review_moments: this.episodes.filter(
+              ep=>ep.selection_source==='automatic').length,
             is_demo: Boolean(this.isDemo)
           },
           reviewed_moments: this.episodes.map(ep => {
@@ -1163,6 +1188,8 @@
             return {
               episode_id: ep.episode_id,
               title: ep.title,
+              selection_source: ep.selection_source || (this.isDemo ? 'synthetic_demo' : 'unknown'),
+              manually_selected_is_proven_detection_failure: false,
               primary_t0: primary?.t0,
               tactical_stance: primary?.coaching?.stance,
               headline: primary?.coaching?.headline,
@@ -1225,7 +1252,7 @@
     /**
      * Add live extracted episode from decision cases
      */
-    addLiveEpisode(episode) {
+    addLiveEpisode(episode, {activate = true} = {}) {
       if (!episode) return;
       const existing = this.episodes.findIndex(e => e.episode_id === episode.episode_id);
       if (existing >= 0) {
@@ -1233,7 +1260,7 @@
       } else {
         this.episodes.unshift(episode);
       }
-      this.selectEpisode(episode.episode_id);
+      if (activate) this.selectEpisode(episode.episode_id);
     }
   }
 
