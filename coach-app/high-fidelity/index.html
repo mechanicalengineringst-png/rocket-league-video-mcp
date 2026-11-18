@@ -27,8 +27,20 @@
       <section class="stadium-shell" id="dropZone" aria-label="High-fidelity Rocket League replay viewer">
         <div id="viewport" class="viewport"></div>
         <div class="stadium-hud">
-          <div class="top-left-chip"><span class="live-dot"></span> REPLAY REVIEW <span id="cameraLabel">FREE CAM</span></div>
+          <div class="top-left-chip"><span class="live-dot"></span> REPLAY REVIEW <span id="cameraLabel">FREE CAM</span><span class="camera-source" id="cameraSource">VIEWER CONTROL</span></div>
           <div class="top-right-chip" id="playerHud">3D STADIUM</div>
+          <div class="boost-hud hidden" id="boostHud" aria-label="Player Boost Gauge">
+            <div class="boost-gauge-wrap">
+              <svg class="boost-svg" viewBox="0 0 100 100">
+                <circle class="boost-track" cx="50" cy="50" r="40" fill="none"/>
+                <circle class="boost-bar" id="boostBar" cx="50" cy="50" r="40" fill="none" stroke-dasharray="251.327" stroke-dashoffset="0" stroke-linecap="round" transform="rotate(-90 50 50)"/>
+              </svg>
+              <div class="boost-metric">
+                <span class="boost-num" id="boostNum">100</span>
+                <span class="boost-text">BOOST</span>
+              </div>
+            </div>
+          </div>
         </div>
         <div class="loading-surface" id="loadingSurface">
           <div class="load-graphic">⬡</div>
@@ -40,12 +52,12 @@
           <p class="load-error" id="loadError" role="alert"></p>
         </div>
       </section>
+      <div class="camera-evidence" id="cameraEvidence" role="status">Camera telemetry will be checked when the replay loads.</div>
       <section class="controls" aria-label="Replay controls">
         <div class="camera-row">
           <div class="camera-mode-group" aria-label="Camera mode">
             <button type="button" class="cam active" data-camera="follow">Follow player</button>
-            <button type="button" class="cam" data-camera="orbit">Orbit</button>
-            <button type="button" class="cam" data-camera="ballOrbit">Ball orbit</button>
+            <button type="button" class="cam" data-camera="ballOrbit">Orbit ball</button>
             <button type="button" class="cam" data-camera="free">Fly cam</button>
           </div>
           <label class="control-label" for="playerSelect">Player</label>
@@ -78,11 +90,20 @@
           <div class="lower-controls">
             <label for="interpolation">Motion</label>
             <select id="interpolation" disabled><option value="hermite">Velocity-smoothed (Hermite)</option><option value="linear">Linear</option></select>
+            <label for="replayLookToggle" title="Approximate manual swivel/rear-view from replay inputs; exact game camera position is not stored"><input id="replayLookToggle" type="checkbox" disabled> Reconstruct free-look (experimental)</label>
+            <label for="lightingSelect">Lighting</label>
+            <select id="lightingSelect" disabled><option value="stable" selected>Stable HDR</option><option value="neutral">Neutral studio</option></select>
+            <label for="fieldDecorSelect">Field decals</label>
+            <select id="fieldDecorSelect" disabled><option value="original" selected>Original artwork</option><option value="clean">Simplified field (experimental)</option></select>
+            <label for="qualitySelect">Graphics</label>
+            <select id="qualitySelect" disabled><option value="performance">Performance</option><option value="balanced" selected>Balanced</option><option value="sharp">Sharper textures</option></select>
+            <label for="fxStyle">Trails</label>
+            <select id="fxStyle" disabled><option value="soft" selected>Soft / refined</option><option value="original">Original</option><option value="off">Off</option></select>
             <label for="hitboxToggle"><input id="hitboxToggle" type="checkbox" disabled> Hitboxes</label>
-            <label for="trailToggle"><input id="trailToggle" type="checkbox" checked disabled> Pickup effects</label>
+            <label for="trailToggle" hidden><input id="trailToggle" type="checkbox" disabled> Pickup effects (disabled)</label>
             <button id="replaceFileBtn" type="button">Load another replay</button>
           </div>
-          <span class="help-line">Space: play/pause · Left/Right: ±5s · B: Ball Cam · F: fullscreen · Fly: WASD + mouse</span>
+          <span class="help-line">Space: play/pause · Left/Right: ±5s · B: force Ball/Car Cam · R: recorded camera · F: fullscreen · Fly: WASD + mouse</span>
         </div>
       </section>
       <section class="insights-strip">
@@ -90,7 +111,11 @@
           <strong>Match moments</strong>
           <div id="eventList"><span class="muted">Replay events will appear here after loading.</span></div>
         </div>
-        <p>Early integration preview. Actual replay models and effects depend on locally installed source assets; the code's MIT license does not independently establish rights to every bundled vehicle or stadium model. Compare flips, wall driving and chase-camera motion with the game before accepting this renderer.</p>
+        <div class="events-container">
+          <strong>Advanced camera switches (hidden in review mode)</strong>
+          <div id="cameraEventList"><span class="muted">Choose a player to see recorded Ball Cam / rear-look switches.</span></div>
+        </div>
+        <p>Camera toggles and manual look are reconstructed from replay telemetry when present; the game does not record the exact camera world transform. Fly cam is a new viewer-controlled perspective, not footage captured from the player. Model cosmetics and arena artwork may differ from the game.</p>
       </section>
     </main>
   </div>

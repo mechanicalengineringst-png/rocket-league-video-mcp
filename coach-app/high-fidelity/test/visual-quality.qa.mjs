@@ -143,3 +143,67 @@ test('Clean to Original does not reveal source-hidden field decals',()=>{
   assert.equal(setFieldDecorStyle(player,'original'),1);
   assert.equal(hidden.visible,false,'original hidden artwork stays hidden across toggles');
 });
+
+test('soft supersonic trail patches the actual upstream untextured TrailRenderer shader',()=>{
+  // Matches @rlrml/player's BaseVertexShader / BaseFragmentShader shape:
+  // nodeVertexID is an attribute; no vUV or textureColor exists here.
+  // The previous soft profile only recognized the textured variant and
+  // silently left this real SupersonicTrailV2 shader unchanged.
+  const originalVertex=[
+    'attribute float nodeID;',
+    'attribute float nodeVertexID;',
+    'uniform float maxTrailLength;',
+    'varying vec4 vColor;',
+    'void main() {',
+    '  gl_Position = projectionMatrix * viewMatrix * vec4(position, 1.0);',
+    '}',
+  ].join('\n');
+  const originalFragment=[
+    'varying vec4 vColor;',
+    'uniform sampler2D trailTexture;',
+    'void main() {',
+    '  gl_FragColor = vColor;',
+    '}',
+  ].join('\n');
+  const material=new THREE.ShaderMaterial({
+    vertexShader:originalVertex,fragmentShader:originalFragment,
+    transparent:true,alphaTest:0.5,
+  });
+  const ribbon={mesh:{visible:true},material};
+  const trail={trailWidth:15,segments:[{leftTrail:ribbon,rightTrail:null}]};
+  const player={effectsManager:{boostTrails:new Map(),supersonicTrails:new Map([[1,trail]])}};
+  let choice='soft';
+  const refiner=createEffectRefiner(()=>choice);
+  refiner.update(player);
+  assert.equal(trail.trailWidth,9);
+  assert.match(material.vertexShader,/vRibbonSide = mod\(nodeVertexID, 2\.0\)/);
+  assert.match(material.fragmentShader,/smoothstep\(0\.55, 0\.98, abs\(vRibbonSide\)\)/);
+  assert.doesNotMatch(material.fragmentShader,/vUV|textureColor/);
+  assert.equal(material.alphaTest,0,'soft edge must not be cut by the source alphaTest');
+  const onceVertex=material.vertexShader,onceFragment=material.fragmentShader;
+  refiner.update(player);
+  assert.equal(material.vertexShader,onceVertex,'per-frame update is idempotent');
+  assert.equal(material.fragmentShader,onceFragment);
+  choice='original';refiner.update(player);
+  assert.equal(trail.trailWidth,15);
+  assert.equal(material.vertexShader,originalVertex);
+  assert.equal(material.fragmentShader,originalFragment);
+  assert.equal(material.alphaTest,0.5);
+  choice='soft';refiner.update(player);
+  assert.equal(material.fragmentShader,onceFragment,'toggle back cannot stack transformations');
+  assert.equal(material.alphaTest,0);
+});
+
+test('unknown supersonic shaders must remain untouched instead of injecting undefined varyings',()=>{
+  const vertex='void main(){ gl_Position=vec4(1.0); }';
+  const fragment='void main(){ gl_FragColor=vec4(1.0); }';
+  const material=new THREE.ShaderMaterial({vertexShader:vertex,fragmentShader:fragment,alphaTest:0.5});
+  const ribbon={mesh:{visible:true},material};
+  const supersonic={trailWidth:15,segments:[{leftTrail:ribbon,rightTrail:null}]};
+  let profile='soft';
+  const refiner=createEffectRefiner(()=>profile);
+  refiner.update({effectsManager:{boostTrails:new Map(),supersonicTrails:new Map([[1,supersonic]])}});
+  assert.equal(material.vertexShader,vertex);
+  assert.equal(material.fragmentShader,fragment);
+  assert.equal(material.alphaTest,0.5);
+});
