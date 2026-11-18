@@ -179,8 +179,11 @@ claim that the product has passed real-browser, real-game, or expert testing.
    detector errors. New JS, HTTP and Stage1 future-leakage regressions.
    Technical specs and honest acceptance tests:
    `coach-app/docs/round12c/MANUAL_MISSED_MOMENT_REVIEW.md`.
-   **CI running at this checkpoint**; do not report green until
-   the final exact commit passes. No live Windows replay tested.
+   **CI VERIFIED on exact head `9c9fb628`: 409 Python tests passed /
+   13 skipped, 32/32 JavaScript viewer/Decision Lens/model/manual-review
+   tests, and all 3 GitHub workflows successful.** Missing private replay
+   fixtures explain some skips; no actual ranked replay/live native
+   game or real AI provider has been accepted.
 13. [PR #45](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/45)
    **Claude's Round 12 tactical intelligence PR**, head `619914f`,
    stacked on Claude's earlier #40. Introduces an experimental,
