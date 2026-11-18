@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from urllib.parse import urlsplit
 
 import httpx
@@ -111,6 +112,68 @@ def _endpoint_from_env() -> tuple[str, str, str | None]:
     return url, model, key
 
 
+def model_readiness() -> dict:
+    """Read-only local configuration preflight. No provider contact or spend.
+
+    This is NOT evidence that the configured provider actually responds or
+    that its generated coaching is tactically correct. Endpoint and API key
+    are deliberately omitted from every response.
+    """
+    if not model_enabled():
+        status = "disabled"
+    else:
+        try:
+            _endpoint_from_env()
+        except CoachModelDisabled as exc:
+            error = str(exc).lower()
+            status = ("needs_configuration" if (
+                "have not been configured" in error
+                or "require an explicit api key" in error
+            ) else "invalid_configuration")
+        else:
+            status = "configured_unverified"
+    return {
+        "schema": "CoachModelReadinessV0",
+        "status": status,
+        "configuration_complete": status == "configured_unverified",
+        "provider_connection_tested": False,
+        "model_output_validated": False,
+        "tactical_accuracy_expert_validated": False,
+        "server_opt_in_required": True,
+        "request_opt_in_required": True,
+        "local_deterministic_coach_available": True,
+        "outbound_request_made": False,
+        "json_object_hint_supported": True,
+    }
+
+
+def _parse_model_content(raw_content: object) -> dict:
+    """Parse one strict JSON object or a single JSON Markdown code fence.
+
+    A few compatible providers emit a lone fenced JSON reply. Never accept
+    commentary, trailing material, multiple objects, or non-object replies.
+    The independent CoachLesson claim gate still validates the resulting
+    tactical hypotheses against Stage 1 evidence.
+    """
+    if not isinstance(raw_content, str):
+        raise CoachModelError("Coaching model returned invalid or oversized JSON.")
+    if len(raw_content.encode("utf-8")) > MAX_MODEL_OUTPUT_BYTES:
+        raise CoachModelError("Coaching model returned invalid or oversized JSON.")
+    raw_text = raw_content.strip()
+    if raw_text.startswith("```"):
+        fenced = re.fullmatch(r"```(?:json)?[ \t]*\r?\n([\s\S]*?)\r?\n```", raw_text, re.IGNORECASE)
+        if fenced is None:
+            raise CoachModelError("Coaching model did not return a single JSON object.")
+        raw_text = fenced.group(1).strip()
+    try:
+        candidate = json.loads(raw_text)
+    except (ValueError, TypeError) as exc:
+        raise CoachModelError("Coaching model did not return valid JSON.") from exc
+    if not isinstance(candidate, dict):
+        raise CoachModelError("Coaching model did not return a JSON object.")
+    return candidate
+
+
 async def propose_coach_draft(predecision_packet: dict) -> dict:
     """Send only the whitelist Stage 1 packet; never send raw source replays."""
     if not isinstance(predecision_packet, dict) or predecision_packet.get("schema") != EPISODE_PACKET_SCHEMA:
@@ -139,6 +202,10 @@ async def propose_coach_draft(predecision_packet: dict) -> dict:
             {"role": "user", "content": "Analyze these decision-time facts and verified-citation tactical menu ONLY:\n" + payload_str},
         ],
     }
+    # Some OpenAI-compatible providers support a constrained JSON response
+    # mode; make this explicit opt-in because others reject the parameter.
+    if os.getenv("REPLAY_LAB_COACH_MODEL_JSON_MODE") == "1":
+        body["response_format"] = {"type": "json_object"}
     try:
         # The endpoint is configured by the owner, never from a browser request.
         # Do not log requests or responses: they may contain private replay data.
@@ -149,12 +216,7 @@ async def propose_coach_draft(predecision_packet: dict) -> dict:
                 raise CoachModelError("Coaching model returned an oversized response.")
             output = response.json()
         raw_text = output["choices"][0]["message"]["content"]
-        if not isinstance(raw_text, str) or len(raw_text.encode("utf-8")) > MAX_MODEL_OUTPUT_BYTES:
-            raise CoachModelError("Coaching model returned invalid or oversized JSON.")
-        candidate = json.loads(raw_text)
-        if not isinstance(candidate, dict):
-            raise CoachModelError("Coaching model did not return a JSON object.")
-        return candidate
+        return _parse_model_content(raw_text)
     except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError, json.JSONDecodeError) as exc:
         # Never expose provider responses or authorization headers to client.
         raise CoachModelError(
