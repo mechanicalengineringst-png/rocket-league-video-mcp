@@ -998,3 +998,146 @@
   display:flex;
   justify-content:flex-end;
 }
+
+/* User Feedback & Testing Styles */
+.user-feedback-card{
+  background:#0d2433;
+  border:1px solid #23485e;
+  border-radius:8px;
+  padding:14px;
+  margin-top:14px;
+}
+.feedback-header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:1px;
+  color:var(--aqua);
+  margin-bottom:10px;
+}
+.feedback-sub{
+  font-size:10px;
+  font-weight:400;
+  color:var(--muted);
+}
+.feedback-actions{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-bottom:10px;
+}
+.feedback-btn{
+  padding:6px 12px;
+  border-radius:6px;
+  font-size:12px;
+  font-weight:600;
+  background:#15384e;
+  border:1px solid #2e5973;
+  color:#dff1f5;
+  cursor:pointer;
+  transition:all 0.15s ease;
+}
+.feedback-btn:hover{
+  background:#1c4b69;
+}
+.feedback-btn.useful.active{
+  background:#166534;
+  border-color:#4ade80;
+  color:#f0fdf4;
+}
+.feedback-btn.incorrect.active{
+  background:#991b1b;
+  border-color:#f87171;
+  color:#fef2f2;
+}
+.feedback-btn.context.active{
+  background:#854d0e;
+  border-color:#facc15;
+  color:#fefce8;
+}
+.feedback-note-row{
+  display:flex;
+  gap:8px;
+  margin-bottom:10px;
+}
+.feedback-note-input{
+  flex:1;
+  background:#081822;
+  border:1px solid #1f4257;
+  color:#e2f1f5;
+  padding:6px 10px;
+  border-radius:6px;
+  font-size:11px;
+}
+.feedback-export-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+}
+.export-report-btn{
+  font-size:11px;
+  padding:6px 12px;
+  background:#13394d;
+  color:#dff1f5;
+  border:1px solid #275771;
+  border-radius:6px;
+  cursor:pointer;
+}
+.export-report-btn:hover{
+  background:#1a4b66;
+}
+.feedback-status-msg{
+  font-size:11px;
+  color:#7de2d7;
+}
+
+/* Companion Panel Styles */
+.companion-panel{
+  margin-top:14px;
+}
+.companion-status-badge{
+  font-size:10px;
+  font-weight:700;
+  padding:2px 6px;
+  border-radius:4px;
+  text-transform:uppercase;
+  margin-left:6px;
+}
+.companion-status-badge.online{
+  background:#166534;
+  color:#bbf7d0;
+}
+.companion-status-badge.offline{
+  background:#374151;
+  color:#9ca3af;
+}
+.companion-body{
+  padding-top:10px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.companion-controls{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+.companion-actions{
+  display:flex;
+  gap:8px;
+}
+.companion-instructions{
+  background:#081a24;
+  border:1px dashed #284c60;
+  border-radius:6px;
+  padding:8px 10px;
+  font-family:monospace;
+  font-size:10px;
+  color:#a0c4d4;
+  white-space:pre-wrap;
+}
+

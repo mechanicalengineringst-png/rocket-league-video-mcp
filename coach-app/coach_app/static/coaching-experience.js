@@ -24,6 +24,7 @@
     constructor() {
       this.episodes = [];
       this.isDemo = false;
+      this.useExperimentalV1 = false;
       this.liveStatus = 'Load a real replay to inspect source-backed coaching, or explicitly select the simulated demo.';
       this.activeEpisode = null;
       this.activeNode = (this.activeEpisode && this.activeEpisode.nodes[this.activeEpisode.nodes.length - 1]) || null;
@@ -141,11 +142,13 @@
         };
       });
       const replayPlayer = request.replay?.players?.find(p => p.id === request.player_id);
+      const isExpV1 = Boolean(request.experimental_tactical_v1);
       const ep = {
         schema: 'CoachLessonV0', source: 'backend_stage1',
         episode_id: 'backend-' + request.player_id + '-' + String(time),
         title: String(decisionCase.title || 'Replay tactical decision'),
-        subtitle: 'SOURCE-BACKED / PREDECISION / UNCALIBRATED',
+        subtitle: isExpV1 ? 'EXPERIMENTAL V1 STANCES / UNVALIDATED RESEARCH' : 'SOURCE-BACKED / DETERMINISTIC V0 BASELINE',
+        is_experimental_v1: isExpV1,
         player_id: request.player_id, player_name: replayPlayer?.name || 'Selected player',
         backendRequest: request,
         window: {start_s: request.episode_start_s, end_s: time,
@@ -462,6 +465,7 @@
       const ep = this.activeEpisode;
       const node = this.activeNode || ep.nodes[ep.nodes.length - 1];
       const coaching = node.coaching || {};
+      const fb = this.getFeedback(ep.episode_id);
 
       this.container.innerHTML = `
         <div class="coaching-deck">
@@ -473,7 +477,8 @@
                 <h3 class="episode-heading">${escapeHTML(ep.title)}</h3>
                 <span class="episode-sub">${escapeHTML(ep.subtitle)} · Player: <strong>${escapeHTML(ep.player_name)}</strong></span>
               </div>
-              <div class="episode-dropdown-wrap">
+              <div class="episode-dropdown-wrap" style="display:flex;align-items:center;gap:6px;">
+                <button id="prevEpisodeBtn" class="button-mini" type="button" title="Previous review moment" ${this.episodes.length <= 1 ? 'disabled' : ''}>◀</button>
                 <label for="episodeSelect" class="sr-only">Select Episode</label>
                 <select id="episodeSelect" class="episode-select">
                   ${this.episodes.map(e => `
@@ -482,6 +487,11 @@
                     </option>
                   `).join('')}
                 </select>
+                <button id="nextEpisodeBtn" class="button-mini" type="button" title="Next review moment" ${this.episodes.length <= 1 ? 'disabled' : ''}>▶</button>
+                <label class="view-toggle" title="Opt in to experimental V1 tactical stances on deterministic lessons" style="margin-left:8px;font-size:11px;display:inline-flex;align-items:center;gap:4px;">
+                  <input type="checkbox" id="toggleV1Stances" ${this.useExperimentalV1 ? 'checked' : ''} />
+                  <span>V1 Stances (Research)</span>
+                </label>
               </div>
             </div>
 
@@ -600,6 +610,35 @@
                 <div class="takeaway-box">
                   <div class="takeaway-title">💡 ACTIONABLE TAKEAWAY</div>
                   <p class="takeaway-text">${escapeHTML(coaching.takeaway || 'Evaluate your recovery route and spacing relative to your teammate.')}</p>
+                </div>
+              </div>
+
+              <!-- User Testing Feedback & Calibration -->
+              <div class="user-feedback-card">
+                <div class="feedback-header">
+                  <span>COACHING FEEDBACK & ACCURACY</span>
+                  <span class="feedback-sub">Tester Calibration</span>
+                </div>
+                <div class="feedback-actions">
+                  <button class="feedback-btn useful ${fb.rating === 'useful' ? 'active' : ''}" data-rating="useful" type="button" title="Recommendation is tactically valid and actionable">
+                    👍 Useful & Accurate
+                  </button>
+                  <button class="feedback-btn incorrect ${fb.rating === 'incorrect' ? 'active' : ''}" data-rating="incorrect" type="button" title="Advice is strategically flawed or incorrect">
+                    👎 Incorrect Advice
+                  </button>
+                  <button class="feedback-btn context ${fb.rating === 'missing_context' ? 'active' : ''}" data-rating="missing_context" type="button" title="Recommendation misses critical game context">
+                    ⚠️ Missing Match Context
+                  </button>
+                </div>
+                <div class="feedback-note-row">
+                  <input type="text" id="feedbackNoteInput" class="feedback-note-input" placeholder="Optional tester note (e.g. 'Teammate called fake challenge', '0 boost baiting')..." value="${escapeHTML(fb.note || '')}" />
+                  <button id="saveFeedbackNoteBtn" class="button-mini" type="button">Save Note</button>
+                </div>
+                <div class="feedback-export-row">
+                  <button id="exportTestReportBtn" class="export-report-btn" type="button">
+                    📋 Export Full Testing Report (JSON)
+                  </button>
+                  <span class="feedback-status-msg" id="feedbackStatusMsg"></span>
                 </div>
               </div>
 
@@ -882,6 +921,17 @@
         epSelect.onchange = e => this.selectEpisode(e.target.value);
       }
 
+      // V1 experimental stances toggle
+      const v1Toggle = $('toggleV1Stances');
+      if (v1Toggle) {
+        v1Toggle.onchange = e => {
+          this.useExperimentalV1 = e.target.checked;
+          if (typeof window.reloadCoachingLessons === 'function') {
+            window.reloadCoachingLessons();
+          }
+        };
+      }
+
       // Firewall toggle
       const fwBtn = $('toggleFirewallBtn');
       if (fwBtn) {
@@ -960,6 +1010,178 @@
       citTags.forEach(tag => {
         tag.onclick = () => this.inspectEvidenceReference(tag.getAttribute('data-citation-id'));
       });
+
+      // Prev / Next Episode navigation
+      const prevEp = $('prevEpisodeBtn');
+      if (prevEp) prevEp.onclick = () => this.navigatePreviousEpisode();
+      const nextEp = $('nextEpisodeBtn');
+      if (nextEp) nextEp.onclick = () => this.navigateNextEpisode();
+
+      // Feedback rating buttons
+      const fbBtns = this.container.querySelectorAll('.feedback-btn');
+      fbBtns.forEach(btn => {
+        btn.onclick = () => {
+          const rating = btn.getAttribute('data-rating');
+          const note = $('feedbackNoteInput')?.value || '';
+          this.setFeedback(this.activeEpisode?.episode_id, rating, note);
+          this.render();
+        };
+      });
+
+      // Save feedback note
+      const saveNoteBtn = $('saveFeedbackNoteBtn');
+      if (saveNoteBtn) {
+        saveNoteBtn.onclick = () => {
+          const note = $('feedbackNoteInput')?.value || '';
+          const fb = this.getFeedback(this.activeEpisode?.episode_id);
+          this.setFeedback(this.activeEpisode?.episode_id, fb.rating, note);
+          const msg = $('feedbackStatusMsg');
+          if (msg) {
+            msg.textContent = 'Note saved!';
+            setTimeout(() => { if (msg) msg.textContent = ''; }, 2000);
+          }
+        };
+      }
+
+      // Export testing report
+      const expReportBtn = $('exportTestReportBtn');
+      if (expReportBtn) {
+        expReportBtn.onclick = () => this.exportTestReport();
+      }
+    }
+
+    setReviewBundle(bundle, replay, playerId, payload) {
+      if (!bundle || bundle.schema !== 'CoachReviewBundleV0') return;
+      this.isDemo = false;
+      this.bundle = bundle;
+      this.episodes = [];
+      const previews = bundle.previews || [];
+      const candidates = bundle.discovery?.candidates || [];
+
+      if (!candidates.length && !previews.length) {
+        this.setLiveStatus('No source-backed review moments found for this player. Use manual timeline exploration.');
+        return;
+      }
+
+      for (const p of previews) {
+        if (!p.lesson) continue;
+        const c = candidates.find(cand => cand.candidate_id === p.candidate_id) || {};
+        const titleStr = c.situation_type
+          ? (c.situation_type.replace(/_/g, ' ') + ' (' + p.primary_t0.toFixed(1) + 's)')
+          : ('Review Moment @ ' + p.primary_t0.toFixed(1) + 's');
+        this.addVerifiedLesson(p.lesson, payload, {
+          candidate_id: p.candidate_id,
+          title: titleStr,
+          t0: p.primary_t0
+        });
+      }
+
+      if (!this.episodes.length) {
+        this.setLiveStatus('Review bundle returned ' + candidates.length + ' leads, but no preview lessons were generated. You can select moments from the timeline.');
+      } else {
+        this.liveStatus = 'Loaded ' + this.episodes.length + ' source-backed review moments from review bundle.';
+        this.selectEpisode(this.episodes[0].episode_id);
+      }
+    }
+
+    getFeedback(episodeId) {
+      if (!episodeId) return { rating: null, note: '' };
+      try {
+        const store = JSON.parse(localStorage.getItem('replaylab_user_feedback') || '{}');
+        return store[episodeId] || { rating: null, note: '' };
+      } catch (e) {
+        return { rating: null, note: '' };
+      }
+    }
+
+    setFeedback(episodeId, rating, note) {
+      if (!episodeId) return;
+      try {
+        const store = JSON.parse(localStorage.getItem('replaylab_user_feedback') || '{}');
+        const current = store[episodeId] || {};
+        if (rating !== undefined) current.rating = rating;
+        if (note !== undefined) current.note = String(note || '');
+        current.updated_at = new Date().toISOString();
+        store[episodeId] = current;
+        localStorage.setItem('replaylab_user_feedback', JSON.stringify(store));
+      } catch (e) {
+        console.warn('Could not save user feedback:', e);
+      }
+    }
+
+    exportTestReport() {
+      try {
+        const store = JSON.parse(localStorage.getItem('replaylab_user_feedback') || '{}');
+        const report = {
+          report_schema: 'ReplayLabTestingReportV0',
+          generated_at: new Date().toISOString(),
+          app_mode: 'local_deterministic',
+          match_summary: {
+            player_id: this.activeEpisode?.player_id || 'unselected',
+            player_name: this.activeEpisode?.player_name || 'unselected',
+            duration_s: global.state?.replay?.duration ?? null,
+            total_episodes: this.episodes.length,
+            is_demo: Boolean(this.isDemo)
+          },
+          reviewed_moments: this.episodes.map(ep => {
+            const primary = ep.nodes?.find(n => n.is_primary) || ep.nodes?.[ep.nodes?.length - 1];
+            const fb = store[ep.episode_id] || {};
+            return {
+              episode_id: ep.episode_id,
+              title: ep.title,
+              primary_t0: primary?.t0,
+              tactical_stance: primary?.coaching?.stance,
+              headline: primary?.coaching?.headline,
+              feasible_alternatives_count: (primary?.coaching?.feasible_alternatives || []).length,
+              evidence_refs_count: (primary?.coaching?.observed_evidence || []).length,
+              user_rating: fb.rating || 'unrated',
+              user_notes: fb.note || '',
+              feedback_time: fb.updated_at || null
+            };
+          }),
+          diagnostics: {
+            bundle_status: this.bundle?.status || 'direct_lesson_queries',
+            experimental_v1: Boolean(this.useExperimentalV1),
+            timestamp: Date.now()
+          }
+        };
+
+        const jsonStr = JSON.stringify(report, null, 2);
+        const blob = new Blob([jsonStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `replaylab_test_report_${Date.now()}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+
+        const msg = $('feedbackStatusMsg');
+        if (msg) {
+          msg.textContent = 'Report downloaded!';
+          setTimeout(() => { if (msg) msg.textContent = ''; }, 3000);
+        }
+      } catch (err) {
+        console.warn('Failed to export test report:', err);
+        alert('Could not export testing report: ' + err.message);
+      }
+    }
+
+    navigatePreviousEpisode() {
+      if (!this.episodes.length || !this.activeEpisode) return;
+      const idx = this.episodes.findIndex(e => e.episode_id === this.activeEpisode.episode_id);
+      if (idx > 0) {
+        this.selectEpisode(this.episodes[idx - 1].episode_id);
+      }
+    }
+
+    navigateNextEpisode() {
+      if (!this.episodes.length || !this.activeEpisode) return;
+      const idx = this.episodes.findIndex(e => e.episode_id === this.activeEpisode.episode_id);
+      if (idx >= 0 && idx < this.episodes.length - 1) {
+        this.selectEpisode(this.episodes[idx + 1].episode_id);
+      }
     }
 
     /**
