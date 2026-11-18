@@ -115,7 +115,10 @@ claim that the product has passed real-browser, real-game, or expert testing.
    WebGL canvas + stadium meshes + nonzero synchronized time**, not a
    mere iframe DOM node. Integration review and honest acceptance matrix:
    `coach-app/docs/round12/INTEGRATION_REVIEW_AND_NATIVE_HD_TEST_GATES.md`
-   on #44. CI pending at time of this docs snapshot.
+   on #44. **Exact head `2f051ff`: 380 passed / 13 skipped in Replay
+   Coach MVP, general CI and Replay Viewer 3D passed.** The higher skipped
+   count reflects absent private native replay fixture paths in CI;
+   GitHub green does NOT mean browser-HD or live-game acceptance.
 10. [PR #28](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/28)
    Earlier native Stats API companion, independently drafted. Real
    Rocket League loading/seek/POV/pause/speed **NOT verified in a live
