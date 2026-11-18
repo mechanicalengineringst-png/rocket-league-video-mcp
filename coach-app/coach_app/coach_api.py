@@ -13,7 +13,7 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel, Field, field_validator
 
-from .coach_lesson import CoachDraftError, answer_evidence_followup, build_lesson_from_episode
+from .coach_lesson import CoachDraftError, answer_evidence_followup, build_lesson_from_episode, lookup_episode_evidence
 from .coach_model import CoachModelDisabled, CoachModelError, model_enabled, propose_coach_draft
 from .episode_evidence import EpisodeError, build_episode_evidence
 from .episode_stage1 import build_stage1_episode_packet
@@ -71,6 +71,10 @@ class EpisodeLessonRequest(BaseModel):
 
 class EpisodeFollowupRequest(EpisodeLessonRequest):
     question: str = Field(min_length=1, max_length=500)
+
+
+class EpisodeEvidenceRequest(EpisodeLessonRequest):
+    evidence_refs: list[str] = Field(min_length=1, max_length=20)
 
 
 async def _read_json_request(request: Request, model_class: type[BaseModel]) -> BaseModel:
@@ -137,6 +141,19 @@ async def coach_lesson_endpoint(request: Request):
         raise HTTPException(502, "Coaching model returned no valid structured lesson.") from e
     except (Stage1PacketError, ValueError, TypeError) as e:
         raise HTTPException(422, "Episode could not be safely converted into a coaching lesson.") from e
+
+
+@router.post("/api/coach/evidence")
+async def coach_evidence_endpoint(request: Request):
+    """Read-only inspector: source-backed node/episode references, never future."""
+    req = await _read_json_request(request, EpisodeEvidenceRequest)
+    if req.mode != "deterministic":
+        raise HTTPException(422, "Evidence inspection never invokes a model.")
+    episode = await run_in_threadpool(_build_episode, req)
+    try:
+        return await run_in_threadpool(lookup_episode_evidence, episode, req.evidence_refs)
+    except (Stage1PacketError, ValueError, TypeError) as e:
+        raise HTTPException(422, "Requested citation cannot be resolved from Stage 1 evidence.") from e
 
 
 @router.post("/api/coach/followup")
