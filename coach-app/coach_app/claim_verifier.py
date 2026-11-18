@@ -33,7 +33,7 @@ SCALAR_ROUNDING_TOLERANCE = {
     "uu": 0.5, "uu/s": 0.5,
     "unit vector": 0.005,
 }
-NUMBER_IN_PROSE = re.compile(r"(?<![A-Za-z0-9_.])[-+]?\d+(?:\.\d+)?(?![A-Za-z0-9_.])")
+NUMBER_IN_PROSE = re.compile(r"(?<![A-Za-z0-9_.])[-+]?\d+(?:\.\d+)?(?![0-9.])")
 MAX_CLAIMS = 40
 MAX_CITATIONS = 12
 MAX_PREDICATES = 15
@@ -229,7 +229,8 @@ def verify_stage1_claims(packet: dict[str, Any], claims: list[dict[str, Any]]) -
             # any explicit prose numeral must be among the cited typed checks.
             # Always require semantic review even when all numbers match.
             allowed_nums = [c["stated_value"] for c in checks if _finite_number(c["stated_value"])]
-            for token in NUMBER_IN_PROSE.findall(prose):
+            cleaned = re.sub(r"\b\d+v\d+\b|\b\d+(?:st|nd|rd|th)\b", "", prose, flags=re.IGNORECASE)
+            for token in NUMBER_IN_PROSE.findall(cleaned):
                 number = float(token)
                 if not any(abs(number - v) <= 1e-8 for v in allowed_nums):
                     errors.append(f"Unverified numeric assertion in text: {token}.")
