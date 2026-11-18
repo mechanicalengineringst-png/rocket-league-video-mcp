@@ -274,10 +274,77 @@ def _second_man(s: _State, prefix: dict, t0: float, focus: str, q: _Q, base: dic
     b2 = s.val("E.focus.boost") if "E.focus.boost" in s.ev else None
     out["low_boost"] = _cond(UNKNOWN if b2 is None else (HOLDS if b2 < LOW_BOOST else FAILS), "The focus player is low on boost.",
                              ["E.focus.boost"] if b2 is not None else ["U.focus.boost"], kind="observed")
+    # boost route that still lets the focus player cover: nearest available pads, then the goal-side point
+    if None in ts or not all(isinstance(x, list) for x in (p, b, v, s.val("E.focus.forward"))):
+        out["boost_route_keeps_cover"] = _cond(UNKNOWN, "A nearby boost route still lets the focus player cover in time.", ["U.focus.state"])
+        return out
+    st, _ = car_state({"x": p[0], "y": p[1], "z": p[2], "velocity": v, "forward": s.val("E.focus.forward"), "boost": b2})
+    if not st or st.mode != "ground":
+        out["boost_route_keeps_cover"] = _cond(UNKNOWN, "A nearby boost route still lets the focus player cover in time.", ["E.focus.position"])
+        return out
+    own_y = -GOAL_Y if team == "blue" else GOAL_Y
+    gx, gy = b[0] * 2 / 3, b[1] + (own_y - b[1]) / 3
+    best = None
+    for pad in sorted(PADS, key=lambda pd: math.dist((pd["x"], pd["y"]), (p[0], p[1])))[:6]:
+        if math.dist((pad["x"], pad["y"]), (p[0], p[1])) > 2500 or _pad_status(prefix, t0, pad) != "available":
+            continue
+        t1, _ = ground_time(st, pad["x"], pad["y"], 4.0, (b2 or 0) > 0)
+        if t1 is None:
+            continue
+        hd = math.atan2(gy - pad["y"], gx - pad["x"])
+        at_pad = CarState(pad["x"], pad["y"], 17.0, 1200 * math.cos(hd), 1200 * math.sin(hd), 0.0, hd, 50.0, "ground")
+        t2, _ = ground_time(at_pad, gx, gy, 4.0, True)
+        if t2 is not None and (best is None or t1 + t2 < best[0]):
+            best = (t1 + t2, pad)
+    if best is None:
+        out["boost_route_keeps_cover"] = _cond(FAILS, "A nearby boost route still lets the focus player cover in time.",
+                                               ["E.focus.position"], kind="estimate")
+        q.add("Q.boost_then_cover_s", None, "s", ["E.focus.position", "C.boost_pickups"], "no available pad within 2500 uu")
+        out["boost_route_keeps_cover"]["quantities"].append("Q.boost_then_cover_s")
+        return out
+    q.add("Q.boost_then_cover_s", round(best[0], 2), "s", ["E.focus.position", "E.focus.velocity", "E.ball.position", "C.boost_pickups"],
+          f"kinematic time to pad {best[1]['id']} ({'big' if best[1]['big'] else 'small'}) then to the goal-side point")
+    q.add("Q.boost_route_pad", "big" if best[1]["big"] else "small", None, ["C.boost_pickups"], "pad type on the best route")
+    out["boost_route_keeps_cover"] = _cond(_band(min(ts) + V1_POLICY["cover_window_s"] - best[0], 0.0),
+                                           "A nearby boost route still lets the focus player cover in time.",
+                                           ["E.focus.position"] + [f"E.reach.{k}" for k in opp], ["Q.boost_then_cover_s"])
     return out
 
 
-EXTRA = {"possession": _possession, "recovery_and_boost": _recovery, "second_man_support": _second_man}
+CLOSING_COMMIT_UU_S = 500.0       # heuristic: closing on the ball faster than this reads as going for it
+CLOSING_BAND_UU_S = 200.0
+
+
+def _carrier_intent(s: _State, prefix: dict, t0: float, focus: str, q: _Q, base: dict) -> dict:
+    """Capability is not intent: is the opponent who could touch first actually driving at the ball?"""
+    sc_opp = [k for k in s.slots if k.startswith("opponent")]
+    ts = {k: s.reach(k)[0] for k in sc_opp}
+    if any(v is None for v in ts.values()):
+        return {"carrier_committing": _cond(UNKNOWN, "The nearest opponent is driving at the ball.", ["U.opponent.state"])}
+    k = min(ts, key=ts.get)
+    cp, cv, bp, bv = s.val(f"E.{k}.position"), s.val(f"E.{k}.velocity"), s.val("E.ball.position"), s.val("E.ball.velocity")
+    if not all(isinstance(x, list) for x in (cp, cv, bp, bv)):
+        return {"carrier_committing": _cond(UNKNOWN, "The nearest opponent is driving at the ball.", [f"E.{k}.position"])}
+    dx, dy = bp[0] - cp[0], bp[1] - cp[1]
+    d = math.hypot(dx, dy) or 1.0
+    closing = ((cv[0] - bv[0]) * dx + (cv[1] - bv[1]) * dy) / d
+    q.add("Q.carrier_closing_speed", round(closing), "uu/s", [f"E.{k}.velocity", f"E.{k}.position", "E.ball.velocity", "E.ball.position"],
+          "nearest opponent's velocity relative to the ball, along the line to the ball")
+    st = WITHIN if abs(closing - CLOSING_COMMIT_UU_S) <= CLOSING_BAND_UU_S else (HOLDS if closing > CLOSING_COMMIT_UU_S else FAILS)
+    if d < 300:
+        st = HOLDS                     # already at the ball: closing speed is meaningless
+    c = _cond(st, "The nearest opponent is driving at the ball.", [f"E.{k}.velocity", "E.ball.velocity"], ["Q.carrier_closing_speed"])
+    return {"carrier_committing": c}
+
+
+EXTRA = {"possession": _possession, "recovery_and_boost": _recovery, "second_man_support": _second_man,
+         "first_defender": _carrier_intent, "loose_ball": _carrier_intent, "offensive_first_man": _carrier_intent}
+INTENT_REASONS = {
+    "immediate_challenge": ("opponent_not_committing", ["carrier_first", "!carrier_committing", "teammate_covers"],
+                            "The opponent could get there first but is not driving at it; with cover behind, take the ball."),
+    "controlled_touch": ("opponent_not_committing", ["!carrier_committing", "!carrier_controls", "teammate_covers"],
+                         "Nobody is driving at the ball and you have cover: take it under control."),
+}
 
 SPECS: dict[str, dict[str, dict]] = {
     "possession": {
@@ -293,6 +360,11 @@ SPECS: dict[str, dict[str, dict]] = {
              "Pressure is arriving and the teammate can receive."),
             ("teammate_ahead_in_range", ["teammate_forward_option", "in_shooting_range"], "The teammate is placed for a follow-up.")],
             "defeaters": []},
+        "push_forward": {"reasons": [
+            ("beat_the_challenge", ["!ball_in_own_half", "!time_before_pressure"],
+             "Pressure arriving in their half: push it past the defender to keep the attack going."),
+            ("push_to_teammate", ["!ball_in_own_half", "teammate_forward_option"], "Push it ahead for the teammate to follow up.")],
+            "defeaters": [("lose_it_uncovered", ["play_uncovered_if_lost", "!teammate_forward_option"])]},
         "clear_to_space": {"reasons": [
             ("pressured_in_own_half", ["ball_in_own_half", "!time_before_pressure"], "Pressured in the own half: get it away.")],
             "defeaters": []},
@@ -326,8 +398,10 @@ SPECS: dict[str, dict[str, dict]] = {
              "Close support without driving at the ball, still able to cover.")],
             "defeaters": [("double_commit", ["double_commit_risk"])]},
         "boost_while_teammate_plays": {"reasons": [
-            ("low_and_not_needed", ["teammate_first", "low_boost", "!carrier_first"], "Low on boost while the teammate has the ball.")],
-            "defeaters": [("leaves_teammate_alone", ["carrier_first", "!focus_covers_teammate"])]},
+            ("low_and_not_needed", ["teammate_first", "low_boost", "!carrier_first"], "Low on boost while the teammate has the ball."),
+            ("top_up_with_cover", ["teammate_first", "boost_route_keeps_cover", "!double_commit_risk"],
+             "A pad on the way still lets you cover: top up for the next rotation.")],
+            "defeaters": [("leaves_teammate_alone", ["carrier_first", "!boost_route_keeps_cover"])]},
         "challenge_as_well": {"reasons": [
             ("level_with_teammate_and_contest", ["!teammate_first", "contest_level"], "Not clearly behind the teammate in a contest.")],
             "defeaters": [("double_commit", ["double_commit_risk", "teammate_first"])]},
@@ -345,7 +419,11 @@ def specs_for(cls: str) -> dict[str, dict]:
     if cls in SPECS:
         return SPECS[cls]
     keep = BASE_ACTIONS.get(cls, list(RATIONALES))
-    return {a: RATIONALES[a] for a in keep}
+    out = {a: {"reasons": list(RATIONALES[a]["reasons"]), "defeaters": list(RATIONALES[a]["defeaters"])} for a in keep}
+    for a, r in INTENT_REASONS.items():
+        if a in out:
+            out[a]["reasons"].append(r)
+    return out
 
 
 def analyze_situation(stage1_episode_packet: dict[str, Any], replay_prefix: dict[str, Any], situation: dict[str, Any]) -> dict:

@@ -31,6 +31,7 @@ RULE_VERSION = "situations/0.1"
 SCAN_STEP_S = 0.25
 CLASS_DEBOUNCE_S = 4.0
 ANY_GAP_S = 1.5
+KICKOFF_EXCLUSION_S = 3.0            # kickoff play is its own discipline and is not analysed here
 ELIGIBILITY_MARGIN_S = 0.30          # lower end of the Round 11 band: eligibility is inclusive, judgment is not
 GOAL_Y = 5120.0
 CLASSES = ("first_defender", "possession", "offensive_first_man", "second_man_support", "loose_ball",
@@ -139,13 +140,26 @@ def discover_situations(payload: dict[str, Any], focus: str, *, start: float | N
     times = [f["t"] for f in frames]
     t = times[0] + 3.0 if start is None else start
     end = times[-1] if end is None else end
+    kick = sorted(e["t"] for e in payload.get("events", []) if e.get("type") == "kickoff" and isinstance(e.get("t"), (int, float)))
+    goals = sorted(e["t"] for e in payload.get("events", []) if e.get("type") == "goal_context" and isinstance(e.get("t"), (int, float)))
+
+    def dead_ball(t: float) -> bool:
+        """Before the first kickoff, between a goal and the next kickoff, or just after a kickoff (past events only)."""
+        k = kick[bisect.bisect_right(kick, t) - 1] if kick and kick[0] <= t else None
+        g = goals[bisect.bisect_right(goals, t) - 1] if goals and goals[0] <= t else None
+        if kick and k is None:
+            return True
+        if g is not None and (k is None or g > k):
+            return True
+        return k is not None and t - k < KICKOFF_EXCLUSION_S
+
     last_by_class: dict[str, float] = {}
     last_any = -1e9
     out: list[Situation] = []
     while t <= end:
         t = round(t, 3)
         fr = frames[bisect.bisect_right(times, t) - 1]
-        if t - fr["t"] <= 0.15 and t - last_any >= ANY_GAP_S:
+        if t - fr["t"] <= 0.15 and t - last_any >= ANY_GAP_S and not dead_ball(t):
             s = classify_frame(fr, payload.get("players", []), focus)
             if s is not None and t - last_by_class.get(s.situation_class, -1e9) >= CLASS_DEBOUNCE_S:
                 s.t0 = t
