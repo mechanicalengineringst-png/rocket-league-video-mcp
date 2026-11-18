@@ -220,6 +220,20 @@
       if (typeof global.stopPlay === 'function') {
         global.stopPlay();
       }
+      // Source-only Decision Lens may inspect the recorded t0 scene in the
+      // same synchronized 2D+HD clock. This is NOT a verdict, causal claim,
+      // best move or post-decision information supplied to Stage 1 analysis.
+      if (typeof global.dispatchEvent === 'function' &&
+          typeof global.CustomEvent === 'function' && Number.isFinite(node.t0)) {
+        global.dispatchEvent(new global.CustomEvent('replay-lab:coaching-moment',{
+          detail:{
+            t0:node.t0,
+            nodeId:String(node.node_id || ''),
+            episodeId:String(this.activeEpisode?.episode_id || ''),
+            simulated:Boolean(this.isDemo)
+          }
+        }));
+      }
       this.updatePitchOverlays(node);
     }
 
