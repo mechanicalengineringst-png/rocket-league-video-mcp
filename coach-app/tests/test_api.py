@@ -167,3 +167,30 @@ def test_native_companion_command_route_is_opt_in(monkeypatch):
     })
     assert response.status_code == 403
     assert 'disabled' in response.text.lower()
+
+
+def test_companion_diagnostics_and_state_endpoints():
+    diag_resp = client.get('/api/companion/diagnostics')
+    assert diag_resp.status_code == 200
+    diag = diag_resp.json()
+    assert 'status' in diag
+    assert diag['status'] in ('CONFIGURED_MUTED', 'CONFIGURED_ENABLED', 'NOT_FOUND')
+    assert 'effective_packet_send_rate' in diag
+    assert 'tcp_port' in diag
+
+    state_resp = client.get('/api/companion/state')
+    assert state_resp.status_code == 200
+    state = state_resp.json()
+    assert 'connected' in state
+    assert 'replay_elapsed_seconds' in state
+    assert 'match_clock_seconds_remaining' in state
+
+
+def test_companion_command_when_opted_in(monkeypatch):
+    monkeypatch.setenv("REPLAY_LAB_ENABLE_NATIVE_COMMANDS", "1")
+    # Attempting to send command when game is offline returns 503 Service Unavailable, not 403 Forbidden
+    response = client.post('/api/companion/command', json={
+        'Command': 'SetMatchPaused', 'Data': {'bPaused': True},
+    })
+    assert response.status_code == 503
+    assert 'not connected' in response.text.lower()
