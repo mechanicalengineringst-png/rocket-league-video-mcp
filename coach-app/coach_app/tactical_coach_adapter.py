@@ -53,6 +53,24 @@ def build_verified_tactical_context(packet: dict[str, Any]) -> dict[str, Any]:
     policy = raw.get("policy")
     if not isinstance(policy, dict) or policy.get("version") != POLICY["version"]:
         raise TacticalOptionsError("Unrecognized tactical-policy version.")
+    # The V1 engine may mark a result abstain even if its internal diagnostic
+    # object contains explanatory action hypotheses. Publish NONE of those as
+    # advice. The stable V0 output remains available as the comparison baseline.
+    if raw["status"] == "abstain":
+        return _copy_json_safe({
+            "schema": V1_SCHEMA, "status": "abstain", "node_id": nid, "t0_s": t0,
+            "information_cutoff_s": t0, "calibration": cal,
+            "analysis_type": "experimental_uncalibrated_tactical_hypotheses",
+            "scenario": None, "branches": [], "actions": [], "claims": [],
+            "abstain_reasons": ["Required decision-time evidence was not available."],
+            "validation": {
+                "stage1_claims_checked": 0, "rejected_claims": 0,
+                "retrospective_used": False, "semantic_tactical_accuracy_verified": False,
+                "expert_validated": False, "best_move_established": False,
+                "model_called": False, "v0_unchanged": True,
+            },
+            "caveat": "Experimental V1 abstained; no supported tactical recommendation.",
+        })
     source_claims = raw.get("claims")
     if not isinstance(source_claims, list) or len(source_claims) > MAX_CLAIMS:
         raise TacticalOptionsError("Missing or oversized tactical claim list.")
