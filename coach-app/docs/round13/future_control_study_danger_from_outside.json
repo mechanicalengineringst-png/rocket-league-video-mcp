@@ -1,0 +1,245 @@
+{
+ "rows": 17344,
+ "matches": 15,
+ "note": "Public 2v2 replays of unknown rank; consecutive rows are strongly correlated (0.5 s apart).",
+ "targets": {
+  "danger_5s_from_outside": {
+   "n": 14400,
+   "matches": 15,
+   "base_rate": 0.2,
+   "models": {
+    "base": {
+     "log_loss": 0.5003,
+     "brier": 0.1599,
+     "auc": 0.4584
+    },
+    "physics": {
+     "log_loss": 0.4987,
+     "brier": 0.1594,
+     "auc": 0.5544
+    },
+    "reach": {
+     "log_loss": 0.496,
+     "brier": 0.1584,
+     "auc": 0.5774
+    },
+    "ledger_like": {
+     "log_loss": 0.4348,
+     "brier": 0.1394,
+     "auc": 0.7478
+    },
+    "logistic_all": {
+     "log_loss": 0.3465,
+     "brier": 0.1098,
+     "auc": 0.8657
+    },
+    "gbm_all": {
+     "log_loss": 0.3287,
+     "brier": 0.1038,
+     "auc": 0.8811
+    },
+    "knn": {
+     "log_loss": 0.3745,
+     "brier": 0.1173,
+     "auc": 0.8428
+    },
+    "gbm_minus_ball": {
+     "log_loss": 0.3466,
+     "brier": 0.11,
+     "auc": 0.8653
+    },
+    "gbm_minus_reach": {
+     "log_loss": 0.3342,
+     "brier": 0.1058,
+     "auc": 0.8765
+    },
+    "gbm_minus_players": {
+     "log_loss": 0.3425,
+     "brier": 0.1088,
+     "auc": 0.8687
+    },
+    "gbm_minus_control": {
+     "log_loss": 0.3312,
+     "brier": 0.1047,
+     "auc": 0.8791
+    }
+   },
+   "log_loss_gain_vs_physics_95ci": {
+    "base": [
+     -0.0037,
+     0.0002
+    ],
+    "reach": [
+     -0.0008,
+     0.0059
+    ],
+    "ledger_like": [
+     0.0535,
+     0.0748
+    ],
+    "logistic_all": [
+     0.1349,
+     0.1699
+    ],
+    "gbm_all": [
+     0.1517,
+     0.1888
+    ],
+    "knn": [
+     0.1069,
+     0.1379
+    ],
+    "gbm_minus_ball": [
+     0.1354,
+     0.17
+    ],
+    "gbm_minus_reach": [
+     0.146,
+     0.1826
+    ],
+    "gbm_minus_players": [
+     0.1402,
+     0.1745
+    ],
+    "gbm_minus_control": [
+     0.1502,
+     0.1854
+    ]
+   },
+   "calibration_logistic_all": [
+    {
+     "bin": "0.0-0.2",
+     "n": 9641,
+     "mean_pred": 0.059,
+     "observed": 0.064
+    },
+    {
+     "bin": "0.2-0.4",
+     "n": 2000,
+     "mean_pred": 0.29,
+     "observed": 0.305
+    },
+    {
+     "bin": "0.4-0.6",
+     "n": 1294,
+     "mean_pred": 0.497,
+     "observed": 0.486
+    },
+    {
+     "bin": "0.6-0.8",
+     "n": 1041,
+     "mean_pred": 0.696,
+     "observed": 0.657
+    },
+    {
+     "bin": "0.8-1.0",
+     "n": 424,
+     "mean_pred": 0.863,
+     "observed": 0.795
+    }
+   ],
+   "calibration_gbm_all": [
+    {
+     "bin": "0.0-0.2",
+     "n": 9777,
+     "mean_pred": 0.055,
+     "observed": 0.058
+    },
+    {
+     "bin": "0.2-0.4",
+     "n": 1791,
+     "mean_pred": 0.292,
+     "observed": 0.311
+    },
+    {
+     "bin": "0.4-0.6",
+     "n": 1294,
+     "mean_pred": 0.497,
+     "observed": 0.495
+    },
+    {
+     "bin": "0.6-0.8",
+     "n": 1127,
+     "mean_pred": 0.697,
+     "observed": 0.678
+    },
+    {
+     "bin": "0.8-1.0",
+     "n": 411,
+     "mean_pred": 0.848,
+     "observed": 0.847
+    }
+   ],
+   "importance_gbm_gain": {
+    "top": [
+     [
+      "ball_vy",
+      0.252
+     ],
+     [
+      "ball_y",
+      0.117
+     ],
+     [
+      "ball_own_goal_dist",
+      0.117
+     ],
+     [
+      "opp1_y_rel_ball",
+      0.047
+     ],
+     [
+      "opp1_closing",
+      0.036
+     ],
+     [
+      "reach_margin_first",
+      0.031
+     ],
+     [
+      "own1_y_rel_ball",
+      0.026
+     ],
+     [
+      "own1_closing",
+      0.017
+     ],
+     [
+      "opp2_y_rel_ball",
+      0.015
+     ],
+     [
+      "own1_facing_ball",
+      0.014
+     ],
+     [
+      "opp1_own_goal_dist",
+      0.014
+     ],
+     [
+      "opp2_own_goal_dist",
+      0.014
+     ],
+     [
+      "opp1_x_rel_ball_abs",
+      0.013
+     ],
+     [
+      "opp1_facing_ball",
+      0.012
+     ],
+     [
+      "ball_vx_abs",
+      0.011
+     ]
+    ],
+    "by_group": {
+     "ball": 0.53,
+     "players": 0.344,
+     "reach": 0.079,
+     "control": 0.047
+    }
+   }
+  }
+ }
+}

@@ -35,6 +35,7 @@ from coach_app.choices import classify_choice  # noqa: E402
 from coach_app.coach_report import analyze_moment  # noqa: E402
 from coach_app.reachability import estimate_reach  # noqa: E402
 from coach_app.situations import discover_situations  # noqa: E402
+from coach_app.strategic_state import _already_goal_side  # noqa: E402
 from coach_app.tactical_options import _State  # noqa: E402
 
 GOAL_Y = 5120.0
@@ -172,11 +173,12 @@ def study(path: str) -> dict:
             k = bisect.bisect_right(ts, sd["t0"])
             for f2 in frames[k:k + 150]:
                 c = f2["cars"].get(mate)
-                if c and s * c["y"] < s * f2["ball"]["y"] - 300:
+                if c and _already_goal_side(c["x"], c["y"], f2["ball"], team):   # the same test the cover estimate uses
                     actual = round(f2["t"] - sd["t0"], 2)
                     break
+            carrier_t = it["situation"]["values"].get("carrier_t")
             out["D_cover"].append({"status": cov.get("status"), "pred": pred, "actual": actual,
-                                   "already": bool(pred == 0)})
+                                   "already": bool(pred == 0), "carrier_t": carrier_t})
     return out
 
 
@@ -228,7 +230,13 @@ def aggregate(parts: list[dict]) -> dict:
         "teammate_became_goal_side_within_5s": sum(r["actual"] is not None for r in D),
         "pred_vs_actual_n": len(rows), "actual_minus_pred_median_s": _q(err, 0.5),
         "actual_minus_pred_p25_s": _q(err, 0.25), "actual_minus_pred_p75_s": _q(err, 0.75),
-        "note": "actual = first time the teammate was 300 uu goal-side of the ball; the teammate may not have tried."}
+        "by_status": {st: {"n": len(x),
+                           "goal_side_within_carrier_t_plus_1s": round(sum(r["actual"] is not None and r["carrier_t"] is not None and
+                                                                          r["actual"] <= r["carrier_t"] + 1.0 for r in x) / max(1, len(x)), 3),
+                           "goal_side_within_5s": round(sum(r["actual"] is not None for r in x) / max(1, len(x)), 3)}
+                      for st in ("holds", "within_error", "fails", "unknown") for x in [[r for r in D if r["status"] == st]]},
+        "note": "actual = first time the teammate met the same goal-side test the cover estimate uses (moving ball); "
+                "the teammate may not have tried, so 'fails' can also mean 'did not try'."}
     dz = [r["t_to_goal_zone_s"] for r in allr["D_danger"]]
     reached = [x for x in dz if x is not None]
     res["D_time_to_goal_zone_after_opponent_touch_in_our_half"] = {

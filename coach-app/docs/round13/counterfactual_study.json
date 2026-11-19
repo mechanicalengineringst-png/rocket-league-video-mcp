@@ -1,0 +1,103 @@
+{
+ "situations": 4091,
+ "horizon_median_s": 0.5,
+ "forward_model": {
+  "n": 3321,
+  "chosen_family_error_median_uu": 215.604,
+  "constant_velocity_error_median_uu": 183.893,
+  "chosen_beats_constant_velocity_share": 0.435,
+  "chosen_family_is_closest_share": 0.366,
+  "chance_closest_share": 0.2,
+  "by_family": {
+   "big_boost": {
+    "n": 200,
+    "closest_share": 0.535,
+    "err_median": 244.843,
+    "cv_median": 287.413
+   },
+   "commit": {
+    "n": 1636,
+    "closest_share": 0.447,
+    "err_median": 160.144,
+    "cv_median": 151.199
+   },
+   "retreat": {
+    "n": 246,
+    "closest_share": 0.301,
+    "err_median": 361.535,
+    "cv_median": 216.438
+   },
+   "shadow": {
+    "n": 856,
+    "closest_share": 0.286,
+    "err_median": 273.784,
+    "cv_median": 186.323
+   },
+   "small_boost": {
+    "n": 383,
+    "closest_share": 0.157,
+    "err_median": 568.152,
+    "cv_median": 414.127
+   }
+  },
+  "median_distance_moved_uu": 644.111
+ },
+ "value_spread_between_families": {
+  "median": 0.096,
+  "p75": 0.322,
+  "p90": 0.606,
+  "note": "value = model next-touch-own minus danger-5s; units are model scores"
+ },
+ "ledger_value_agreement": {
+  "ledger_challenge_over_hold": {
+   "n": 229,
+   "value_model_agrees": 0.847
+  },
+  "ledger_hold_over_challenge": {
+   "n": 315,
+   "value_model_agrees": 0.098
+  },
+  "ledger_direct_over_big_boost": {
+   "n": 386,
+   "value_model_agrees": 0.448
+  }
+ },
+ "model_regret_by_r12_verdict": {
+  "sound": {
+   "n": 1904,
+   "median": 0.007,
+   "p75": 0.036,
+   "zero_regret_share": 0.358
+  },
+  "defensible_if": {
+   "n": 772,
+   "median": 0.0,
+   "p75": 0.045,
+   "zero_regret_share": 0.512
+  },
+  "unclear": {
+   "n": 296,
+   "median": 0.001,
+   "p75": 0.025,
+   "zero_regret_share": 0.483
+  },
+  "risky": {
+   "n": 61,
+   "median": 0.0,
+   "p75": 0.0,
+   "zero_regret_share": 0.738
+  },
+  "questionable": {
+   "n": 280,
+   "median": 0.0,
+   "p75": 0.043,
+   "zero_regret_share": 0.475
+  },
+  "debatable": {
+   "n": 8,
+   "median": 0.0,
+   "p75": 0.0,
+   "zero_regret_share": 0.75
+  }
+ }
+}
