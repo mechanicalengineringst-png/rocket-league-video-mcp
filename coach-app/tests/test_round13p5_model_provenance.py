@@ -84,3 +84,65 @@ def test_rejected_model_claim_is_not_silent_fallback_or_false_model_success():
     assert not [c for c in lesson["claims"] if c["author"] == "model_proposal"]
     serialized = json.dumps(lesson)
     assert "PRIVATE_FUTURE_OUTCOME_GOAL" not in serialized
+
+
+def test_real_fastapi_coaching_endpoint_reports_all_withheld_without_model_fallback(
+    monkeypatch,
+):
+    """Mock a provider function, not tactical grading or the production endpoint.
+
+    An explicit model request returned invalid numeric claims. The local API
+    remains source backed and never disguises those rejected statements as
+    successful AI coaching.
+    """
+    from fastapi.testclient import TestClient
+    from coach_app.main import app
+    from coach_app import coach_api
+    from tests.test_round12_model_acceptance import episode_request
+
+    monkeypatch.setenv("REPLAY_LAB_ENABLE_COACH_MODEL", "1")
+    calls = []
+
+    async def source_inconsistent_draft(packet):
+        calls.append(packet["schema"])
+        return {
+            "schema": "CoachDraftV0", "assessment": "risky",
+            "claims": [{
+                "claim_id": "invented_999_boost",
+                "node_id": "N3", "section": "observation",
+                "epistemic_type": "OBSERVED_FACT",
+                "temporal_scope": "PRE_DECISION",
+                "cited_evidence_ids": ["N3/E.focus.boost"],
+                "predicate_checks": [{
+                    "evidence_id": "N3/E.focus.boost",
+                    "value_path": [], "relation": "eq", "stated_value": 999.0,
+                }],
+                "text": "The focus player had 999 boost.",
+            }],
+        }
+
+    monkeypatch.setattr(coach_api, "propose_coach_draft", source_inconsistent_draft)
+    with TestClient(app) as client:
+        plain = client.post("/api/coach/lesson", json={
+            **episode_request(), "mode": "deterministic",
+        })
+        assert plain.status_code == 200, plain.text
+        assert calls == []
+        assert plain.json()["validation"]["response_provenance"]["status"] == "deterministic_only"
+
+        response = client.post("/api/coach/lesson", json={
+            **episode_request(), "mode": "model",
+        })
+        assert response.status_code == 200, response.text
+        assert calls == ["Stage1EpisodePacketV0"]
+        result = response.json()
+        p = result["validation"]["response_provenance"]
+        assert result["mode"] == "model_proposal"
+        assert result["assessment"]["grade"] == "undetermined"
+        assert p["status"] == "model_claims_withheld"
+        assert p["model_claims_submitted"] == 1
+        assert p["model_claims_accepted"] == 0
+        assert p["model_claims_rejected"] == 1
+        assert p["tactical_hypothesis_emitted"] is False
+        assert not [c for c in result["claims"] if c["author"] == "model_proposal"]
+        assert "999 boost" not in response.text
