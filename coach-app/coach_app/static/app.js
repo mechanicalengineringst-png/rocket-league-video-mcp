@@ -1023,7 +1023,7 @@ function wire(){
   zone.ondragover=e=>{e.preventDefault();zone.classList.add('dragging');};
   zone.ondragleave=()=>zone.classList.remove('dragging');
   zone.ondrop=e=>{e.preventDefault();zone.classList.remove('dragging');loadFile(e.dataTransfer.files[0]);};
-  $('playerSelect').onchange=e=>{window.blindReviewUI?.cancelOpen();clearDecisionLens();window.modelCoachingUI?.resetForReplay();state.focusId=e.target.value;window.experimentalReportUI?.selectionChanged();window.reportV2UI?.selectionChanged();state.focusConfirmed=true;if(state.replay?.source!=='synthetic')remembered.set(state.focusId);state.overrides.clear();refreshFindings();chooseTime(state.time);window.coachingController?.resetForReplay(state.replay?.source==='synthetic');if(state.replay?.source!=='synthetic')loadDecisionCasesForCoaching(state.replay,state.focusId);};
+  $('playerSelect').onchange=e=>{window.blindReviewUI?.cancelOpen();clearDecisionLens();window.modelCoachingUI?.resetForReplay();state.focusId=e.target.value;state.focusConfirmed=true;window.experimentalReportUI?.selectionChanged();window.reportV2UI?.selectionChanged();if(state.replay?.source!=='synthetic')remembered.set(state.focusId);state.overrides.clear();refreshFindings();chooseTime(state.time);window.coachingController?.resetForReplay(state.replay?.source==='synthetic');if(state.replay?.source!=='synthetic')loadDecisionCasesForCoaching(state.replay,state.focusId);};
   $('timeRange').oninput=e=>{stopPlay();cancelDecisionLensLoop();chooseTime(Number(e.target.value));};
   $('playBtn').onclick=togglePlay;
   $('backBtn').onclick=()=>{stopPlay();cancelDecisionLensLoop();chooseTime(state.time-2);};
