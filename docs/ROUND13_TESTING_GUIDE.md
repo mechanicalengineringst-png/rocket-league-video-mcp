@@ -32,6 +32,24 @@ coach-app\round13-test-windows.cmd "C:\path\to\match.replay" 1
 
 Replace `1` with the 1–4 **confirmed decoded roster slot**. Omit it only if the recording-player mapping is verified. The output intentionally includes **only statuses and counts**, not private player names, original paths or raw match frames. `api_structural_pass` does **not** establish accurate tactical coaching or working browser visuals.
 
+## Strict browser interaction test (real replay required)
+
+Antigravity's historical browser smoke script is preserved, but a NEW stricter test now refuses silent success when a report, manual review, blind completion or geometry request fails. In a **second Windows Command Prompt**, leave the Replay Lab server running in the first prompt, then use:
+
+```cmd
+set "REPLAY_LAB_REPLAY_PATH=C:\path\to\your_real_2v2_match.replay"
+cd coach-app\high-fidelity
+npm run test:owner-e2e
+```
+
+The script requires locally installed Chrome, Playwright and a **real replay path**. It verifies actual UI interactions, completed report cards, manual selection, blind Stage A/B and JSON export, model readiness/no-spend consent, spatial API, HD canvas existence and a bounded HD/map timestamp alignment. It does **not** infer coaching correctness, pixel-perfect textures or actual external-LLM performance from these checks. The screenshot `round13_strict_owner_local.png` remains on your PC and is not automatically uploaded. A missing replay is a hard failure, never replaced by a demo.
+
+Any failed assertion is useful: preserve the error and replay-relative timestamp for the next iteration. You can override the local server address with `REPLAY_LAB_URL` and the local screenshot path with `REPLAY_LAB_SCREENSHOT`.
+
+## Adversarial evidence tests
+
+GitHub CI includes `test_round13_outcome_firewall.py`, which rewrites future events, ball/car trajectories, and misleading replay titles/scores at three decision cutoffs while requiring **identical** model-safe Stage 1 packets, local geometry and deterministic lesson judgments. This is a synthetic leak regression, not proof that every real model response is tactically correct.
+
 ## Manual owner test: mandatory functions
 
 1. **Load and identify:** Upload one genuine ranked 2v2 `.replay`, confirm the player in **Who are we coaching?**, match duration and ball/teammate tracks. An identity warning must not be ignored.
