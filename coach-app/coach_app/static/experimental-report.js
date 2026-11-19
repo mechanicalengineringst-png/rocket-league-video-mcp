@@ -37,14 +37,14 @@
     const findings=res.findings.filter(f=>{
       const v=f?.validation;
       return f&&f.status==='ok'&&finite(f.t0)&&f.t0>=0&&
-        SAFE_CLASS.has(f.situation?.situation_class)&&
+        SAFE_CLASS.has(f.situation?.class)&&
         v?.claims_structurally_valid===true &&
         v?.future_frames_used===false &&
         v?.semantic_tactical_accuracy_verified===false &&
         Array.isArray(v?.untraced_numbers)&&v.untraced_numbers.length===0&&
         Array.isArray(v?.rejected_claims)&&v.rejected_claims.length===0&&
         typeof f.interpretation?.text==='string'&&
-        typeof f.takeaway?.text==='string'&&
+        (typeof f.takeaway?.text==='string'||(f.kind==='observation_only'&&f.takeaway?.text==null))&&
         Array.isArray(f.alternatives)&&Array.isArray(f.decision_context);
     });
     return {findings,withheld:res.findings.length-findings.length,
@@ -162,7 +162,7 @@
         header.append(t);card.append(header);
         card.append(el('p','small-copy',
           'Unverified '+String(f.kind||'coaching')+' · '+
-          String(f.situation?.situation_class||'unknown situation')));
+          String(f.situation?.class||'unknown situation')));
         card.append(el('p','experimental-report-reading',f.interpretation.text));
         const facts=el('details','experimental-report-detail');
         facts.append(el('summary','','Observed decision-time conditions'));
@@ -173,7 +173,7 @@
           }
         }
         card.append(facts);
-        if(f.situation.situation_class==='aerial_or_wall'||
+        if(f.situation.class==='aerial_or_wall'||
            f.kind==='observation_only'){
           card.append(el('p','small-copy',
             'Observation only: aerial and wall play are not judged by this engine.'));
@@ -196,8 +196,9 @@
             note.append(el('p','small-copy',String(u.question||u.condition||'Unknown')));
           card.append(note);
         }
-        card.append(el('p','experimental-report-takeaway',
-          'Practice hypothesis: '+f.takeaway.text));
+        if(typeof f.takeaway.text==='string')
+          card.append(el('p','experimental-report-takeaway',
+            'Practice hypothesis: '+f.takeaway.text));
         if(f.retrospective){
           const later=el('details','experimental-report-outcome');
           later.append(el('summary','','What you did & recorded outcome — open separately'));
