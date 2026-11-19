@@ -310,6 +310,9 @@ test('Round 14 refuses unsupported restraint or malformed model-head attribution
     {ended_goal_side:false},
     {next_touch_change:.12},
     {danger_change:.25},
+    {label:'supports'}, // untruthful praise despite less next-touch access
+    {label:'hurts'},    // untruthful blame despite documented defensive restraint
+    {label:'tradeoff'}, // a tradeoff must be supported by head signs
     {kind:'causally_proven'},
     {label:'mistake'},
     {next_touch_change:Infinity},
