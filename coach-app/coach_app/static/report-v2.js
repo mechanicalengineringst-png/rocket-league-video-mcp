@@ -71,11 +71,16 @@
          (finite(h.moved_back_uu)&&Math.abs(h.moved_back_uu)<20000))||
        !(h.ended_goal_side===null||
          typeof h.ended_goal_side==='boolean'))return false;
-    // A restraint claim with no recorded goal-side retreat is misleading.
-    if(h.label==='restraint' &&
-       !(h.moved_back_uu>500 && h.ended_goal_side===true &&
-         h.next_touch_change<-.02 && h.danger_change<=.02))return false;
-    return true;
+    // Verify the whole two-head label against the numeric evidence. This
+    // must mirror the conservative Round 14 backend classification, not
+    // trust a text label that contradicts its own source quantities.
+    const tu=h.next_touch_change>.02,td=h.next_touch_change<-.02;
+    const gd=h.danger_change<-.02,gu=h.danger_change>.02;
+    const expected=!(tu||td||gd||gu)?'negligible':
+      td&&!gu&&h.moved_back_uu>500&&h.ended_goal_side===true?'restraint':
+      (tu||gd)&&!(td||gu)?'supports':
+      (td||gu)&&!(tu||gd)?'hurts':'tradeoff';
+    return h.label===expected;
   }
   function movementReadout(point){
     const h=point?.your_movement_reading;
