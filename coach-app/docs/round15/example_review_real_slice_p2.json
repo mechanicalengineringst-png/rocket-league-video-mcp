@@ -1,0 +1,762 @@
+{
+ "schema": "CoachingReviewV1",
+ "version": "coaching-review/0.1",
+ "experimental": true,
+ "expert_validated": false,
+ "player_team": "blue",
+ "moments": [
+  {
+   "id": "M1",
+   "category": "tradeoff",
+   "category_label": "Defensible trade-off",
+   "t0": 38.3285,
+   "clip": {
+    "start": 34.328,
+    "decision": 38.3285,
+    "end": 41.328
+   },
+   "headline": "0:38.3 Second man while the teammate plays the ball",
+   "situation_class": "second_man_support",
+   "situation": "The nearest opponent could touch the ball first (0.7 s vs your 3.3 s); you had 70 boost; an opponent could reach the ball in 0.7 s.",
+   "your_choice": {
+    "label": "Support from behind",
+    "basis": "movement_label (what the car did in the next 2.5 s; not intent)"
+   },
+   "assessment": "You chose to support from behind; support close for a follow-up was also defensible. Deciding question: whether the small pad route still reached goal-side in 1.67 s, in time to cover.",
+   "options": [
+    {
+     "action": "support_behind",
+     "label": "Support from behind",
+     "status_at_t0": "supported",
+     "chosen": true,
+     "for": "cover if your teammate is beaten",
+     "against": "a quick follow-up on a weak clear"
+    },
+    {
+     "action": "aggressive_follow_up",
+     "label": "Support close for a follow-up",
+     "status_at_t0": "supported",
+     "chosen": false,
+     "for": "a second touch if their clear is weak",
+     "against": "defensive depth"
+    },
+    {
+     "action": "challenge_as_well",
+     "label": "Challenge as well",
+     "status_at_t0": "refuted",
+     "chosen": false,
+     "for": null,
+     "against": "a double commit on a ball your teammate already has"
+    }
+   ],
+   "uncertainty": [
+    "Unknown: whether the small pad route still reached goal-side in 1.67 s, in time to cover",
+    "No expert has validated this read; arrival times are kinematic estimates."
+   ],
+   "evidence": [
+    {
+     "condition": "carrier_first",
+     "status": "holds",
+     "reading": "the nearest opponent could touch the ball first (0.7 s vs your 3.3 s)",
+     "refs": [
+      "E.reach.focus",
+      "E.reach.opponent_2"
+     ]
+    },
+    {
+     "condition": "double_commit_risk",
+     "status": "fails",
+     "reading": "you were not driving at the ball your teammate was playing",
+     "refs": [
+      "E.focus.velocity",
+      "E.reach.focus",
+      "E.reach.teammate"
+     ]
+    },
+    {
+     "condition": "focus_covers_teammate",
+     "status": "holds",
+     "reading": "you were already goal-side",
+     "refs": [
+      "E.focus.position",
+      "E.ball.position",
+      "E.reach.opponent_1",
+      "E.reach.opponent_2"
+     ]
+    },
+    {
+     "condition": "low_boost",
+     "status": "fails",
+     "reading": "you had 70 boost",
+     "refs": [
+      "E.focus.boost"
+     ]
+    },
+    {
+     "condition": "opponents_far",
+     "status": "fails",
+     "reading": "an opponent could reach the ball in 0.7 s",
+     "refs": [
+      "E.reach.opponent_1",
+      "E.reach.opponent_2"
+     ]
+    },
+    {
+     "condition": "teammate_first",
+     "status": "holds",
+     "reading": "your teammate could reach the ball first (0.7 s vs your 3.3 s)",
+     "refs": [
+      "E.reach.focus",
+      "E.reach.teammate"
+     ]
+    }
+   ],
+   "numbers": {
+    "focus_t": {
+     "value": 3.3,
+     "refs": [
+      "E.reach.focus"
+     ]
+    },
+    "mate_t": {
+     "value": 0.7,
+     "refs": [
+      "E.reach.teammate"
+     ]
+    },
+    "carrier_t": {
+     "value": 0.7,
+     "refs": [
+      "E.reach.opponent_2"
+     ]
+    },
+    "second_t": {
+     "value": 3.4,
+     "refs": [
+      "E.reach.opponent_1"
+     ]
+    },
+    "boost": {
+     "value": 70,
+     "refs": [
+      "E.focus.boost"
+     ]
+    },
+    "ball_own_goal_uu": {
+     "value": 7570,
+     "refs": [
+      "E.ball.position"
+     ]
+    },
+    "closing": {
+     "value": 2194,
+     "refs": [
+      "Q.focus_closing_speed"
+     ]
+    },
+    "boost_cover_s": {
+     "value": 1.67,
+     "refs": [
+      "Q.boost_then_cover_s"
+     ]
+    },
+    "boost_pad": {
+     "value": "small",
+     "refs": [
+      "Q.boost_route_pad"
+     ]
+    }
+   },
+   "outcome_after": {
+    "shown_separately": true,
+    "used_in_assessment": false,
+    "touch_sequence": [
+     {
+      "by": "opponent",
+      "t_after_s": 0.94
+     },
+     {
+      "by": "focus",
+      "t_after_s": 3.41
+     },
+     {
+      "by": "opponent",
+      "t_after_s": 4.51
+     }
+    ],
+    "goal_within_5s": null
+   },
+   "basis": {
+    "situation": "replay_measurement + kinematic_estimate (decoded positions/velocities; arrival times are model estimates)",
+    "assessment": "rule_heuristic (Round 12 condition ledger with Round 13 adjustments; not expert-validated)",
+    "options": "rule_heuristic",
+    "your_choice": "movement_label (what the car did in the next 2.5 s; not intent)",
+    "outcome": "replay_measurement (touches and goals after t0; never used to assess the decision)"
+   }
+  },
+  {
+   "id": "M2",
+   "category": "tradeoff",
+   "category_label": "Defensible trade-off",
+   "t0": 53.0949,
+   "clip": {
+    "start": 49.095,
+    "decision": 53.0949,
+    "end": 56.095
+   },
+   "headline": "0:53.1 Second man while the teammate plays the ball",
+   "situation_class": "second_man_support",
+   "situation": "The small pad route still reached goal-side in 1.97 s, in time to cover; arrival order could not be separated (earliest touches 1.8 s vs 1.9 s, allowing for model error and approach uncertainty): a genuine contest; you could be goal-side in 1.67 s, in time to\u2026",
+   "your_choice": {
+    "label": "Support close for a follow-up",
+    "basis": "movement_label (what the car did in the next 2.5 s; not intent)"
+   },
+   "assessment": "You chose to support close for a follow-up; collect boost while your teammate plays it was also defensible.",
+   "options": [
+    {
+     "action": "aggressive_follow_up",
+     "label": "Support close for a follow-up",
+     "status_at_t0": "supported",
+     "chosen": true,
+     "for": "a second touch if their clear is weak",
+     "against": "defensive depth"
+    },
+    {
+     "action": "boost_while_teammate_plays",
+     "label": "Collect boost while your teammate plays it",
+     "status_at_t0": "supported",
+     "chosen": false,
+     "for": "a full rotation: the small pad route still reaches goal-side in 1.97 s",
+     "against": "support for your teammate's play"
+    },
+    {
+     "action": "support_behind",
+     "label": "Support from behind",
+     "status_at_t0": "supported",
+     "chosen": false,
+     "for": "cover if your teammate is beaten",
+     "against": "a quick follow-up on a weak clear"
+    }
+   ],
+   "uncertainty": [
+    "No expert has validated this read; arrival times are kinematic estimates."
+   ],
+   "evidence": [
+    {
+     "condition": "boost_route_keeps_cover",
+     "status": "holds",
+     "reading": "the small pad route still reached goal-side in 1.97 s, in time to cover",
+     "refs": [
+      "E.focus.position",
+      "E.reach.opponent_1",
+      "E.reach.opponent_2"
+     ]
+    },
+    {
+     "condition": "contest_level",
+     "status": "holds",
+     "reading": "arrival order could not be separated (earliest touches 1.8 s vs 1.9 s, allowing for model error and approach uncertainty): a genuine contest",
+     "refs": [
+      "E.reach.focus",
+      "E.reach.opponent_2"
+     ]
+    },
+    {
+     "condition": "double_commit_risk",
+     "status": "fails",
+     "reading": "you were not driving at the ball your teammate was playing",
+     "refs": [
+      "E.focus.velocity",
+      "E.reach.focus",
+      "E.reach.teammate"
+     ]
+    },
+    {
+     "condition": "focus_covers_teammate",
+     "status": "holds",
+     "reading": "you could be goal-side in 1.67 s, in time to cover",
+     "refs": [
+      "E.focus.position",
+      "E.ball.position",
+      "E.reach.opponent_1",
+      "E.reach.opponent_2"
+     ]
+    },
+    {
+     "condition": "low_boost",
+     "status": "fails",
+     "reading": "you had 59 boost",
+     "refs": [
+      "E.focus.boost"
+     ]
+    },
+    {
+     "condition": "opponents_far",
+     "status": "holds",
+     "reading": "both opponents were at least 1.9 s from the ball",
+     "refs": [
+      "E.reach.opponent_1",
+      "E.reach.opponent_2"
+     ]
+    }
+   ],
+   "numbers": {
+    "focus_t": {
+     "value": 1.8,
+     "refs": [
+      "E.reach.focus"
+     ]
+    },
+    "mate_t": {
+     "value": 0.5,
+     "refs": [
+      "E.reach.teammate"
+     ]
+    },
+    "carrier_t": {
+     "value": 1.9,
+     "refs": [
+      "E.reach.opponent_2"
+     ]
+    },
+    "second_t": {
+     "value": 2.4,
+     "refs": [
+      "E.reach.opponent_1"
+     ]
+    },
+    "boost": {
+     "value": 59,
+     "refs": [
+      "E.focus.boost"
+     ]
+    },
+    "ball_own_goal_uu": {
+     "value": 5210,
+     "refs": [
+      "E.ball.position"
+     ]
+    },
+    "focus_cover_s": {
+     "value": 1.67,
+     "refs": [
+      "Q.focus_cover_s"
+     ]
+    },
+    "closing": {
+     "value": 1243,
+     "refs": [
+      "Q.focus_closing_speed"
+     ]
+    },
+    "boost_cover_s": {
+     "value": 1.97,
+     "refs": [
+      "Q.boost_then_cover_s"
+     ]
+    },
+    "boost_pad": {
+     "value": "small",
+     "refs": [
+      "Q.boost_route_pad"
+     ]
+    }
+   },
+   "outcome_after": {
+    "shown_separately": true,
+    "used_in_assessment": false,
+    "touch_sequence": [
+     {
+      "by": "teammate",
+      "t_after_s": 0.58
+     }
+    ],
+    "goal_within_5s": null
+   },
+   "basis": {
+    "situation": "replay_measurement + kinematic_estimate (decoded positions/velocities; arrival times are model estimates)",
+    "assessment": "rule_heuristic (Round 12 condition ledger with Round 13 adjustments; not expert-validated)",
+    "options": "rule_heuristic",
+    "your_choice": "movement_label (what the car did in the next 2.5 s; not intent)",
+    "outcome": "replay_measurement (touches and goals after t0; never used to assess the decision)"
+   }
+  },
+  {
+   "id": "M3",
+   "category": "tradeoff",
+   "category_label": "Defensible trade-off",
+   "t0": 98.3275,
+   "clip": {
+    "start": 94.328,
+    "decision": 98.3275,
+    "end": 100.791
+   },
+   "headline": "1:38.3 Recovering back into play",
+   "situation_class": "recovery_and_boost",
+   "situation": "The big pad was on the way: going via it was 0.97 s quicker than the direct line (2.87 s); you had only 0 boost; 1 available small pads lay on the direct route.",
+   "your_choice": {
+    "label": "Detour for big boost",
+    "basis": "movement_label (what the car did in the next 2.5 s; not intent)"
+   },
+   "assessment": "You chose to detour for big boost; return through small pads was also defensible.",
+   "options": [
+    {
+     "action": "big_boost_detour",
+     "label": "Detour for big boost",
+     "status_at_t0": "supported",
+     "chosen": true,
+     "for": "a full tank for the next challenge or save",
+     "against": "being out of the play while an opponent attacks"
+    },
+    {
+     "action": "small_pad_route",
+     "label": "Return through small pads",
+     "status_at_t0": "supported",
+     "chosen": false,
+     "for": "refill on the way: 1 available small pads lie on the line back",
+     "against": "any detour while an opponent is attacking"
+    },
+    {
+     "action": "return_direct",
+     "label": "Return directly",
+     "status_at_t0": "refuted",
+     "chosen": false,
+     "for": "the fastest way back: 2.87 s to the goal-side point",
+     "against": "boost: you arrive with 0 and cannot challenge strongly"
+    }
+   ],
+   "uncertainty": [
+    "No expert has validated this read; arrival times are kinematic estimates."
+   ],
+   "evidence": [
+    {
+     "condition": "big_boost_detour_cheap",
+     "status": "holds",
+     "reading": "the big pad was on the way: going via it was 0.97 s quicker than the direct line (2.87 s)",
+     "refs": [
+      "E.focus.position"
+     ]
+    },
+    {
+     "condition": "big_pad_available",
+     "status": "holds",
+     "reading": "the nearest big pad was up",
+     "refs": []
+    },
+    {
+     "condition": "low_boost",
+     "status": "holds",
+     "reading": "you had only 0 boost",
+     "refs": [
+      "E.focus.boost"
+     ]
+    },
+    {
+     "condition": "small_pads_on_route",
+     "status": "holds",
+     "reading": "1 available small pads lay on the direct route",
+     "refs": [
+      "E.focus.position"
+     ]
+    },
+    {
+     "condition": "teammate_covers",
+     "status": "holds",
+     "reading": "your teammate was already goal-side",
+     "refs": [
+      "E.cover.teammate",
+      "E.reach.opponent_2"
+     ]
+    },
+    {
+     "condition": "threat_now",
+     "status": "holds",
+     "reading": "an opponent was first to a ball in or heading into your half",
+     "refs": [
+      "E.ball.position",
+      "E.ball.velocity",
+      "E.reach.focus",
+      "E.reach.opponent_2"
+     ]
+    }
+   ],
+   "numbers": {
+    "focus_t": {
+     "value": 3.7,
+     "refs": [
+      "E.reach.focus"
+     ]
+    },
+    "mate_t": {
+     "value": 2.2,
+     "refs": [
+      "E.reach.teammate"
+     ]
+    },
+    "carrier_t": {
+     "value": 0.37,
+     "refs": [
+      "E.reach.opponent_2"
+     ]
+    },
+    "second_t": {
+     "value": 1.3,
+     "refs": [
+      "E.reach.opponent_1"
+     ]
+    },
+    "boost": {
+     "value": 0,
+     "refs": [
+      "E.focus.boost"
+     ]
+    },
+    "ball_own_goal_uu": {
+     "value": 5480,
+     "refs": [
+      "E.ball.position"
+     ]
+    },
+    "direct_s": {
+     "value": 2.87,
+     "refs": [
+      "Q.direct_return_s"
+     ]
+    },
+    "detour_saving_s": {
+     "value": 0.97,
+     "refs": [
+      "Q.big_boost_detour_extra_s"
+     ]
+    },
+    "small_pads": {
+     "value": 1,
+     "refs": [
+      "Q.small_pads_on_route"
+     ]
+    },
+    "big_pad_status": {
+     "value": "available",
+     "refs": [
+      "Q.big_pad_status"
+     ]
+    }
+   },
+   "outcome_after": {
+    "shown_separately": true,
+    "used_in_assessment": false,
+    "touch_sequence": [],
+    "goal_within_5s": {
+     "t_after_s": 2.45,
+     "scored_by": "own team"
+    }
+   },
+   "basis": {
+    "situation": "replay_measurement + kinematic_estimate (decoded positions/velocities; arrival times are model estimates)",
+    "assessment": "rule_heuristic (Round 12 condition ledger with Round 13 adjustments; not expert-validated)",
+    "options": "rule_heuristic",
+    "your_choice": "movement_label (what the car did in the next 2.5 s; not intent)",
+    "outcome": "replay_measurement (touches and goals after t0; never used to assess the decision)"
+   }
+  },
+  {
+   "id": "M4",
+   "category": "good_decision",
+   "category_label": "Good decision",
+   "t0": 119.0939,
+   "clip": {
+    "start": 115.094,
+    "decision": 119.0939,
+    "end": 121.573
+   },
+   "headline": "1:59.1 First defender",
+   "situation_class": "first_defender",
+   "situation": "You had 51 boost; the nearest opponent was driving at the ball (3373 uu/s closing); you could touch the ball before the nearest opponent (1 s vs 1.8 s).",
+   "your_choice": {
+    "label": "Challenge now",
+    "basis": "movement_label (what the car did in the next 2.5 s; not intent)"
+   },
+   "assessment": "You chose to challenge now, which fits the read at the moment: you could touch the ball first (1 s vs 1.8 s); your teammate could be goal-side in 1.47 s, in time if you were beaten.",
+   "options": [
+    {
+     "action": "immediate_challenge",
+     "label": "Challenge now",
+     "status_at_t0": "supported",
+     "chosen": true,
+     "for": "takes time from the opponent before they settle it",
+     "against": "a rebound favours their second player (2.3 s vs your teammate 3.3 s)"
+    },
+    {
+     "action": "goal_side_hold",
+     "label": "Hold goal-side",
+     "status_at_t0": "contested",
+     "chosen": false,
+     "for": "a safe last line",
+     "against": "any pressure on the ball"
+    },
+    {
+     "action": "rotate_through_small_pads",
+     "label": "Rotate through small pads",
+     "status_at_t0": "refuted",
+     "chosen": false,
+     "for": "boost without leaving the play",
+     "against": "immediate presence on the ball"
+    }
+   ],
+   "uncertainty": [
+    "Not observable in replay data: contact away from second opponent, teammate will rotate",
+    "No expert has validated this read; arrival times are kinematic estimates."
+   ],
+   "evidence": [
+    {
+     "condition": "boost_for_recovery",
+     "status": "holds",
+     "reading": "you had 51 boost",
+     "refs": [
+      "E.focus.boost"
+     ]
+    },
+    {
+     "condition": "carrier_committing",
+     "status": "holds",
+     "reading": "the nearest opponent was driving at the ball (3373 uu/s closing)",
+     "refs": [
+      "E.opponent_2.velocity",
+      "E.ball.velocity"
+     ]
+    },
+    {
+     "condition": "carrier_controls",
+     "status": "fails",
+     "reading": "no opponent had the ball under control",
+     "refs": [
+      "E.ball.position",
+      "E.ball.velocity",
+      "E.opponent_2.position",
+      "E.opponent_2.velocity"
+     ]
+    },
+    {
+     "condition": "carrier_first",
+     "status": "fails",
+     "reading": "you could touch the ball before the nearest opponent (1 s vs 1.8 s)",
+     "refs": [
+      "E.reach.focus",
+      "E.reach.opponent_2"
+     ]
+    },
+    {
+     "condition": "focus_goal_side",
+     "status": "holds",
+     "reading": "you were goal-side of the ball",
+     "refs": [
+      "E.focus.position",
+      "E.ball.position"
+     ]
+    },
+    {
+     "condition": "focus_grounded",
+     "status": "holds",
+     "reading": "you were on the ground",
+     "refs": [
+      "E.focus.position"
+     ]
+    }
+   ],
+   "numbers": {
+    "focus_t": {
+     "value": 1.0,
+     "refs": [
+      "E.reach.focus"
+     ]
+    },
+    "mate_t": {
+     "value": 3.3,
+     "refs": [
+      "E.reach.teammate"
+     ]
+    },
+    "carrier_t": {
+     "value": 1.8,
+     "refs": [
+      "E.reach.opponent_2"
+     ]
+    },
+    "second_t": {
+     "value": 2.3,
+     "refs": [
+      "E.reach.opponent_1"
+     ]
+    },
+    "cover_s": {
+     "value": 1.47,
+     "refs": [
+      "E.cover.teammate"
+     ]
+    },
+    "boost": {
+     "value": 51,
+     "refs": [
+      "E.focus.boost"
+     ]
+    },
+    "ball_own_goal_uu": {
+     "value": 6070,
+     "refs": [
+      "E.ball.position"
+     ]
+    },
+    "carrier_closing": {
+     "value": 3373,
+     "refs": [
+      "Q.carrier_closing_speed"
+     ]
+    }
+   },
+   "outcome_after": {
+    "shown_separately": true,
+    "used_in_assessment": false,
+    "touch_sequence": [
+     {
+      "by": "focus",
+      "t_after_s": 1.01
+     }
+    ],
+    "goal_within_5s": {
+     "t_after_s": 2.48,
+     "scored_by": "own team"
+    }
+   },
+   "basis": {
+    "situation": "replay_measurement + kinematic_estimate (decoded positions/velocities; arrival times are model estimates)",
+    "assessment": "rule_heuristic (Round 12 condition ledger with Round 13 adjustments; not expert-validated)",
+    "options": "rule_heuristic",
+    "your_choice": "movement_label (what the car did in the next 2.5 s; not intent)",
+    "outcome": "replay_measurement (touches and goals after t0; never used to assess the decision)"
+   }
+  }
+ ],
+ "coverage": {
+  "situations_found": 18,
+  "situations_analysed": 17,
+  "eligible_by_category": {
+   "good_decision": 3,
+   "possible_mistake": 0,
+   "tradeoff": 6,
+   "possible_missed_opportunity": 0
+  },
+  "abstained": 8,
+  "abstention_reason": "No firm decision-time read, a falsification-downgraded premise, too few replay-specific numbers, or aerial/wall mechanics (not modelled)."
+ },
+ "not_included": [
+  "habit claims (one match is not enough; see V2 reliability study)",
+  "turning-point attributions and earlier-cause hypotheses (associations, not causes)",
+  "probabilities or model scores"
+ ],
+ "method": {
+  "model_called": false,
+  "future_frames_in_assessment": false,
+  "ledger": "r13",
+  "selection": "decision-time salience within categories; categories use the observed action, never the outcome"
+ }
+}

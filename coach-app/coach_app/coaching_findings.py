@@ -218,7 +218,9 @@ READINGS: dict[str, list[tuple]] = {
                                 (F, "your teammate was not placed to receive a pass")],
     "play_uncovered_if_lost": [(H, "losing the ball would leave nobody goal-side"),
                                (F, "your teammate could cover if you lost the ball")],
-    "big_boost_detour_cheap": [(H, "the big-boost detour cost only {detour_extra_s} s more than returning directly ({direct_s} s)"),
+    "big_boost_detour_cheap": [(H, "the big pad was on the way: going via it was {detour_saving_s} s quicker than the direct line "
+                                   "({direct_s} s)", "detour_faster"),
+                               (H, "the big-boost detour cost only {detour_extra_s} s more than returning directly ({direct_s} s)"),
                                (F, "the big-boost detour cost {detour_extra_s} s more than returning directly ({direct_s} s)"),
                                (W, "the big-boost detour cost {detour_extra_s} s more than returning directly (borderline)")],
     "big_pad_available": [(H, "the nearest big pad was up"), (F, "the nearest big pad had been taken recently")],
@@ -310,6 +312,10 @@ def _numbers(packet: dict, rationale: dict) -> _Numbers:
             if key == "carrier_closing" and q[qid]["value"] < 0:
                 n.flags.add("carrier_moving_away")
                 n.put("carrier_away", -q[qid]["value"], qid)
+                continue
+            if key == "detour_extra_s" and q[qid]["value"] < 0:
+                n.flags.add("detour_faster")                 # the pad lies on the way: it is quicker, not a cost
+                n.put("detour_saving_s", -q[qid]["value"], qid)
                 continue
             if key == "shot_margin_s" and q[qid]["value"] < 0:
                 n.flags.add("defender_early")
