@@ -1,0 +1,152 @@
+{
+ "situations": 1778,
+ "matches": 15,
+ "commit_share": 0.639,
+ "by_class": {
+  "first_defender": 846,
+  "offensive_first_man": 652,
+  "loose_ball": 280
+ },
+ "ledger_counts": {
+  "neither": 1251,
+  "hold_over_challenge": 267,
+  "challenge_over_hold": 260
+ },
+ "propensity_auc": 0.852,
+ "propensity_extreme_share": 0.071,
+ "outcomes": {
+  "danger_5s": {
+   "n": 1651,
+   "naive_difference_commit_minus_hold": -0.048,
+   "adjusted_average_effect": -0.002,
+   "adjusted_95ci_match_bootstrap": [
+    -0.013,
+    0.009
+   ],
+   "by_ledger": {
+    "challenge_over_hold": {
+     "n": 225,
+     "mean_effect": 0.012
+    },
+    "hold_over_challenge": {
+     "n": 266,
+     "mean_effect": 0.022
+    },
+    "neither": {
+     "n": 1160,
+     "mean_effect": -0.011
+    }
+   },
+   "by_focus_first": {
+    "0": {
+     "n": 529,
+     "mean_effect": -0.003
+    },
+    "1": {
+     "n": 1122,
+     "mean_effect": -0.002
+    }
+   }
+  },
+  "next_touch_own": {
+   "n": 1434,
+   "naive_difference_commit_minus_hold": 0.36,
+   "adjusted_average_effect": 0.316,
+   "adjusted_95ci_match_bootstrap": [
+    0.301,
+    0.331
+   ],
+   "by_ledger": {
+    "challenge_over_hold": {
+     "n": 191,
+     "mean_effect": 0.325
+    },
+    "hold_over_challenge": {
+     "n": 228,
+     "mean_effect": 0.205
+    },
+    "neither": {
+     "n": 1015,
+     "mean_effect": 0.339
+    }
+   },
+   "by_focus_first": {
+    "0": {
+     "n": 456,
+     "mean_effect": 0.227
+    },
+    "1": {
+     "n": 978,
+     "mean_effect": 0.357
+    }
+   }
+  },
+  "goal_against_10s": {
+   "n": 1651,
+   "naive_difference_commit_minus_hold": 0.017,
+   "adjusted_average_effect": 0.026,
+   "adjusted_95ci_match_bootstrap": [
+    0.018,
+    0.033
+   ],
+   "by_ledger": {
+    "challenge_over_hold": {
+     "n": 225,
+     "mean_effect": 0.014
+    },
+    "hold_over_challenge": {
+     "n": 266,
+     "mean_effect": 0.039
+    },
+    "neither": {
+     "n": 1160,
+     "mean_effect": 0.025
+    }
+   },
+   "by_focus_first": {
+    "0": {
+     "n": 529,
+     "mean_effect": 0.024
+    },
+    "1": {
+     "n": 1122,
+     "mean_effect": 0.027
+    }
+   }
+  },
+  "danger_before_placebo": {
+   "n": 1651,
+   "naive_difference_commit_minus_hold": -0.017,
+   "adjusted_average_effect": 0.008,
+   "adjusted_95ci_match_bootstrap": [
+    -0.0,
+    0.015
+   ],
+   "by_ledger": {
+    "challenge_over_hold": {
+     "n": 225,
+     "mean_effect": 0.018
+    },
+    "hold_over_challenge": {
+     "n": 266,
+     "mean_effect": 0.027
+    },
+    "neither": {
+     "n": 1160,
+     "mean_effect": 0.001
+    }
+   },
+   "by_focus_first": {
+    "0": {
+     "n": 529,
+     "mean_effect": 0.021
+    },
+    "1": {
+     "n": 1122,
+     "mean_effect": 0.002
+    }
+   }
+  }
+ },
+ "note": "Observational, public cohort of unknown rank; effects are associations adjusted for the t0 state, valid only if the placebo shows no effect."
+}

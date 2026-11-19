@@ -39,3 +39,16 @@ async def coaching_report_endpoint(request: Request):
                                        max_findings=req.max_findings, include_retrospective=req.include_retrospective)
     except (ValueError, KeyError, TypeError, IndexError) as exc:
         raise HTTPException(422, "Could not build the coaching report for this replay.") from exc
+
+
+@router.post("/api/coach/coaching-report-v2")
+async def coaching_report_v2_endpoint(request: Request):
+    """Round 13 experimental report (habits, turning points, decision reads). Opt-in, local, no model call."""
+    from .coach_report_v2 import build_coaching_report_v2
+    req = await _read_json_request(request, CoachingReportRequest)
+    if req.player_id not in {p["id"] for p in req.replay["players"]}:
+        raise HTTPException(422, "Selected player is not in this replay.")
+    try:
+        return await run_in_threadpool(build_coaching_report_v2, req.replay, req.player_id, max_findings=req.max_findings)
+    except (ValueError, KeyError, TypeError, IndexError) as exc:
+        raise HTTPException(422, "Could not build the coaching report for this replay.") from exc
