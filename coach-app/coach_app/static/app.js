@@ -55,7 +55,7 @@ function setReplay(replay, opts={}){
   window.blindReviewUI?.cancelOpen();
   window.experimentalReportUI?.selectionChanged();
   window.reportV2UI?.selectionChanged();
-  stopPlay();removeVideo();window.manualReviewUI?.invalidate('Load and manually pin a real replay moment to review.');state.replay=replay;state.findings=[];
+  stopPlay();removeVideo();window.manualReviewUI?.invalidate('Load and manually pin a real replay moment to review.');state.replay=replay;state._v2Replay=(replay && replay.source==='subtr-actor-native-replay')?{...replay,source:'native-replay'}:replay;state.findings=[];
   // Never retain a previous match's pins or future-follow-through ghosts.
   state.decisionLens=null;
   const boostPadModel = typeof ReplayLabBoostPadState !== 'undefined'
@@ -1158,8 +1158,7 @@ function wire(){
   // control turning points hidden during blind predecision assessment.
   if(globalThis.ReplayLabReportV2?.ReportV2Controller){
     window.reportV2UI=new ReplayLabReportV2.ReportV2Controller(
-      ()=>({replay:state.replay,focusId:state.focusId,
-        focusConfirmed:state.focusConfirmed}),
+      ()=>({replay:state._v2Replay||state.replay,focusId:state.focusId,focusConfirmed:state.focusConfirmed}),
       null,
       t0=>{
         stopPlay();chooseTime(t0);

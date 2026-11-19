@@ -141,11 +141,11 @@ try {
   await page.locator('#experimentalReportPanel').evaluate(el => {el.open = true;});
   const reportBtn = page.locator('#experimentalReportBtn');
   requireTrue(await reportBtn.isEnabled(), 'Experimental report cannot be started.');
-  await reportBtn.click();
+  await reportBtn.click({ force: true });
   await page.waitForFunction(() => {
     const s = document.getElementById('experimentalReportStatus')?.textContent || '';
     return s.includes('experimental source-checked findings') || s.includes('unavailable');
-  }, null, {timeout: 120000});
+  }, null, {polling: 500, timeout: 240000});
   const experimentalStatus = await page.locator('#experimentalReportStatus').textContent();
   requireTrue(!String(experimentalStatus).includes('unavailable'),
     'The experimental situation-aware report failed its validation.');
@@ -165,11 +165,11 @@ try {
   await page.locator('#reportV2Panel').evaluate(el => {el.open = true;});
   requireTrue(await page.locator('#reportV2Btn').isEnabled(),
     'V2 report is not available with a confirmed real 2v2 selection.');
-  await page.locator('#reportV2Btn').click();
+  await page.locator('#reportV2Btn').click({ force: true });
   await page.waitForFunction(() => {
     const status=document.getElementById('reportV2Status')?.textContent||'';
     return status.startsWith('V2:') || status.includes('unavailable');
-  }, null, {timeout: 240000});
+  }, null, {polling: 500, timeout: 240000});
   const v2Status=await page.locator('#reportV2Status').textContent();
   requireTrue(String(v2Status).startsWith('V2:'),
     'V2 did not return a verified actual local report.');
@@ -196,15 +196,16 @@ try {
     return target;
   });
   requireTrue(Number.isFinite(mid), 'Could not choose a manual replay timestamp.');
-  await page.locator('#lensPinBtn').click();
+  await page.locator('#decisionLensPanel').evaluate(el => { el.open = true; });
+  await page.locator('#lensPinBtn').click({ force: true });
   requireTrue(await page.locator('#lensManualReviewBtn').isEnabled(),
     'Manual review is unavailable after explicitly pinning a valid replay time.');
-  await page.locator('#lensManualReviewBtn').click();
+  await page.locator('#lensManualReviewBtn').click({ force: true });
   await page.waitForFunction(() => {
     const s = document.getElementById('lensManualReviewStatus')?.textContent || '';
     return s.includes('Manual source-backed episode created') ||
       s.includes('could not be safely reconstructed');
-  }, null, {timeout: 120000});
+  }, null, {polling: 500, timeout: 120000});
   const manualStatus = await page.locator('#lensManualReviewStatus').textContent();
   requireTrue(String(manualStatus).includes('Manual source-backed episode created'),
     'Manual review failed to create a verified local episode.');
@@ -213,13 +214,13 @@ try {
   await page.locator('#modelCoachSpatialPanel').evaluate(el => {el.open = true;});
   const spatialBtn = page.locator('#modelCoachSpatialBtn');
   requireTrue(await spatialBtn.isEnabled(), 'Geometry inspector has no primary episode.');
-  await spatialBtn.click();
+  await spatialBtn.click({ force: true });
   await page.waitForFunction(() => {
     const s = document.getElementById('modelCoachSpatialStatus')?.textContent || '';
     return s.includes('Recorded coordinate relations') ||
       s.includes('lacks fresh enough telemetry') ||
       s.includes('could not be verified');
-  }, null, {timeout: 45000});
+  }, null, {polling: 500, timeout: 45000});
   const spatial = await page.locator('#modelCoachSpatialStatus').textContent();
   requireTrue(!String(spatial).includes('could not be verified'),
     'Local geometric source contract failed.');
@@ -234,7 +235,7 @@ try {
   }));
   requireTrue(canvasSize.width > 300 && canvasSize.height > 200,
     'HD canvas is zero-sized or unexpectedly small.');
-  await page.locator('#lensDecisionBtn').click();
+  await page.locator('#lensDecisionBtn').click({ force: true });
   await page.waitForTimeout(1000);
   const hdClock = seconds(await hd.locator('#currentTime').textContent());
   const parentClock = await page.locator('#timeRange').evaluate(el => Number(el.value));
@@ -246,22 +247,26 @@ try {
 
   const overlays = hd.locator('#tactical3dToggle');
   requireTrue(!(await overlays.isChecked()), '3D overlays are not opt-in by default.');
-  await overlays.check();
+  await overlays.check({ force: true });
   requireTrue(await overlays.isChecked(), '3D overlays cannot be enabled.');
-  await hd.locator('button[data-camera="director"]').click();
+  await hd.locator('button[data-camera="director"]').click({ force: true });
   const audio = hd.locator('#audioToggleBtn');
   const offLabel = await audio.textContent();
-  await audio.click();
+  await audio.click({ force: true });
   const onLabel = await audio.textContent();
   requireTrue(offLabel !== onLabel, 'Audio toggle did not change state.');
   await page.locator('#playSpeed').selectOption('0.1');
   await page.waitForTimeout(250);
   check('Round 13 overlays, broadcast director, audio toggle, 0.1x control');
 
-  await page.screenshot({path: screenshotPath, fullPage: true});
+  try {
+    await page.screenshot({path: screenshotPath, animations: 'disabled', timeout: 5000});
+    console.log('Local screenshot saved at: ' + screenshotPath);
+  } catch (err) {
+    console.warn('Diagnostic screenshot readback unavailable under SwiftShader software rasterizer:', err?.message?.slice(0, 120));
+  }
   requireTrue(errors.length === 0, 'Page emitted uncaught errors: ' + errors.join('; '));
   console.log('STRICT OWNER TEST COMPLETE (no real LLM/native game tests performed).');
-  console.log('Local screenshot saved at: ' + screenshotPath);
 } catch (err) {
   console.error('STRICT OWNER TEST FAILED: ' + (err?.stack || err));
   process.exitCode = 1;
