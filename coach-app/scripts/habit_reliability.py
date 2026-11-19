@@ -36,6 +36,15 @@ def per_match(path: str) -> list[dict]:
     return out
 
 
+def reliability_from_split_half(r: float | None, target: float = 0.7) -> dict:
+    """Spearman-Brown: one-match reliability from a split-half correlation, and matches needed for ``target``."""
+    if r is None or r <= 0:
+        return {"per_match_reliability": None, "matches_needed_for_0.7": None}
+    r1 = 2 * r / (1 + r)
+    need = target * (1 - r1) / (r1 * (1 - target))
+    return {"per_match_reliability": round(r1, 3), "matches_needed_for_0.7": int(np.ceil(need))}
+
+
 def _spearman(x, y):
     from scipy.stats import spearmanr
     r = spearmanr(x, y)
@@ -57,12 +66,17 @@ def main(cache: Path, out: Path):
         res["metrics"][name] = {"n_pairs": len(pairs), "split_half_spearman": _spearman(*zip(*pairs)) if len(pairs) >= 8 else None,
                                 "cohort_median": round(float(np.median(full)), 3) if full else None,
                                 "cohort_p10_p90": [round(float(np.quantile(full, 0.1)), 3), round(float(np.quantile(full, 0.9)), 3)] if full else None}
+    for name, v in res["metrics"].items():
+        v.update(reliability_from_split_half(v["split_half_spearman"]))
     res["note"] = "Halves of the same match share teammates, opponents and score state; reliability across matches is untested."
     out.write_text(json.dumps(res, indent=1))
     REFERENCE_PATH.write_text(json.dumps({"version": "habit-reference/0.1",
                                           "cohort": {"replays": len(files), "player_matches": len(rows),
                                                      "note": "public 2v2 replays, unknown rank"},
-                                          "metrics": ref}))
+                                          "metrics": ref,
+                                          "reliability": {k: {kk: v[kk] for kk in ("split_half_spearman", "per_match_reliability",
+                                                                                   "matches_needed_for_0.7")}
+                                                          for k, v in res["metrics"].items()}}))
     print(json.dumps(res, indent=1))
 
 

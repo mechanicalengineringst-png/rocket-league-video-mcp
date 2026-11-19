@@ -163,15 +163,27 @@ def build_profile(replays: list[dict], focus_ids: list[str], *, reference: dict 
     habits = []
     for name, r in rates.items():
         refv = (ref or {}).get("metrics", {}).get(name, [])
+        rel = (ref or {}).get("reliability", {}).get(name, {})
+        need = rel.get("matches_needed_for_0.7")
         pct = _percentile(r["rate"], refv) if r["enough_data"] else None
+        reliable_now = need is not None and len(replays) >= need
+        standout = None if pct is None else ("high" if pct >= 85 else "low" if pct <= 15 else None)
         habits.append({"metric": name, "description": METRICS[name], **r, "reference_percentile": pct,
                        "reference_n_player_matches": len(refv),
-                       "standout": None if pct is None else ("high" if pct >= 85 else "low" if pct <= 15 else None)})
+                       "per_match_reliability": rel.get("per_match_reliability"), "matches_needed": need,
+                       "reliable_with_these_matches": reliable_now,
+                       "standout": standout if reliable_now else None,
+                       "standout_if_reliable": standout,
+                       "status": ("measured" if reliable_now else
+                                  "not yet a stable tendency in the reference data" if need is None else
+                                  f"needs about {need} matches before it describes a tendency")})
     return {"schema": "HabitProfileV0", "version": VERSION, "replays": len(replays), "experimental": True,
             "habits": habits,
             "reference": {"cohort": (ref or {}).get("cohort"), "note": "Reference = public 2v2 replays of unknown rank. "
                                                                    "A high or low percentile means 'unusual against that "
                                                                    "reference', not good or bad."},
-            "limits": ["Rates are descriptive; team strategy and rank change what is normal.",
+            "limits": ["Split-half reliability within a match is low for most metrics (docs/round13/habit_reliability.json): "
+                       "a standout is only flagged once enough matches are combined.",
+                       "Rates are descriptive; team strategy and rank change what is normal.",
                        "Observed actions are movement-based labels, not intent.",
                        "Needs several matches before a standout means much."]}

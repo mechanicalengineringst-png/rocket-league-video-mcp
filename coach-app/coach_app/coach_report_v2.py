@@ -45,6 +45,10 @@ EVIDENCE_STATUS = [
      "detail": "At close range a slow-closing opponent still took the next touch about half the time."},
     {"component": "single-decision 'questionable' verdicts", "status": "not supported by cohort data",
      "detail": "Commit vs hold showed no adjusted danger difference; goals-against difference was near the placebo level."},
+    {"component": "habit rates", "status": "low within-match reliability",
+     "detail": "Split-half Spearman 0.0-0.45; most habits need 3-8+ matches before a rate describes a tendency."},
+    {"component": "teammate cover estimate", "status": "validated as a predictor",
+     "detail": "When it said the teammate could cover, the teammate was goal-side in time 94% of the time; 19% when it said not."},
     {"component": "field control", "status": "explanatory only",
      "detail": "Adds almost nothing to prediction beyond positions; shown as physical area shares."},
 ]
