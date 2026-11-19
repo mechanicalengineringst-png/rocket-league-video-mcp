@@ -1,0 +1,32 @@
+{
+ "fitted": {
+  "KT": 0.15,
+  "ACC_BOOST": 2200,
+  "ACC_NO_BOOST": 400,
+  "KEEP": 0.5,
+  "ARC_CREDIT": 0.6,
+  "BOOST_FULL": 25.0
+ },
+ "previous": {
+  "KT": 0.15,
+  "ACC_BOOST": 2200.0,
+  "ACC_NO_BOOST": 400.0,
+  "KEEP": 0.5,
+  "ARC_CREDIT": 0.6,
+  "BOOST_FULL": 25.0
+ },
+ "held_out_with_previous": {
+  "n": 400,
+  "median_abs_s": 0.162,
+  "p90_abs_s": 0.971,
+  "bias_s": -0.112
+ },
+ "held_out_fitted": {
+  "n": 400,
+  "median_abs_s": 0.162,
+  "p90_abs_s": 0.971,
+  "bias_s": -0.112
+ },
+ "reference": "reachability.ground_time, ground cars from cached replays, targets uniform on the field, horizon 6 s",
+ "note": "This calibrates an approximation to our own kinematic model, not to real arrival times."
+}
