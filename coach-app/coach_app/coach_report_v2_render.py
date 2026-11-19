@@ -59,6 +59,12 @@ def render_markdown_v2(rep: dict[str, Any], *, player_label: str = "you") -> str
             link = tp.get("decision_time_reading")
             if link:
                 out.append(f"  - Decision-time read at {_mmss(link['t0'])} ({link['class'].replace('_', ' ')}): {link['interpretation']}")
+                up = (link.get("upstream") or {})
+                if up.get("status") == "already_constrained":
+                    ev = ", ".join(f"{_mmss(e['t0'])} ({e['class'].replace('_', ' ')})" for e in up.get("earlier_decisions", []))
+                    out.append(f"  - **May have been set earlier:** {up['note']}" + (f" Earlier decisions: {ev}." if ev else ""))
+                elif up.get("status") == "in_position":
+                    out.append(f"  - {up['note']}")
                 ctx = link.get("commitment_context")
                 if ctx:
                     out.append(f"  - Context: teammate recovery debt {ctx['teammate_recovery_debt_s']} s, yours "
