@@ -1124,7 +1124,12 @@ function wire(){
           const model=window.modelCoachingUI;
           const key=model?.getContext?.().key;
           const current=key?model.results.get(key):null;
-          return current?{
+          // A provider transport success without accepted tactical advice
+          // is NOT a generated coaching recommendation to rate in the
+          // blind-review scorecard. Withheld or observed-only claims should
+          // remain inspectable in the model panel, but never count as advice.
+          return current?.accepted>0 && current.grade!=='undetermined' &&
+            current.provenance?.status!=='model_claims_withheld' ? {
             mode:'model_proposal',grade:current.grade,
             accepted:current.accepted,rejected:current.rejected
           }:null;
