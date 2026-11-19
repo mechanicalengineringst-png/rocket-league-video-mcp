@@ -326,3 +326,59 @@ test('Round 14 refuses unsupported restraint or malformed model-head attribution
   const r=report();delete r.matches[0].turning_points[0].causal_status;
   assert.equal(API.verifyResponse(r,120),null);
 });
+
+
+test('Round 14.5 constrained link exposes earlier decisions without claiming which caused it',async()=>{
+  const {API,elements}=setup(),s=selected(),jumps=[];
+  const data=report(),reading=data.matches[0].turning_points[0].decision_time_reading;
+  reading.link_basis='nearest earlier decision in time; time order is not evidence of cause';
+  reading.upstream={
+    status:'already_constrained',recovery_debt_s:2.5,
+    nearest_opponent_reach_s:.8,earlier_decisions:[
+      {t0:15,class:'recovery_and_boost'},{t0:11,class:'first_defender'},
+      {t0:23,class:'first_defender'}, // impossible: future choice never displayed
+    ],note:'Earlier candidates are not causation.'
+  };
+  const ui=new API.ReportV2Controller(()=>s,async()=>response(data),t=>jumps.push(t));
+  ui.mount();
+  assert.equal(await ui.run(),true);
+  const tree=elements.get('reportV2Results'),visible=flatten(tree);
+  assert.match(visible,/Already constrained/);
+  assert.match(visible,/does NOT establish which earlier choice/);
+  assert.match(visible,/Estimated recovery 2\.50s/);
+  assert.match(visible,/opponent earliest touch 0\.80s/);
+  assert.match(visible,/none is confirmed causal/);
+  assert.match(visible,/time order is not evidence of cause/);
+  assert.equal((visible.match(/Review earlier decision/g)||[]).length,2,
+    'future observations must not appear as earlier decisions');
+  const buttons=details(tree,'button-mini');
+  const earlier=buttons.find(b=>b.textContent==='Review earlier decision 0:15.0');
+  assert.ok(earlier);
+  earlier.onclick();
+  assert.deepEqual(jumps,[15]);
+});
+
+test('Round 14.5 in-position and unknown cases do not falsely blame earlier boost choices',async()=>{
+  const {API,elements}=setup(),s=selected(),data=report();
+  const reading=data.matches[0].turning_points[0].decision_time_reading;
+  reading.link_basis='nearest earlier decision in time; time order is not evidence of cause';
+  reading.upstream={
+    status:'in_position',recovery_debt_s:.4,nearest_opponent_reach_s:1.1,
+    note:'In time; earlier choices not implicated.'
+  };
+  const ui=new API.ReportV2Controller(()=>s,async()=>response(data));
+  ui.mount();assert.equal(await ui.run(),true);
+  let rendered=flatten(elements.get('reportV2Results'));
+  assert.match(rendered,/recovery was estimated possible/);
+  assert.match(rendered,/earlier boost\/rotation decision is not implicated/);
+  assert.doesNotMatch(rendered,/Already constrained/);
+  data.matches[0].turning_points[0].decision_time_reading.upstream={
+    status:'unknown',reason:'missing nearest opponent reach'
+  };
+  ui.cache.clear();ui.loading=false;
+  assert.equal(await ui.run(),true);
+  rendered=flatten(elements.get('reportV2Results'));
+  assert.match(rendered,/Earlier-cause status unknown/);
+  assert.doesNotMatch(rendered,/not implicated by this timing check/);
+  assert.doesNotMatch(rendered,/Already constrained/);
+});
