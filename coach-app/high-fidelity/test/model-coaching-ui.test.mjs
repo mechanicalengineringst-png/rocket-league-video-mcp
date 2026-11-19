@@ -51,7 +51,7 @@ function situation(){
 function validLesson(){
   return {schema:'CoachLessonV0',stage:'predecision',mode:'model_proposal',
     decision:{t0_s:21.1},assessment:{grade:'tradeoff'},
-    validation:{accepted_model_claims:1,rejected_model_claims:[{reason:'missing source'}],
+    validation:{accepted_model_claims:1,rejected_model_claims:[{index:0,reason:'missing source'}],
       semantic_tactical_accuracy_verified:false,future_outcomes_used:false},
     claims:[
       {author:'deterministic',text:'Baseline fact'},
