@@ -84,18 +84,68 @@ def attribute(replay: dict, team: str, t_a: float, t_b: float, model: FutureCont
     start = _control(model.score(fa, team_of, team))
     if base is None or start is None:
         return {}
-    contrib = {}
+    contrib, heads = {}, {}
+    sb = model.score(fb, team_of, team)
+    sign = 1 if team == "blue" else -1
     for pid in team_of:
         if pid not in fa["cars"] or pid not in fb["cars"] or not fa["cars"][pid]:
             continue
         swapped = {**fb, "cars": {**fb["cars"], pid: fa["cars"][pid]}}
-        alt = _control(model.score(swapped, team_of, team, reach=reach_times(swapped)))
+        ss = model.score(swapped, team_of, team, reach=reach_times(swapped))
+        alt = _control(ss)
         if alt is not None:
-            contrib[pid] = round(base - alt, 4)      # > 0: this player's movement raised our control
+            contrib[pid] = round(base - alt, 4)      # > 0: the model's score is higher with this player's actual movement
+            moved_back = None
+            if fb["cars"].get(pid) and team_of.get(pid) == team:
+                moved_back = round(sign * (fa["cars"][pid]["y"] - fb["cars"][pid]["y"]))
+            heads[pid] = classify_heads(sb["next_touch_own"] - ss["next_touch_own"], sb["danger_5s"] - ss["danger_5s"],
+                                        moved_back_uu=moved_back,
+                                        ended_goal_side=_goal_side(fb["cars"].get(pid), fb["ball"], team_of.get(pid)))
     touches = [{"t": round(e["t"], 2), "player": e.get("playerId"), "own_team": team_of.get(e.get("playerId")) == team}
                for e in replay.get("events", []) if e.get("type") == "touch" and t_a < e.get("t", -1) <= t_b]
     return {"start": round(start, 4), "end": round(base, 4), "change": round(base - start, 4), "player_contribution": contrib,
-            "touches": touches}
+            "player_heads": heads, "touches": touches}
+
+
+HEAD_NEGLIGIBLE = 0.02        # model-score change too small to describe (about the rounding of the stored scores' effect)
+RETREAT_UU = 500.0
+
+
+def _goal_side(car: dict | None, ball: dict, team: str | None) -> bool | None:
+    if not car or team not in ("blue", "orange"):
+        return None
+    return car["y"] < ball["y"] if team == "blue" else car["y"] > ball["y"]
+
+
+def classify_heads(d_touch: float, d_danger: float, *, moved_back_uu: float | None = None,
+                   ended_goal_side: bool | None = None) -> dict:
+    """Describe a player's attributed change by its two model heads instead of one net number (Round 14).
+
+    The net score (touch minus danger) rewards moving toward the ball: in the Round 14 audit it correlated 0.43
+    with approaching the ball, and 34% of players who retreated goal-side were scored as lowering control,
+    often only because a retreat lowers next-touch chances. So:
+    - ``supports``  both heads favourable (touch up and/or danger down, neither unfavourable)
+    - ``hurts``     both heads unfavourable
+    - ``tradeoff``  one favourable, one unfavourable (e.g. closer to the ball but more danger)
+    - ``restraint`` net negative only through the next-touch head while the player retreated goal-side and
+                    danger did not rise: giving up a touch to protect the goal is not scored as a loss
+    - ``negligible`` both heads too small to describe
+    Every label describes an association in a model fitted on unknown-rank replays, not what caused the result.
+    """
+    t_up, t_dn = d_touch > HEAD_NEGLIGIBLE, d_touch < -HEAD_NEGLIGIBLE
+    g_dn, g_up = d_danger < -HEAD_NEGLIGIBLE, d_danger > HEAD_NEGLIGIBLE
+    if not (t_up or t_dn or g_dn or g_up):
+        label = "negligible"
+    elif t_dn and not g_up and moved_back_uu is not None and moved_back_uu > RETREAT_UU and ended_goal_side:
+        label = "restraint"
+    elif (t_up or g_dn) and not (t_dn or g_up):
+        label = "supports"
+    elif (t_dn or g_up) and not (t_up or g_dn):
+        label = "hurts"
+    else:
+        label = "tradeoff"
+    return {"label": label, "next_touch_change": round(d_touch, 4), "danger_change": round(d_danger, 4),
+            "moved_back_uu": moved_back_uu, "ended_goal_side": ended_goal_side, "kind": "model_association_not_cause"}
 
 
 def turning_points(replay: dict, team: str, *, k: int = 8, model: FutureControlModel | None = None,

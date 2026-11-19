@@ -141,6 +141,8 @@ def build_coaching_report_v2(replays: list[dict] | dict, focus_ids: list[str] | 
                             "team_control_change": p["change"], "your_movement_effect": mine,
                             "your_share_of_attributed_change": round(share, 2),
                             "your_movement": "raised" if mine > 0 else "lowered",
+                            "your_movement_reading": p.get("player_heads", {}).get(focus),
+                            "causal_status": "association in a model, not evidence that your choice caused the change",
                             "touches": [{"t": x["t"], "by": "you" if x["player"] == focus else
                                          ("teammate" if x["own_team"] else "opponent")} for x in p["touches"]],
                             "decision_time_reading": link})

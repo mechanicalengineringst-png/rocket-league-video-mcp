@@ -42,11 +42,20 @@ def render_markdown_v2(rep: dict[str, Any], *, player_label: str = "you") -> str
             out.append("- None found.")
         for tp in m["turning_points"]:
             touches = ", ".join(f"{x['by']} {_mmss(x['t'])}" for x in tp["touches"]) or "no touches"
-            effect = ("your movement pushed in the same direction" if (tp["direction"] == "gain") == (tp["your_movement"] == "raised")
-                      else "your movement pushed against it")
-            out.append(f"- **{_mmss(tp['t_start'])}-{_mmss(tp['t_end'])}: team control {tp['direction']}**; {effect} "
-                       f"(your movement {tp['your_movement']} the control score; "
-                       f"{round(100 * tp['your_share_of_attributed_change'])}% of the attributed change). Touches: {touches}.")
+            rd = tp.get("your_movement_reading") or {}
+            lab = rd.get("label")
+            phrase = {
+                "supports": "the model associates your movement with better control (more next-touch chance and/or less danger)",
+                "hurts": "the model associates your movement with worse control (less next-touch chance and/or more danger)",
+                "tradeoff": "your movement traded one thing for another in the model (next-touch change "
+                            f"{rd.get('next_touch_change')}, danger change {rd.get('danger_change')}): not a clear gain or loss",
+                "restraint": "you gave up next-touch chances to get back goal-side without raising danger; "
+                             "this is restraint, not a loss",
+                "negligible": "your movement made little difference in the model",
+            }.get(lab, f"your movement {tp['your_movement']} the control score")
+            out.append(f"- **{_mmss(tp['t_start'])}-{_mmss(tp['t_end'])}: team control {tp['direction']}**; {phrase}. "
+                       f"Touches: {touches}. *Association in a model fitted on unknown-rank replays, not proof your choice "
+                       f"caused it.*")
             link = tp.get("decision_time_reading")
             if link:
                 out.append(f"  - Decision-time read at {_mmss(link['t0'])} ({link['class'].replace('_', ' ')}): {link['interpretation']}")
