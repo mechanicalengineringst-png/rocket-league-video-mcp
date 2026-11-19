@@ -19,7 +19,7 @@
     "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.worker.json",
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
-    "test": "bun test",
+    "test": "bun test tests",
     "test:smoke": "bun scripts/smoke-bun.ts && node --disable-warning=ExperimentalWarning scripts/smoke-worker.ts",
     "types:worker": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false WRANGLER_HIDE_BANNER=true wrangler types --strict-vars=false",
     "types:worker:check": "CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false WRANGLER_HIDE_BANNER=true wrangler types --strict-vars=false --check",

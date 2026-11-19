@@ -59,6 +59,7 @@
             <button type="button" class="cam active" data-camera="follow">Follow player</button>
             <button type="button" class="cam" data-camera="ballOrbit">Orbit ball</button>
             <button type="button" class="cam" data-camera="free">Fly cam</button>
+            <button type="button" class="cam" data-camera="director" title="Broadcast Director Autocam">Director (TV)</button>
           </div>
           <label class="control-label" for="playerSelect">Player</label>
           <select id="playerSelect" disabled><option>No replay loaded</option></select>
@@ -68,6 +69,15 @@
             <option value="ball">Force Ball Cam</option>
             <option value="car">Force Car Cam</option>
           </select>
+          <label class="control-label" for="cameraProfileSelect">Rig</label>
+          <select id="cameraProfileSelect" disabled>
+            <option value="pro" selected>Pro standard (110°)</option>
+            <option value="default">Default RL (90°)</option>
+            <option value="wide">Wide angle (110°)</option>
+            <option value="aerial">High bird's-eye (105°)</option>
+          </select>
+          <label class="cam-opt" for="tactical3dToggle" title="Toggle 3D spatial connections, focus vectors, and Decision Lens markers in the stadium"><input id="tactical3dToggle" type="checkbox" disabled> 3D Map</label>
+          <button id="audioToggleBtn" type="button" class="audio-btn" disabled title="Toggle Audio (Procedural Web Audio Engine)">🔊 Audio: Off</button>
           <button id="fullscreenBtn" type="button" title="Fullscreen viewer">⛶</button>
         </div>
         <div class="timeline-row">
@@ -81,7 +91,7 @@
             <div class="time-labels"><span id="currentTime">00:00.00</span><span id="durationTime">00:00.00</span></div>
           </div>
           <select id="speedSelect" disabled aria-label="Playback speed">
-            <option value="0.25">0.25×</option><option value="0.5">0.5×</option>
+            <option value="0.1">0.1×</option><option value="0.25">0.25×</option><option value="0.5">0.5×</option>
             <option value="1" selected>1×</option><option value="1.5">1.5×</option>
             <option value="2">2×</option>
           </select>
@@ -100,6 +110,7 @@
             <label for="fxStyle">Trails</label>
             <select id="fxStyle" disabled><option value="soft" selected>Soft / refined</option><option value="original">Original</option><option value="off">Off</option></select>
             <label for="hitboxToggle"><input id="hitboxToggle" type="checkbox" disabled> Hitboxes</label>
+            <label for="audioVolumeSlider">Vol <input id="audioVolumeSlider" type="range" min="0" max="1" step="0.05" value="0.5" disabled title="Replay Audio Volume" style="width:65px"></label>
             <label for="trailToggle" hidden><input id="trailToggle" type="checkbox" disabled> Pickup effects (disabled)</label>
             <button id="replaceFileBtn" type="button">Load another replay</button>
           </div>

@@ -18,6 +18,9 @@ import { createRecordedCameraSwitchPlugin } from './recorded-camera-switch.js';
 import {
   applySceneQuality, setFieldDecorStyle, createEffectRefiner, createVisualEffectsPlugin,
 } from './visual-quality.js';
+import { createTactical3DPlugin } from './tactical-3d.js';
+import { createReplayAudioEngine } from './audio-engine.js';
+import { createDirectorCameraPlugin } from './camera-director.js';
 import './style.css';
 
 const $ = id => document.getElementById(id);
@@ -49,6 +52,13 @@ let player = null;
 let cameraPlugin = null;
 let cameraPolish = null;
 let effectRefiner = null;
+let tactical3D = null;
+let directorPlugin = null;
+let isDirectorMode = false;
+const audioEngine = createReplayAudioEngine();
+let wasSupersonic = false;
+let lastBallSpeed = 0;
+let lastBallImpactTime = -Infinity;
 let loadSequence = 0;
 let loading = false;
 let scrubbing = false;
@@ -156,10 +166,11 @@ function setLoading(visible, heading, hint = '') {
 function enableControls(enabled) {
   for (const id of [
     'stepBackBtn','backBtn','playBtn','forwardBtn','stepForwardBtn',
-    'seek','speedSelect','playerSelect','ballCamSelect',
-    'interpolation','hitboxToggle','trailToggle','replayLookToggle',
-    'qualitySelect','fxStyle','lightingSelect','fieldDecorSelect'
-  ]) $(id).disabled = !enabled;
+    'seek','speedSelect','playerSelect','ballCamSelect','cameraProfileSelect',
+    'interpolation','hitboxToggle','trailToggle','replayLookToggle','tactical3dToggle',
+    'qualitySelect','fxStyle','lightingSelect','fieldDecorSelect',
+    'audioToggleBtn','audioVolumeSlider'
+  ]) if ($(id)) $(id).disabled = !enabled;
   for (const button of document.querySelectorAll('.cam')) button.disabled = !enabled;
 }
 
@@ -173,13 +184,16 @@ function currentCameraTrack() {
 function invalidateCamera() { cameraPolish?.invalidate(); }
 function switchCamera(mode) {
   if (!cameraPlugin || !player) return;
-  if (!['follow','orbit','ballOrbit','free'].includes(mode)) return;
+  if (!['follow','orbit','ballOrbit','free','director'].includes(mode)) return;
   const picked=currentPlayer();
+  isDirectorMode = (mode === 'director');
   if(mode==='follow'){
     // Use the *public* parity API, not plugin.follow alone. Keeping the
     // attached player in the engine state lets applyReplayBallCam reproduce
     // per-player native Ball Cam toggles during seeking and playback.
     if(picked) player.setAttachedPlayer(picked.id);
+  }else if(mode==='director'){
+    player.setCameraViewMode('free');
   }else{
     player.setCameraViewMode('free');
     cameraPlugin.setMode(mode);
@@ -192,6 +206,7 @@ function switchCamera(mode) {
   }
   $('ballCamSelect').disabled=mode!=='follow';
   $('playerHud').textContent=mode==='follow'&&picked?picked.name:
+    mode==='director'?'DIRECTOR AUTOCAM (TV)':
     mode==='free'?'FREE FLY CAMERA':mode==='ballOrbit'?'BALL ORBIT':'ORBIT CAMERA';
   updateHud(true);
 }
@@ -306,13 +321,40 @@ function updateHud(force = false) {
     override!=='recorded'?'FORCED VIEW':
     recorded.hasRecordedSwitch?'REPLAY TELEMETRY':'NO RECORDED SWITCH';
 
-  // Live selected-player boost gauge
+  // Live selected-player boost gauge & procedural audio
   const focus = currentPlayer();
+  const pData = focus ? player?.adapter?.getPlayer(focus.id) : null;
+  const isBoosting = !!pData?.isBoosting && state.playing;
+  if (isBoosting) audioEngine.startBoost();
+  else audioEngine.stopBoost();
+
+  const isSupersonic = !!pData?.isSupersonic;
+  if (isSupersonic && !wasSupersonic && state.playing) {
+    audioEngine.playSupersonic();
+    directorPlugin?.triggerShake(1.2, 350);
+  }
+  wasSupersonic = isSupersonic;
+
+  if (state.playing) {
+    const ballActor = player.actorManager?.actors?.['ball'] ||
+      (player.adapter?.ballActorId ? player.actorManager?.actors?.[player.adapter.ballActorId] : null);
+    const vel = ballActor?.userData?.velocity;
+    if (vel) {
+      const currentSpeed = (typeof vel.length === 'function') ? vel.length() : Math.hypot(vel.x || 0, vel.y || 0, vel.z || 0);
+      const speedDelta = Math.abs(currentSpeed - lastBallSpeed);
+      if (speedDelta > 650 && (now - lastBallImpactTime > 400)) {
+        lastBallImpactTime = now;
+        audioEngine.playBallImpact(Math.min(1.0, speedDelta / 2000));
+        directorPlugin?.triggerShake(0.8, 220);
+      }
+      lastBallSpeed = currentSpeed;
+    }
+  }
+
   const boostHud = $('boostHud');
   if (boostHud) {
     if (mode === 'follow' && focus) {
       boostHud.classList.remove('hidden');
-      const pData = player?.adapter?.getPlayer(focus.id);
       const rawBoost = pData?.boost;
       const bar = $('boostBar');
       if (rawBoost == null || Number.isNaN(rawBoost)) {
@@ -363,6 +405,11 @@ async function loadFile(file, preferredName = null, sessionId = null) {
     player = null;
     cameraPolish=null;
     effectRefiner=null;
+    tactical3D=null;
+    directorPlugin=null;
+    wasSupersonic=false;
+    lastBallSpeed=0;
+    lastBallImpactTime=-Infinity;
     lastHudUpdate=-Infinity;
     viewer.replaceChildren();
     const bytes = new Uint8Array(await file.arrayBuffer());
@@ -372,6 +419,15 @@ async function loadFile(file, preferredName = null, sessionId = null) {
       getCameraPlugin:()=>cameraPlugin,
       getFollowId:()=>currentPlayer()?.id,
       getReplayLook:()=>$('replayLookToggle').checked,
+    });
+    directorPlugin=createDirectorCameraPlugin({
+      getCameraPlugin:()=>cameraPlugin,
+      getProfileName:()=>$('cameraProfileSelect')?.value || 'pro',
+      isDirectorActive:()=>isDirectorMode,
+    });
+    tactical3D=createTactical3DPlugin({
+      getFocusPlayerId:()=>currentPlayer()?.id,
+      getEnabled:()=>$('tactical3dToggle')?.checked ?? false,
     });
     const cameraStateSource=createRecordedCameraSwitchPlugin({
       getCameraPlugin:()=>cameraPlugin,
@@ -396,7 +452,9 @@ async function loadFile(file, preferredName = null, sessionId = null) {
         cameraStateSource, // native source overrides stale adapter BEFORE camera renders
         cameraPlugin,
         cameraPolish, // must run AFTER native camera plugin
+        directorPlugin, // broadcast autocam & pro camera profiles
         createVisualEffectsPlugin(effectRefiner),
+        tactical3D, // 3D spatial connections, Decision Lens t0 ring, +2s ghost
       ],
     });
     if (seq !== loadSequence) { next.dispose?.(); return; }
@@ -495,6 +553,21 @@ $('playerSelect')?.addEventListener('change', () => {
   refreshCameraEvents();
 });
 $('ballCamSelect')?.addEventListener('change', e => applyBallCam(e.target.value));
+$('cameraProfileSelect')?.addEventListener('change', e => {
+  directorPlugin?.setProfile(e.target.value);
+  invalidateCamera();
+});
+$('tactical3dToggle')?.addEventListener('change', e => {
+  tactical3D?.setEnabled(e.target.checked);
+});
+$('audioToggleBtn')?.addEventListener('click', () => {
+  const active = audioEngine.toggleMute();
+  $('audioToggleBtn').classList.toggle('active', active);
+  $('audioToggleBtn').textContent = active ? '🔊 Audio: On' : '🔇 Audio: Off';
+});
+$('audioVolumeSlider')?.addEventListener('input', e => {
+  audioEngine.setVolume(Number(e.target.value));
+});
 $('speedSelect')?.addEventListener('change', e => player?.setPlaybackRate(Number(e.target.value)));
 $('interpolation')?.addEventListener('change', e => player?.setMotionInterpolation(e.target.value));
 $('replayLookToggle')?.addEventListener('change', invalidateCamera);
@@ -521,15 +594,27 @@ $('playBtn').addEventListener('click', () => {
 $('backBtn').addEventListener('click', () => {
   invalidateCamera();
   player?.seek(clampTime((player?.getState().currentTime || 0) - 5,player?.duration));
+  player?.actorManager?.updateWheelRotations?.();
   updateHud(true);
 });
 $('forwardBtn').addEventListener('click', () => {
   invalidateCamera();
   player?.seek(clampTime((player?.getState().currentTime || 0) + 5,player?.duration));
+  player?.actorManager?.updateWheelRotations?.();
   updateHud(true);
 });
-$('stepBackBtn').addEventListener('click', () => { invalidateCamera(); player?.stepBackwardFrame(); updateHud(true); });
-$('stepForwardBtn').addEventListener('click', () => { invalidateCamera(); player?.stepForwardFrame(); updateHud(true); });
+$('stepBackBtn').addEventListener('click', () => {
+  invalidateCamera();
+  player?.stepBackwardFrame();
+  player?.actorManager?.updateWheelRotations?.();
+  updateHud(true);
+});
+$('stepForwardBtn').addEventListener('click', () => {
+  invalidateCamera();
+  player?.stepForwardFrame();
+  player?.actorManager?.updateWheelRotations?.();
+  updateHud(true);
+});
 $('seek').addEventListener('pointerdown', () => {
   scrubbing = true;
   invalidateCamera();
@@ -540,6 +625,7 @@ $('seek').addEventListener('input', e => {
   const t = Number(e.target.value);
   invalidateCamera();
   player?.seek(t);
+  player?.actorManager?.updateWheelRotations?.();
   $('currentTime').textContent = formatTime(t);
 });
 function finishScrub() {
@@ -643,6 +729,10 @@ window.addEventListener('message', event => {
   }
   if (event.data?.type === 'replay-lab:hd-control') {
     applyParentReplayControl(event.data);
+    return;
+  }
+  if (event.data?.type === 'replay-lab:decision-lens') {
+    tactical3D?.setDecisionLens(event.data.lens);
     return;
   }
   if (event.data?.type !== 'replay-lab:hd-load') return;

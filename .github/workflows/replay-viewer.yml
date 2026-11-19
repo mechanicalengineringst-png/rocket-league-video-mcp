@@ -48,4 +48,4 @@ jobs:
         run: npm run check
       - name: Verify source-shaped camera/horizon and soft supersonic shader QA
         working-directory: coach-app/high-fidelity
-        run: node --test test/camera-polish.qa.mjs test/visual-quality.qa.mjs
+        run: node --test test/camera-polish.qa.mjs test/visual-quality.qa.mjs test/camera-director.qa.mjs test/tactical-3d.qa.mjs
