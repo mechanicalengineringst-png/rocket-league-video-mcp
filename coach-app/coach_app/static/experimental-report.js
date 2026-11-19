@@ -44,7 +44,7 @@
         Array.isArray(v?.untraced_numbers)&&v.untraced_numbers.length===0&&
         Array.isArray(v?.rejected_claims)&&v.rejected_claims.length===0&&
         typeof f.interpretation?.text==='string'&&
-        (typeof f.takeaway?.text==='string'||(f.kind==='observation_only'&&f.takeaway?.text==null))&&
+        (typeof f.takeaway?.text==='string'||f.takeaway?.text===null)&&
         Array.isArray(f.alternatives)&&Array.isArray(f.decision_context);
     });
     return {findings,withheld:res.findings.length-findings.length,
