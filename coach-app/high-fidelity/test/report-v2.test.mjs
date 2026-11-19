@@ -144,7 +144,7 @@ test('explicit V2 run is local, no automatic request, and V1 mistake verdict nev
   const payload=JSON.parse(calls[0].options.body);
   assert.equal(payload.player_id,'b1');
   assert.equal(payload.max_findings,6);
-  assert.equal(payload.replay,s.replay===undefined?null:payload.replay); // serialized by same-localhost fetch
+  assert.equal(payload.replay.source,'native-replay'); // same-localhost decoded telemetry, not provider upload
   const holder=elements.get('reportV2Results');
   assert.match(flatten(holder),/One replay is insufficient/);
   assert.match(flatten(holder),/Turning points/);
