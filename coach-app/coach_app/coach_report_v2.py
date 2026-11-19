@@ -27,6 +27,7 @@ from .habit_profile import build_profile
 from .moment_ranking import rank
 from .situation_rationale import SituationRationaleError
 from .situations import discover_situations
+from .state_features import reach_times
 from .value_model import FutureControlModel
 
 SCHEMA = "CoachingReportV2"
@@ -75,6 +76,49 @@ def _context(replay: dict, focus: str, t0: float) -> dict[str, Any] | None:
             "own_half_control": summ["regions"]["own_half"]["own"],
             "opponent_recovery_debt_s": summ["team_debt"]["opponent"],
             "note": "Physical reachability at the decision moment; the aerial or wall mechanics are not modelled."}
+
+
+UPSTREAM_LOOKBACK_S = 8.0          # earlier decisions listed (not blamed) when the linked moment was already constrained
+COVER_WINDOW_S = 1.0               # same window as the R10-R12 cover check, which survived Round 13 falsification
+
+
+def upstream_check(replay: dict, focus: str, link_t0: float, items: list[dict]) -> dict[str, Any]:
+    """Was the linked decision already constrained by where the player was? (Round 14.5)
+
+    A turning point is linked to the nearest earlier decision in TIME. Time is not cause: a late, desperate
+    decision can be the nearest one while the situation was set by an earlier choice (e.g. a long boost
+    detour), and an earlier safe choice that ended in position should not be implicated in a later mistake.
+
+    Uses only the frame at ``link_t0`` (the same information the decision read uses): if the player was not
+    goal-side and needed longer to get there than the nearest opponent's earliest touch plus the cover window,
+    the linked decision may already have been too late. Then the earlier decisions in the lookback are LISTED
+    as candidates, without choosing among them; the replay cannot establish which choice caused it.
+    """
+    team_of = {p["id"]: p.get("team") for p in replay.get("players", [])}
+    fr = _frame(replay, link_t0)
+    out: dict[str, Any] = {"link_basis": "nearest earlier decision in time; time order is not evidence of cause"}
+    if not fr or focus not in fr.get("cars", {}) or not fr["cars"][focus] or not fr.get("ball"):
+        return {**out, "upstream": {"status": "unknown", "reason": "no decision-time frame"}}
+    debt = fc.recovery_debt({"ball": fr["ball"], "cars": {focus: fr["cars"][focus]}}, {focus: team_of[focus]}).get(focus)
+    reach = reach_times(fr)
+    opp = [reach[p] for p in reach if team_of.get(p) not in (None, team_of[focus]) and reach[p] is not None]
+    if debt is None or not opp:
+        return {**out, "upstream": {"status": "unknown", "reason": "recovery or opponent reach unknown at that moment"}}
+    opp_t = min(opp)
+    if debt <= opp_t + COVER_WINDOW_S:
+        return {**out, "upstream": {
+            "status": "in_position", "recovery_debt_s": debt, "nearest_opponent_reach_s": round(opp_t, 2),
+            "note": "You could get goal-side in time at this decision, so earlier choices are not implicated."}}
+    earlier = [{"t0": it["situation"]["t0"], "class": it["situation"]["situation_class"]}
+               for it in items if link_t0 - UPSTREAM_LOOKBACK_S <= it["situation"]["t0"] < link_t0 - 0.5]
+    return {**out, "upstream": {
+        "status": "already_constrained", "recovery_debt_s": debt, "nearest_opponent_reach_s": round(opp_t, 2),
+        "earlier_decisions": earlier,
+        "note": (f"At this decision you needed {debt} s to get goal-side while an opponent could reach the ball in "
+                 f"{round(opp_t, 2)} s, so the outcome may already have been set. "
+                 + ("Earlier decisions in the previous 8 s are listed for review; the replay cannot establish which "
+                    "of them, if any, caused it." if earlier else
+                    "No earlier decision of yours was recorded in the previous 8 s; the cause may be outside your choices."))}}
 
 
 def build_coaching_report_v2(replays: list[dict] | dict, focus_ids: list[str] | str, *, max_findings: int = 6,
@@ -137,6 +181,7 @@ def build_coaching_report_v2(replays: list[dict] | dict, focus_ids: list[str] | 
                             "takeaway": fa["takeaway"]["text"]}
                     if fa["kind"] == "observation_only":
                         link["commitment_context"] = _context(replay, focus, it["situation"]["t0"])
+                    link.update(upstream_check(replay, focus, it["situation"]["t0"], items))
                 tps.append({"t_start": p["t_start"], "t_end": p["t_end"], "direction": p["direction"],
                             "team_control_change": p["change"], "your_movement_effect": mine,
                             "your_share_of_attributed_change": round(share, 2),
