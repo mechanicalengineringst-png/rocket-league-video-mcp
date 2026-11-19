@@ -205,3 +205,55 @@ test('browser integration exists and blind-review controller hides V2 panel',()=
   assert.match(blind,/reportV2Panel/);
   assert.match(blind,/root\.reportV2UI\?\.render/);
 });
+
+
+test('V2 uncertainty lens shows source t0 premises and reversible conditions without claiming outcome',async()=>{
+  const {API,elements}=setup(),s=selected();
+  const target=finding({
+    decision_context:[
+      {condition:'teammate_covers',status:'within_error',reading:'Teammate coverage within timing error'},
+      {condition:'last_back',status:'holds',reading:'Focus was last defender at t0'}
+    ],
+    assumptions:{
+      decisive:[{
+        condition:'teammate_covers',current:'within_error',
+        question:'whether the teammate could cover the net',
+        how_to_resolve:'Check teammate position and recovery at this time',
+        if_true:['shadow_delay'],if_false:['immediate_challenge'],
+      }],
+      unobservable:[{
+        condition:'voice_comms',text:'Teammate communication was not recorded',
+      }]
+    }
+  });
+  const data=report();
+  data.matches[0].decision_findings=[target];
+  const ui=new API.ReportV2Controller(()=>s,async()=>response(data));
+  ui.mount();
+  assert.equal(await ui.run(),true);
+  const holder=elements.get('reportV2Results');
+  const audits=details(holder,'experimental-report-detail').filter(
+    node=>node.children.some(c=>c.tag==='summary'&&
+      /Challenge this reading/.test(c.textContent)));
+  assert.equal(audits.length,1,'one evidence audit for one source-checked decision');
+  assert.equal(audits[0].open,undefined,'falsification details start collapsed');
+  const all=flatten(audits[0]);
+  assert.match(all,/Teammate coverage within timing error/);
+  assert.match(all,/Focus was last defender at t0/);
+  assert.match(all,/whether the teammate could cover the net/);
+  assert.match(all,/Check teammate position and recovery/);
+  assert.match(all,/Teammate communication was not recorded/);
+  assert.match(all,/not proof that any alternative would have scored or saved/);
+  assert.doesNotMatch(all,/You definitely made a terrible mistake/);
+  assert.equal(API.decisionAudit(target).decisive.length,1);
+});
+
+test('V2 does not invent decisive uncertainty when no source condition exists',async()=>{
+  const {API,elements}=setup(),s=selected();
+  const ui=new API.ReportV2Controller(()=>s,async()=>response(report()));
+  ui.mount();await ui.run();
+  const text=flatten(elements.get('reportV2Results'));
+  assert.match(text,/identified no decisive unresolved condition/);
+  assert.match(text,/does not establish a unique best play/);
+  assert.doesNotMatch(text,/99%|guaranteed success/);
+});
