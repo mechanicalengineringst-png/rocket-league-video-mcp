@@ -1,0 +1,116 @@
+{
+ "player_matches": 60,
+ "metrics": {
+  "last_back_share": {
+   "n_pairs": 60,
+   "split_half_spearman": 0.195,
+   "cohort_median": 0.495,
+   "cohort_p10_p90": [
+    0.425,
+    0.575
+   ],
+   "per_match_reliability": 0.326,
+   "matches_needed_for_0.7": 5
+  },
+  "last_back_low_boost_share": {
+   "n_pairs": 60,
+   "split_half_spearman": 0.286,
+   "cohort_median": 0.206,
+   "cohort_p10_p90": [
+    0.104,
+    0.303
+   ],
+   "per_match_reliability": 0.445,
+   "matches_needed_for_0.7": 3
+  },
+  "both_ball_side_share": {
+   "n_pairs": 60,
+   "split_half_spearman": 0.138,
+   "cohort_median": 0.12,
+   "cohort_p10_p90": [
+    0.094,
+    0.165
+   ],
+   "per_match_reliability": 0.243,
+   "matches_needed_for_0.7": 8
+  },
+  "both_near_ball_share": {
+   "n_pairs": 60,
+   "split_half_spearman": 0.449,
+   "cohort_median": 0.129,
+   "cohort_p10_p90": [
+    0.09,
+    0.19
+   ],
+   "per_match_reliability": 0.62,
+   "matches_needed_for_0.7": 2
+  },
+  "behind_play_share": {
+   "n_pairs": 60,
+   "split_half_spearman": 0.023,
+   "cohort_median": 0.182,
+   "cohort_p10_p90": [
+    0.136,
+    0.225
+   ],
+   "per_match_reliability": 0.045,
+   "matches_needed_for_0.7": 50
+  },
+  "first_defender_commit_rate": {
+   "n_pairs": 40,
+   "split_half_spearman": -0.008,
+   "cohort_median": 0.634,
+   "cohort_p10_p90": [
+    0.385,
+    0.789
+   ],
+   "per_match_reliability": null,
+   "matches_needed_for_0.7": null
+  },
+  "first_defender_commit_rate_uncovered": {
+   "n_pairs": 15,
+   "split_half_spearman": 0.328,
+   "cohort_median": 0.714,
+   "cohort_p10_p90": [
+    0.429,
+    0.896
+   ],
+   "per_match_reliability": 0.494,
+   "matches_needed_for_0.7": 3
+  },
+  "second_man_double_commit_rate": {
+   "n_pairs": 51,
+   "split_half_spearman": -0.136,
+   "cohort_median": 0.08,
+   "cohort_p10_p90": [
+    0.018,
+    0.133
+   ],
+   "per_match_reliability": null,
+   "matches_needed_for_0.7": null
+  },
+  "recovery_big_boost_rate": {
+   "n_pairs": 38,
+   "split_half_spearman": 0.038,
+   "cohort_median": 0.282,
+   "cohort_p10_p90": [
+    0.118,
+    0.462
+   ],
+   "per_match_reliability": 0.073,
+   "matches_needed_for_0.7": 30
+  },
+  "aerial_commit_teammate_not_back_rate": {
+   "n_pairs": 35,
+   "split_half_spearman": -0.207,
+   "cohort_median": 0.455,
+   "cohort_p10_p90": [
+    0.238,
+    0.642
+   ],
+   "per_match_reliability": null,
+   "matches_needed_for_0.7": null
+  }
+ },
+ "note": "Halves of the same match share teammates, opponents and score state; reliability across matches is untested."
+}

@@ -1,0 +1,188 @@
+{
+ "A_reach_lower_bound_on_real_touches": {
+  "ground_lead_0.5": {
+   "n": 1137,
+   "violated_share": 0.106,
+   "violated_by_more_than_0.3s": 0.005,
+   "beyond_horizon_share": 0.0
+  },
+  "ground_lead_1.0": {
+   "n": 931,
+   "violated_share": 0.084,
+   "violated_by_more_than_0.3s": 0.017,
+   "beyond_horizon_share": 0.002
+  },
+  "ground_lead_1.5": {
+   "n": 765,
+   "violated_share": 0.184,
+   "violated_by_more_than_0.3s": 0.029,
+   "beyond_horizon_share": 0.003
+  },
+  "ground_lead_2.0": {
+   "n": 597,
+   "violated_share": 0.236,
+   "violated_by_more_than_0.3s": 0.089,
+   "beyond_horizon_share": 0.002
+  },
+  "air_lead_0.5": {
+   "n": 560,
+   "violated_share": 0.048,
+   "violated_by_more_than_0.3s": 0.007,
+   "beyond_horizon_share": 0.0
+  },
+  "air_lead_1.0": {
+   "n": 529,
+   "violated_share": 0.043,
+   "violated_by_more_than_0.3s": 0.011,
+   "beyond_horizon_share": 0.002
+  },
+  "air_lead_1.5": {
+   "n": 451,
+   "violated_share": 0.058,
+   "violated_by_more_than_0.3s": 0.027,
+   "beyond_horizon_share": 0.002
+  },
+  "air_lead_2.0": {
+   "n": 377,
+   "violated_share": 0.048,
+   "violated_by_more_than_0.3s": 0.032,
+   "beyond_horizon_share": 0.005
+  }
+ },
+ "B_field_arrival_on_real_motion": {
+  "tau_1.0": {
+   "n": 7391,
+   "predicted_slower_than_actual": 0.133,
+   "by_more_than_0.3s": 0.044,
+   "median_pred_s": 0.758
+  },
+  "tau_2.0": {
+   "n": 7422,
+   "predicted_slower_than_actual": 0.154,
+   "by_more_than_0.3s": 0.092,
+   "median_pred_s": 1.462
+  }
+ },
+ "C_intent_proxy": {
+  "n": 6969,
+  "base_rate_touch_within_1.5s": 0.218,
+  "rate_if_closing_gt_500": 0.361,
+  "n_closing_gt_500": 2563,
+  "rate_if_closing_le_500": 0.135,
+  "auc_closing_speed": 0.722,
+  "auc_minus_reach_time": 0.859,
+  "auc_minus_distance": 0.777,
+  "rate_by_reach_and_closing": {
+   "reach_0-0.5": {
+    "closing>500": {
+     "n": 706,
+     "rate": 0.671
+    },
+    "closing<=500": {
+     "n": 837,
+     "rate": 0.461
+    }
+   },
+   "reach_0.5-1.0": {
+    "closing>500": {
+     "n": 767,
+     "rate": 0.434
+    },
+    "closing<=500": {
+     "n": 821,
+     "rate": 0.206
+    }
+   },
+   "reach_1.0-2.0": {
+    "closing>500": {
+     "n": 882,
+     "rate": 0.133
+    },
+    "closing<=500": {
+     "n": 1412,
+     "rate": 0.03
+    }
+   }
+  }
+ },
+ "D_cover": {
+  "first_defender_situations": 995,
+  "status_counts": {
+   "unknown": 381,
+   "holds": 346,
+   "fails": 103,
+   "within_error": 165
+  },
+  "teammate_already_goal_side": 239,
+  "teammate_became_goal_side_within_5s": 885,
+  "pred_vs_actual_n": 308,
+  "actual_minus_pred_median_s": -0.187,
+  "actual_minus_pred_p25_s": -0.687,
+  "actual_minus_pred_p75_s": 0.82,
+  "by_status": {
+   "holds": {
+    "n": 346,
+    "goal_side_within_carrier_t_plus_1s": 0.936,
+    "goal_side_within_5s": 0.977
+   },
+   "within_error": {
+    "n": 165,
+    "goal_side_within_carrier_t_plus_1s": 0.436,
+    "goal_side_within_5s": 0.824
+   },
+   "fails": {
+    "n": 103,
+    "goal_side_within_carrier_t_plus_1s": 0.194,
+    "goal_side_within_5s": 0.767
+   },
+   "unknown": {
+    "n": 381,
+    "goal_side_within_carrier_t_plus_1s": 0.627,
+    "goal_side_within_5s": 0.871
+   }
+  },
+  "note": "actual = first time the teammate met the same goal-side test the cover estimate uses (moving ball); the teammate may not have tried, so 'fails' can also mean 'did not try'."
+ },
+ "D_time_to_goal_zone_after_opponent_touch_in_our_half": {
+  "opponent_touches": 1183,
+  "reached_goal_zone_within_6s_before_a_defender_touch": 644,
+  "median_s": 0.74,
+  "p25_s": 0.03,
+  "p75_s": 1.64,
+  "p10_s": 0.01
+ },
+ "E_observed_action_labels": {
+  "n": 2400,
+  "unlabelled_at_2.5s": 438,
+  "same_family_2.0_vs_2.5": {
+   "n": 1865,
+   "agree": 0.945
+  },
+  "same_family_2.5_vs_3.0": {
+   "n": 1911,
+   "agree": 0.945
+  },
+  "r12_vs_round5_choice": {
+   "n_both_labelled": 1562,
+   "agree_share": 0.827,
+   "pairs": {
+    "touch|challenge": 815,
+    "None|unclear": 363,
+    "hold|shadow": 279,
+    "hold|unclear": 206,
+    "touch|shadow": 192,
+    "hold|retreat": 120,
+    "touch|unclear": 118,
+    "boost|boost": 77,
+    "boost|unclear": 76,
+    "None|shadow": 59,
+    "hold|boost": 37,
+    "boost|retreat": 24
+   }
+  }
+ },
+ "cohort": {
+  "replays": 15,
+  "note": "public 2v2 replays of unknown rank; no human labels"
+ }
+}

@@ -98,13 +98,14 @@
       // while the reviewer makes an independent PREdecision judgment.
       // This does NOT control external game/video windows or previous exposure.
       for(const id of ['coachingSection','experimentalReportPanel',
-                        'modelCoachPanel','videoPanel',
+                        'reportV2Panel','modelCoachPanel','videoPanel',
                         'companionPanel','lensRevealBtn','lensAfterBtn','lensLoopBtn']){
         const el=$(id);
         if(el)el.hidden=masked;
       }
       if(root.modelCoachingUI?.render)root.modelCoachingUI.render();
       if(root.experimentalReportUI?.render)root.experimentalReportUI.render();
+      if(root.reportV2UI?.render)root.reportV2UI.render();
     }
     selectionChanged(){
       const ctx=this.context();

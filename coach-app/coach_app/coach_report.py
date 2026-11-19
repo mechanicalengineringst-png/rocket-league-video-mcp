@@ -40,14 +40,14 @@ def prefix(replay: dict[str, Any], t0: float) -> dict[str, Any]:
             "events": [e for e in replay.get("events", []) if isinstance(e.get("t"), (int, float)) and e["t"] <= t0 + 1e-9]}
 
 
-def analyze_moment(replay: dict[str, Any], focus: str, situation: dict[str, Any]) -> dict[str, Any] | None:
+def analyze_moment(replay: dict[str, Any], focus: str, situation: dict[str, Any], *, ledger: str = "r12") -> dict[str, Any] | None:
     t0 = situation["t0"]
     pre = prefix(replay, t0)
     if not pre["frames"] or t0 - EPISODE_LOOKBACK_S < pre["frames"][0]["t"]:
         return None
     ep = build_episode_evidence(pre, focus, [round(t0 - o, 3) for o in NODE_OFFSETS_S] + [t0], t0 - EPISODE_LOOKBACK_S, t0)
     st1 = build_stage1_episode_packet(ep)
-    rat = analyze_situation(st1, pre, situation)
+    rat = analyze_situation(st1, pre, situation, ledger=ledger)
     node = next(n for n in st1["nodes"] if n["is_primary"])
     return {"situation": situation, "rationale": rat, "packet": node["packet"]}
 

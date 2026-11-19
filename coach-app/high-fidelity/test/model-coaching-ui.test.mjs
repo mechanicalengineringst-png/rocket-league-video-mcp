@@ -51,7 +51,7 @@ function situation(){
 function validLesson(){
   return {schema:'CoachLessonV0',stage:'predecision',mode:'model_proposal',
     decision:{t0_s:21.1},assessment:{grade:'tradeoff'},
-    validation:{accepted_model_claims:1,rejected_model_claims:[{reason:'missing source'}],
+    validation:{accepted_model_claims:1,rejected_model_claims:[{index:0,reason:'missing source'}],
       semantic_tactical_accuracy_verified:false,future_outcomes_used:false},
     claims:[
       {author:'deterministic',text:'Baseline fact'},
@@ -341,4 +341,118 @@ test('an active blind Stage A masks cached AI advice and blocks additional paid 
   assert.equal(elements.get('modelCoachRunBtn').disabled,false);
   assert.ok(elements.get('modelCoachResults').children.some(x=>
     x.className==='model-result-heading'));
+});
+
+
+function sourceStampedLesson({accepted=1,grade='tradeoff'}={}){
+  const body=validLesson();
+  if(accepted===0){
+    body.claims=body.claims.filter(c=>c.author!=='model_proposal');
+    body.validation.accepted_model_claims=0;
+    body.assessment.grade='undetermined';
+  }else{
+    body.assessment.grade=grade;
+  }
+  const rejected=body.validation.rejected_model_claims.length;
+  const status=accepted===0?'model_claims_withheld':
+    body.assessment.grade==='undetermined'?
+      'model_claims_without_tactical_grade':'model_tactical_hypothesis';
+  body.validation.response_provenance={
+    source:'model_draft_evidence_checked',status,
+    model_claims_submitted:accepted+rejected,
+    model_claims_accepted:accepted,model_claims_rejected:rejected,
+    baseline_facts_only:accepted===0,
+    tactical_hypothesis_emitted:body.assessment.grade!=='undetermined',
+    semantic_accuracy_verified:false,
+  };
+  return body;
+}
+
+test('source-stamped model proposal is explicitly called an unverified hypothesis',async()=>{
+  const {API,elements}=modelAPI();
+  const request=API.validRequest(situation());
+  const source=sourceStampedLesson();
+  const parsed=API.verifiedResponse(source,request);
+  assert.equal(parsed.provenance.status,'model_tactical_hypothesis');
+  assert.equal(parsed.provenance.submitted,2);
+  assert.equal(parsed.rejectionReasons.length,1);
+
+  const scene=situation();
+  const ui=new API.ModelCoachingController(()=>scene,async url=>
+    response(url.endsWith('/lesson')?source:
+      {schema:'CoachModelReadinessV0',status:'configured_unverified'}));
+  ui.mount();await tick();
+  elements.get('modelCoachConsent').checked=true;
+  await ui.generate();
+  const cards=elements.get('modelCoachResults').children;
+  const heading=cards.find(c=>c.className==='model-result-heading');
+  assert.match(heading.children[0].textContent,/Model tactical hypothesis: tradeoff/);
+  assert.match(heading.children[1].textContent,/1 of 2 model claims/);
+  assert.match(heading.children[1].textContent,/NOT verified/);
+  const rejection=cards.find(c=>c.className==='model-rejection-details');
+  assert.equal(rejection.children[1].textContent,'Claim 1: missing source');
+  const exported=ui.exportSummary()[0];
+  assert.equal(exported.response_provenance,'model_tactical_hypothesis');
+  assert.equal(exported.tactical_hypothesis_emitted,true);
+  assert.equal(exported.model_claims_submitted,2);
+  assert.equal(exported.rejection_reasons[0],'Claim 1: missing source');
+  assert.equal(exported.tactical_accuracy_expert_verified,false);
+  assert.ok(!JSON.stringify(exported).includes('focus-id'));
+});
+
+test('all-rejected provider output is visible as withheld, never successful coaching',async()=>{
+  const {API,elements}=modelAPI();
+  const withheld=sourceStampedLesson({accepted:0});
+  const s=situation();
+  let calls=0;
+  const ui=new API.ModelCoachingController(()=>s,async url=>{
+    if(url.endsWith('/lesson')){calls++;return response(withheld);}
+    return response({schema:'CoachModelReadinessV0',status:'configured_unverified'});
+  });
+  ui.mount();await tick();
+  elements.get('modelCoachConsent').checked=true;
+  await ui.generate();
+  assert.equal(calls,1);
+  assert.match(ui.status,/ALL 1 proposed claims were withheld/);
+  const cards=elements.get('modelCoachResults').children;
+  assert.match(cards.find(x=>x.className==='model-result-heading')
+    .children[0].textContent,/All model claims withheld/);
+  assert.equal(cards.some(x=>x.className==='model-claim'),false);
+  const report=ui.exportSummary()[0];
+  assert.equal(report.accepted_claims,0);
+  assert.equal(report.rejected_claims,1);
+  assert.equal(report.response_provenance,'model_claims_withheld');
+  assert.equal(report.tactical_hypothesis_emitted,false);
+  assert.equal(elements.get('modelCoachConsent').checked,false);
+});
+
+test('source-stamped observation cannot acquire a fabricated tactical grade',()=>{
+  const {API}=modelAPI();
+  const lesson=sourceStampedLesson({grade:'undetermined'});
+  lesson.claims[1].epistemic_type='OBSERVED_FACT';
+  lesson.claims[1].section='observation';
+  const result=API.verifiedResponse(lesson,API.validRequest(situation()));
+  assert.equal(result.provenance.status,'model_claims_without_tactical_grade');
+  assert.equal(result.provenance.tacticalHypothesis,false);
+});
+
+test('inconsistent or inflated provenance fails closed; legacy response stays labeled',()=>{
+  const {API}=modelAPI();
+  const request=API.validRequest(situation());
+  const source=sourceStampedLesson();
+  const badStatus=structuredClone(source);
+  badStatus.validation.response_provenance.status='model_claims_withheld';
+  assert.equal(API.verifiedResponse(badStatus,request),null);
+  const badCount=structuredClone(source);
+  badCount.validation.response_provenance.model_claims_submitted=10;
+  assert.equal(API.verifiedResponse(badCount,request),null);
+  const falseAuthority=structuredClone(source);
+  falseAuthority.validation.response_provenance.semantic_accuracy_verified=true;
+  assert.equal(API.verifiedResponse(falseAuthority,request),null);
+  const invalidReason=structuredClone(source);
+  invalidReason.validation.rejected_model_claims[0].reason='X'.repeat(251);
+  assert.equal(API.verifiedResponse(invalidReason,request),null);
+  const oldServer=API.verifiedResponse(validLesson(),request);
+  assert.equal(oldServer.provenance.status,'legacy_counts_only');
+  assert.equal(oldServer.provenance.verified,false);
 });
