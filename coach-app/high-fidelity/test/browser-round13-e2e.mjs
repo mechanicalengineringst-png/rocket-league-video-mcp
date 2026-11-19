@@ -78,11 +78,13 @@ try {
   console.log('Verified camera profiles:', profileOptions);
   await profileSelect.selectOption('pro');
 
-  // 7c. 3D Tactical Markers toggle
+  // 7c. 3D Tactical Markers toggle (clean by default)
   const tactical3dToggle = hd.locator('#tactical3dToggle');
   await tactical3dToggle.waitFor({ state: 'attached' });
-  const tacticalChecked = await tactical3dToggle.isChecked();
-  console.log('Verified 3D Tactical Markers toggle present and enabled:', tacticalChecked);
+  const tacticalInitiallyChecked = await tactical3dToggle.isChecked();
+  console.log('Verified 3D Tactical Markers initially unchecked for clean default:', !tacticalInitiallyChecked);
+  await tactical3dToggle.check({ force: true });
+  console.log('Verified 3D Tactical Markers opt-in checked:', await tactical3dToggle.isChecked());
 
   // 7d. Procedural Web Audio controls
   const audioBtn = hd.locator('#audioToggleBtn');

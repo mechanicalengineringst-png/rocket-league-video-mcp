@@ -6,8 +6,8 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "vite build",
-    "test": "node --test test/*.test.mjs",
-    "check": "node --check src/main.js && node --check src/external-sync.js && node --check src/recorded-camera-switch.js && node --check src/camera-polish.js && node --check src/visual-quality.js && npm run test && npm run build",
+    "test": "node --test test/*.test.mjs test/*.qa.mjs",
+    "check": "node --check src/main.js && node --check src/external-sync.js && node --check src/recorded-camera-switch.js && node --check src/camera-polish.js && node --check src/visual-quality.js && node --check src/audio-engine.js && node --check src/tactical-3d.js && node --check src/camera-director.js && npm run test && npm run build",
     "preview": "vite preview --host 127.0.0.1 --port 4173 --strictPort"
   },
   "dependencies": {

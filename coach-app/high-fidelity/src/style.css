@@ -58,6 +58,9 @@ select{border:1px solid #345369;background:#0a1c2b;border-radius:5px;color:#dcea
 #replaceFileBtn{border:1px solid #35576c;background:transparent;color:#cae3ef;border-radius:5px;padding:6px 11px}
 .audio-btn{background:#132e42;color:#a5e2f5;border:1px solid #376585;border-radius:5px;padding:6px 10px;font-weight:600;font-size:11px}
 .audio-btn.active{background:#185b54;color:#76ffe0;border-color:var(--teal)}
+.cam-opt{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:#9acbe2;cursor:pointer;padding:5px 8px;border-radius:5px;border:1px solid #2b4f65;background:#091928}
+.cam-opt input{accent-color:var(--teal);margin:0;cursor:pointer}
+body.embedded .cam-opt{padding:4px 6px;font-size:10px}
 .help-line{font-size:10px;color:#738fa4}
 .insights-strip{display:grid;grid-template-columns:1.5fr 1fr;gap:12px;color:#a0b5c8}
 .insights-strip>*{background:#091724;border:1px solid #263f53;border-radius:8px;margin:0;padding:14px}

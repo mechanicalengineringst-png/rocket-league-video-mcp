@@ -24,6 +24,7 @@ export function createTactical3DPlugin({
   let t0Ring = null;
   let ghostMarker = null;
   const boostHUDs = new Map(); // carId -> Object3D
+  let overrideEnabled = null;
 
   function initGroup(scene) {
     if (rootGroup && rootGroup.parent === scene) return rootGroup;
@@ -137,7 +138,7 @@ export function createTactical3DPlugin({
       if (!ctx?.scene || !ctx?.camera) return;
       initGroup(ctx.scene);
 
-      const active = Boolean(isEnabled());
+      const active = overrideEnabled !== null ? overrideEnabled : Boolean(isEnabled());
       rootGroup.visible = active;
       if (!active) return;
 
@@ -276,12 +277,18 @@ export function createTactical3DPlugin({
       }
     },
 
+    setEnabled(enabled) {
+      overrideEnabled = Boolean(enabled);
+      if (rootGroup) rootGroup.visible = overrideEnabled;
+    },
+
     teardown() {
       if (rootGroup && rootGroup.parent) {
         rootGroup.parent.remove(rootGroup);
       }
       boostHUDs.clear();
       rootGroup = null;
+      overrideEnabled = null;
     }
   };
 

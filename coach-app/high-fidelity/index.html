@@ -76,6 +76,7 @@
             <option value="wide">Wide angle (110°)</option>
             <option value="aerial">High bird's-eye (105°)</option>
           </select>
+          <label class="cam-opt" for="tactical3dToggle" title="Toggle 3D spatial connections, focus vectors, and Decision Lens markers in the stadium"><input id="tactical3dToggle" type="checkbox" disabled> 3D Map</label>
           <button id="audioToggleBtn" type="button" class="audio-btn" disabled title="Toggle Audio (Procedural Web Audio Engine)">🔊 Audio: Off</button>
           <button id="fullscreenBtn" type="button" title="Fullscreen viewer">⛶</button>
         </div>
@@ -99,7 +100,6 @@
           <div class="lower-controls">
             <label for="interpolation">Motion</label>
             <select id="interpolation" disabled><option value="hermite">Velocity-smoothed (Hermite)</option><option value="linear">Linear</option></select>
-            <label for="tactical3dToggle" title="Show 3D spatial connections, focus vectors, and Decision Lens markers in the stadium"><input id="tactical3dToggle" type="checkbox" checked disabled> 3D Tactical Markers</label>
             <label for="replayLookToggle" title="Approximate manual swivel/rear-view from replay inputs; exact game camera position is not stored"><input id="replayLookToggle" type="checkbox" disabled> Reconstruct free-look (experimental)</label>
             <label for="lightingSelect">Lighting</label>
             <select id="lightingSelect" disabled><option value="stable" selected>Stable HDR</option><option value="neutral">Neutral studio</option></select>

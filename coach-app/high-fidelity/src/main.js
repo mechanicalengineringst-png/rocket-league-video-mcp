@@ -427,7 +427,7 @@ async function loadFile(file, preferredName = null, sessionId = null) {
     });
     tactical3D=createTactical3DPlugin({
       getFocusPlayerId:()=>currentPlayer()?.id,
-      getEnabled:()=>$('tactical3dToggle')?.checked ?? true,
+      getEnabled:()=>$('tactical3dToggle')?.checked ?? false,
     });
     const cameraStateSource=createRecordedCameraSwitchPlugin({
       getCameraPlugin:()=>cameraPlugin,
