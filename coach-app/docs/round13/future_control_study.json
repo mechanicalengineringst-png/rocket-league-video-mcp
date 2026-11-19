@@ -1,0 +1,709 @@
+{
+ "rows": 17344,
+ "matches": 15,
+ "note": "Public 2v2 replays of unknown rank; consecutive rows are strongly correlated (0.5 s apart).",
+ "targets": {
+  "next_touch_own": {
+   "n": 15188,
+   "matches": 15,
+   "base_rate": 0.5,
+   "models": {
+    "base": {
+     "log_loss": 0.6931,
+     "brier": 0.25,
+     "auc": 0.5
+    },
+    "physics": {
+     "log_loss": 0.5817,
+     "brier": 0.1952,
+     "auc": 0.7801
+    },
+    "reach": {
+     "log_loss": 0.5482,
+     "brier": 0.1841,
+     "auc": 0.7987
+    },
+    "ledger_like": {
+     "log_loss": 0.5399,
+     "brier": 0.1807,
+     "auc": 0.8056
+    },
+    "logistic_all": {
+     "log_loss": 0.5111,
+     "brier": 0.1702,
+     "auc": 0.8263
+    },
+    "gbm_all": {
+     "log_loss": 0.4646,
+     "brier": 0.1519,
+     "auc": 0.8615
+    },
+    "knn": {
+     "log_loss": 0.5534,
+     "brier": 0.1873,
+     "auc": 0.7968
+    },
+    "gbm_minus_ball": {
+     "log_loss": 0.4703,
+     "brier": 0.1539,
+     "auc": 0.8576
+    },
+    "gbm_minus_reach": {
+     "log_loss": 0.5042,
+     "brier": 0.1673,
+     "auc": 0.8333
+    },
+    "gbm_minus_players": {
+     "log_loss": 0.5077,
+     "brier": 0.1687,
+     "auc": 0.8291
+    },
+    "gbm_minus_control": {
+     "log_loss": 0.4666,
+     "brier": 0.1526,
+     "auc": 0.8602
+    }
+   },
+   "log_loss_gain_vs_physics_95ci": {
+    "base": [
+     -0.1245,
+     -0.0983
+    ],
+    "reach": [
+     0.0232,
+     0.0432
+    ],
+    "ledger_like": [
+     0.0292,
+     0.0519
+    ],
+    "logistic_all": [
+     0.0564,
+     0.0851
+    ],
+    "gbm_all": [
+     0.1034,
+     0.1342
+    ],
+    "knn": [
+     0.0181,
+     0.0385
+    ],
+    "gbm_minus_ball": [
+     0.0983,
+     0.1287
+    ],
+    "gbm_minus_reach": [
+     0.065,
+     0.0936
+    ],
+    "gbm_minus_players": [
+     0.0595,
+     0.0914
+    ],
+    "gbm_minus_control": [
+     0.1034,
+     0.1318
+    ]
+   },
+   "calibration_logistic_all": [
+    {
+     "bin": "0.0-0.2",
+     "n": 2987,
+     "mean_pred": 0.096,
+     "observed": 0.108
+    },
+    {
+     "bin": "0.2-0.4",
+     "n": 2899,
+     "mean_pred": 0.302,
+     "observed": 0.298
+    },
+    {
+     "bin": "0.4-0.6",
+     "n": 3431,
+     "mean_pred": 0.501,
+     "observed": 0.497
+    },
+    {
+     "bin": "0.6-0.8",
+     "n": 2914,
+     "mean_pred": 0.7,
+     "observed": 0.707
+    },
+    {
+     "bin": "0.8-1.0",
+     "n": 2957,
+     "mean_pred": 0.904,
+     "observed": 0.893
+    }
+   ],
+   "calibration_gbm_all": [
+    {
+     "bin": "0.0-0.2",
+     "n": 3582,
+     "mean_pred": 0.11,
+     "observed": 0.087
+    },
+    {
+     "bin": "0.2-0.4",
+     "n": 2675,
+     "mean_pred": 0.295,
+     "observed": 0.29
+    },
+    {
+     "bin": "0.4-0.6",
+     "n": 2628,
+     "mean_pred": 0.5,
+     "observed": 0.502
+    },
+    {
+     "bin": "0.6-0.8",
+     "n": 2719,
+     "mean_pred": 0.704,
+     "observed": 0.708
+    },
+    {
+     "bin": "0.8-1.0",
+     "n": 3584,
+     "mean_pred": 0.89,
+     "observed": 0.91
+    }
+   ],
+   "importance_gbm_gain": {
+    "top": [
+     [
+      "reach_margin_first",
+      0.423
+     ],
+     [
+      "opp1_closing",
+      0.04
+     ],
+     [
+      "own1_closing",
+      0.039
+     ],
+     [
+      "ball_vy",
+      0.026
+     ],
+     [
+      "ctl_ball_corridor_2s_own",
+      0.023
+     ],
+     [
+      "ctl_ball_corridor_2s_opp",
+      0.023
+     ],
+     [
+      "own2_dist_ball",
+      0.022
+     ],
+     [
+      "opp2_dist_ball",
+      0.022
+     ],
+     [
+      "reach_opp1",
+      0.021
+     ],
+     [
+      "reach_own1",
+      0.021
+     ],
+     [
+      "reach_opp2",
+      0.017
+     ],
+     [
+      "reach_own2",
+      0.017
+     ],
+     [
+      "own1_y_rel_ball",
+      0.014
+     ],
+     [
+      "opp1_z",
+      0.013
+     ],
+     [
+      "opp1_y_rel_ball",
+      0.013
+     ]
+    ],
+    "by_group": {
+     "reach": 0.523,
+     "players": 0.332,
+     "ball": 0.077,
+     "control": 0.068
+    }
+   }
+  },
+  "danger_5s": {
+   "n": 17344,
+   "matches": 15,
+   "base_rate": 0.296,
+   "models": {
+    "base": {
+     "log_loss": 0.6075,
+     "brier": 0.2084,
+     "auc": 0.4642
+    },
+    "physics": {
+     "log_loss": 0.6077,
+     "brier": 0.2085,
+     "auc": 0.5112
+    },
+    "reach": {
+     "log_loss": 0.6025,
+     "brier": 0.2061,
+     "auc": 0.5685
+    },
+    "ledger_like": {
+     "log_loss": 0.528,
+     "brier": 0.1769,
+     "auc": 0.7424
+    },
+    "logistic_all": {
+     "log_loss": 0.3642,
+     "brier": 0.1158,
+     "auc": 0.8951
+    },
+    "gbm_all": {
+     "log_loss": 0.3202,
+     "brier": 0.1019,
+     "auc": 0.9171
+    },
+    "knn": {
+     "log_loss": 0.3986,
+     "brier": 0.126,
+     "auc": 0.8792
+    },
+    "gbm_minus_ball": {
+     "log_loss": 0.3547,
+     "brier": 0.1124,
+     "auc": 0.9004
+    },
+    "gbm_minus_reach": {
+     "log_loss": 0.325,
+     "brier": 0.1035,
+     "auc": 0.914
+    },
+    "gbm_minus_players": {
+     "log_loss": 0.3308,
+     "brier": 0.1056,
+     "auc": 0.9099
+    },
+    "gbm_minus_control": {
+     "log_loss": 0.3213,
+     "brier": 0.1023,
+     "auc": 0.9165
+    }
+   },
+   "log_loss_gain_vs_physics_95ci": {
+    "base": [
+     -0.0006,
+     0.0009
+    ],
+    "reach": [
+     0.0024,
+     0.0075
+    ],
+    "ledger_like": [
+     0.0696,
+     0.0911
+    ],
+    "logistic_all": [
+     0.2237,
+     0.2648
+    ],
+    "gbm_all": [
+     0.2707,
+     0.3061
+    ],
+    "knn": [
+     0.1914,
+     0.2241
+    ],
+    "gbm_minus_ball": [
+     0.2326,
+     0.27
+    ],
+    "gbm_minus_reach": [
+     0.2641,
+     0.3034
+    ],
+    "gbm_minus_players": [
+     0.2604,
+     0.2943
+    ],
+    "gbm_minus_control": [
+     0.2695,
+     0.304
+    ]
+   },
+   "calibration_logistic_all": [
+    {
+     "bin": "0.0-0.2",
+     "n": 9577,
+     "mean_pred": 0.06,
+     "observed": 0.067
+    },
+    {
+     "bin": "0.2-0.4",
+     "n": 2278,
+     "mean_pred": 0.287,
+     "observed": 0.289
+    },
+    {
+     "bin": "0.4-0.6",
+     "n": 1705,
+     "mean_pred": 0.499,
+     "observed": 0.49
+    },
+    {
+     "bin": "0.6-0.8",
+     "n": 1769,
+     "mean_pred": 0.704,
+     "observed": 0.674
+    },
+    {
+     "bin": "0.8-1.0",
+     "n": 2015,
+     "mean_pred": 0.898,
+     "observed": 0.897
+    }
+   ],
+   "calibration_gbm_all": [
+    {
+     "bin": "0.0-0.2",
+     "n": 9948,
+     "mean_pred": 0.057,
+     "observed": 0.059
+    },
+    {
+     "bin": "0.2-0.4",
+     "n": 2059,
+     "mean_pred": 0.295,
+     "observed": 0.301
+    },
+    {
+     "bin": "0.4-0.6",
+     "n": 1641,
+     "mean_pred": 0.498,
+     "observed": 0.496
+    },
+    {
+     "bin": "0.6-0.8",
+     "n": 1561,
+     "mean_pred": 0.701,
+     "observed": 0.691
+    },
+    {
+     "bin": "0.8-1.0",
+     "n": 2135,
+     "mean_pred": 0.947,
+     "observed": 0.952
+    }
+   ],
+   "importance_gbm_gain": {
+    "top": [
+     [
+      "ball_own_goal_dist",
+      0.366
+     ],
+     [
+      "ball_vy",
+      0.168
+     ],
+     [
+      "ball_y",
+      0.147
+     ],
+     [
+      "opp1_y_rel_ball",
+      0.029
+     ],
+     [
+      "opp1_closing",
+      0.023
+     ],
+     [
+      "reach_margin_first",
+      0.023
+     ],
+     [
+      "own1_y_rel_ball",
+      0.016
+     ],
+     [
+      "opp2_y_rel_ball",
+      0.01
+     ],
+     [
+      "own1_closing",
+      0.009
+     ],
+     [
+      "opp1_facing_ball",
+      0.009
+     ],
+     [
+      "opp2_dist_ball",
+      0.008
+     ],
+     [
+      "ball_vx_abs",
+      0.008
+     ],
+     [
+      "opp1_x_rel_ball_abs",
+      0.008
+     ],
+     [
+      "ball_z",
+      0.007
+     ],
+     [
+      "ball_opp_goal_dist",
+      0.007
+     ]
+    ],
+    "by_group": {
+     "ball": 0.714,
+     "players": 0.21,
+     "reach": 0.051,
+     "control": 0.025
+    }
+   }
+  },
+  "goal_against_10s": {
+   "n": 17344,
+   "matches": 15,
+   "base_rate": 0.11,
+   "models": {
+    "base": {
+     "log_loss": 0.3482,
+     "brier": 0.0984,
+     "auc": 0.4036
+    },
+    "physics": {
+     "log_loss": 0.3478,
+     "brier": 0.0983,
+     "auc": 0.513
+    },
+    "reach": {
+     "log_loss": 0.3486,
+     "brier": 0.0984,
+     "auc": 0.5126
+    },
+    "ledger_like": {
+     "log_loss": 0.3317,
+     "brier": 0.0946,
+     "auc": 0.6541
+    },
+    "logistic_all": {
+     "log_loss": 0.3239,
+     "brier": 0.0916,
+     "auc": 0.6824
+    },
+    "gbm_all": {
+     "log_loss": 0.312,
+     "brier": 0.0881,
+     "auc": 0.7082
+    },
+    "knn": {
+     "log_loss": 0.3427,
+     "brier": 0.0937,
+     "auc": 0.6636
+    },
+    "gbm_minus_ball": {
+     "log_loss": 0.3207,
+     "brier": 0.0915,
+     "auc": 0.695
+    },
+    "gbm_minus_reach": {
+     "log_loss": 0.3123,
+     "brier": 0.0881,
+     "auc": 0.7067
+    },
+    "gbm_minus_players": {
+     "log_loss": 0.3135,
+     "brier": 0.0882,
+     "auc": 0.7005
+    },
+    "gbm_minus_control": {
+     "log_loss": 0.3129,
+     "brier": 0.0883,
+     "auc": 0.7072
+    }
+   },
+   "log_loss_gain_vs_physics_95ci": {
+    "base": [
+     -0.0015,
+     0.0006
+    ],
+    "reach": [
+     -0.0023,
+     0.0004
+    ],
+    "ledger_like": [
+     0.0091,
+     0.0228
+    ],
+    "logistic_all": [
+     0.0142,
+     0.0334
+    ],
+    "gbm_all": [
+     0.0225,
+     0.0548
+    ],
+    "knn": [
+     -0.0054,
+     0.0161
+    ],
+    "gbm_minus_ball": [
+     0.0147,
+     0.0439
+    ],
+    "gbm_minus_reach": [
+     0.0237,
+     0.054
+    ],
+    "gbm_minus_players": [
+     0.0232,
+     0.0482
+    ],
+    "gbm_minus_control": [
+     0.023,
+     0.0519
+    ]
+   },
+   "calibration_logistic_all": [
+    {
+     "bin": "0.0-0.2",
+     "n": 14929,
+     "mean_pred": 0.08,
+     "observed": 0.086
+    },
+    {
+     "bin": "0.2-0.4",
+     "n": 2071,
+     "mean_pred": 0.268,
+     "observed": 0.215
+    },
+    {
+     "bin": "0.4-0.6",
+     "n": 291,
+     "mean_pred": 0.476,
+     "observed": 0.491
+    },
+    {
+     "bin": "0.6-0.8",
+     "n": 48,
+     "mean_pred": 0.671,
+     "observed": 0.812
+    }
+   ],
+   "calibration_gbm_all": [
+    {
+     "bin": "0.0-0.2",
+     "n": 15389,
+     "mean_pred": 0.076,
+     "observed": 0.084
+    },
+    {
+     "bin": "0.2-0.4",
+     "n": 1548,
+     "mean_pred": 0.269,
+     "observed": 0.244
+    },
+    {
+     "bin": "0.4-0.6",
+     "n": 269,
+     "mean_pred": 0.481,
+     "observed": 0.502
+    },
+    {
+     "bin": "0.6-0.8",
+     "n": 119,
+     "mean_pred": 0.698,
+     "observed": 0.807
+    }
+   ],
+   "importance_gbm_gain": {
+    "top": [
+     [
+      "ball_vy",
+      0.103
+     ],
+     [
+      "ball_own_goal_dist",
+      0.068
+     ],
+     [
+      "opp2_y_rel_ball",
+      0.039
+     ],
+     [
+      "ball_z",
+      0.034
+     ],
+     [
+      "own2_y_rel_ball",
+      0.033
+     ],
+     [
+      "own2_boost",
+      0.03
+     ],
+     [
+      "ball_vx_abs",
+      0.029
+     ],
+     [
+      "opp2_boost",
+      0.028
+     ],
+     [
+      "opp1_y_rel_ball",
+      0.027
+     ],
+     [
+      "ball_x_abs",
+      0.027
+     ],
+     [
+      "own1_y_rel_ball",
+      0.025
+     ],
+     [
+      "own1_boost",
+      0.024
+     ],
+     [
+      "own1_speed",
+      0.024
+     ],
+     [
+      "reach_margin_first",
+      0.022
+     ],
+     [
+      "own2_speed",
+      0.02
+     ]
+    ],
+    "by_group": {
+     "ball": 0.304,
+     "players": 0.523,
+     "reach": 0.085,
+     "control": 0.088
+    }
+   }
+  }
+ }
+}

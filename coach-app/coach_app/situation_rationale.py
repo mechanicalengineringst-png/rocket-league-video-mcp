@@ -433,8 +433,34 @@ def specs_for(cls: str) -> dict[str, dict]:
     return out
 
 
-def analyze_situation(stage1_episode_packet: dict[str, Any], replay_prefix: dict[str, Any], situation: dict[str, Any]) -> dict:
-    """Condition ledger for one situation. ``replay_prefix`` must contain nothing after t0."""
+R13_INTENT_CLOSE_REACH_S = 0.5     # falsify_round13 C: below this reach time, slow closing did not mean "not going"
+
+
+def _r13_adjust(cond: dict, s: _State) -> list[dict]:
+    """Round 13 ledger: downgrade conditions that the cohort falsification showed to be unreliable.
+
+    Each adjustment only moves a status toward uncertainty (never to a firmer verdict).
+    """
+    notes = []
+    c = cond.get("carrier_committing")
+    if c and c["status"] == FAILS:
+        ts = [s.reach(k)[0] for k in s.slots if k.startswith("opponent")]
+        if ts and None not in ts and min(ts) < R13_INTENT_CLOSE_REACH_S:
+            c["status"] = WITHIN
+            c["claim"] = None
+            notes.append({"condition": "carrier_committing", "from": FAILS, "to": WITHIN,
+                          "why": "At close range a slow-closing opponent still took the next touch about half the time "
+                                 "in the cohort (scripts/falsify_round13.py, study C)."})
+    return notes
+
+
+def analyze_situation(stage1_episode_packet: dict[str, Any], replay_prefix: dict[str, Any], situation: dict[str, Any],
+                      *, ledger: str = "r12") -> dict:
+    """Condition ledger for one situation. ``replay_prefix`` must contain nothing after t0.
+
+    ``ledger="r13"`` applies the Round 13 falsification adjustments (see ``_r13_adjust``); the default
+    keeps Round 12 behaviour unchanged.
+    """
     p = stage1_episode_packet
     if p.get("retrospective_present") is not False or "retrospective" in p:
         raise SituationRationaleError("Stage 1 input must not contain retrospective material.")
@@ -473,6 +499,7 @@ def analyze_situation(stage1_episode_packet: dict[str, Any], replay_prefix: dict
     used = {lit.lstrip("!") for sp in specs.values() for _, lits, _ in sp["reasons"] for lit in lits} | \
            {lit.lstrip("!") for sp in specs.values() for _, lits in sp["defeaters"] for lit in lits}
     cond = {k: v for k, v in cond.items() if k in used}
+    adjustments = _r13_adjust(cond, s) if ledger == "r13" else []
     ev = _evaluate(cond, specs)
     sig = _signature(ev)
     decisive = _decisive(cond, sig, limit=4, specs=specs)
@@ -487,7 +514,7 @@ def analyze_situation(stage1_episode_packet: dict[str, Any], replay_prefix: dict
             "conditions": cond, "actions": ev, "quantities": q.items, "claims": c.items,
             "supported": supported, "conditional": [a for a, v in sig.items() if v == "conditional"],
             "contested": [a for a, v in sig.items() if v == "contested"], "refuted": refuted,
-            "decisive_information": decisive}
+            "decisive_information": decisive, "ledger": ledger, "ledger_adjustments": adjustments}
 
 
 __all__ = ["analyze_situation", "specs_for", "SituationRationaleError", "HOLDS", "FAILS", "WITHIN", "UNKNOWN", "UNOBS"]
