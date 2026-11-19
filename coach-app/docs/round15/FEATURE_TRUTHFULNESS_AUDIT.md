@@ -44,7 +44,7 @@ Recommendation key: **Keep**, **Replace** (by CoachingReviewV1), **Hide** (behin
 - **Before this round, no control in the default panel produced an actionable, replay-specific read end-to-end.** The useful backend reads (the Round 12/13 ledger) were reachable only through 8–45 s, 100+ KB reports.
 - **Fixed here:** the `/api/decision-cases` 500. Added `/api/coach/review` (CoachingReviewV1):
   - at most 5 moments;
-  - 2–4 s per player on the 130 s fixture;
+  - about 3 s per player on the 130 s fixture, mean 23 s (max 48 s) on full matches;
   - under 30 KB.
 - **Recommended for Antigravity** (I did not touch the frontend):
   - one side panel driven by `/api/coach/review`;
@@ -53,3 +53,23 @@ Recommendation key: **Keep**, **Replace** (by CoachingReviewV1), **Hide** (behin
   - hide the blind-review, model-coach and companion tools behind a developer flag.
 
   That takes the visible coaching controls from about 25 to: a moment list, "Play to decision", "What happened next", and an evidence drawer.
+
+## CoachingReviewV1 on the cached cohort (`review_cohort_eval.json`)
+
+The cohort is 15 public 2v2 replays of unknown rank, giving 60 player reports. There are no expert labels, so these numbers describe behaviour, not accuracy.
+
+| Measure | Result |
+|---|---|
+| Moments per report | 5 in 58 reports, 4 in 2; no empty reports |
+| Situations abstained | 67.5% (by design: only firm reads are shown) |
+| Categories | tradeoff 157, good 91, possible mistake 41, possible missed opportunity 9 |
+| Payload | max 20 KB |
+| Time | mean 23 s, max 48 s per player |
+| Within-report template repeats | 0 |
+| Cross-replay repeats | 76 distinct assessment templates out of 298; the most common one appears 33 times (with different numbers) |
+| Privacy leaks | 0 |
+
+Open quality concerns:
+- "Tradeoff" is the most common label (53%), and part of that is cautious hedging.
+- One assessment template recurs across matches. Each instance cites that replay's own numbers, but it is the weakest point on the "paste into another replay" test.
+- 23 s per player is slow for an on-upload call.

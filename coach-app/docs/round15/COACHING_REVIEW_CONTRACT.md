@@ -21,7 +21,7 @@ POST /api/coach/review            Content-Type: application/json
 
 | Request | Behaviour |
 |---|---|
-| default (whole match) | at most 5 moments, chronological; 3–25 s on the cached cohort (run in the background with a spinner) |
+| default (whole match) | at most 5 moments, chronological; mean 23 s, max 48 s per player on the 15-replay cohort (call once per player after upload, show a progress state; cache the result) |
 | `"t0": <seconds>` (single moment) | `mode: "single_moment"`; returns `status: "ok"` with one moment, or `status: "abstain"` with `abstention_reason` |
 | unknown player / not 2v2 | HTTP 422 |
 

@@ -1,0 +1,33 @@
+{
+ "player_reports": 60,
+ "replays": 15,
+ "note": "public 2v2 replays, unknown rank; no expert labels",
+ "moments_per_report": {
+  "5": 58,
+  "4": 2
+ },
+ "categories": {
+  "tradeoff": 157,
+  "good_decision": 91,
+  "possible_mistake": 41,
+  "possible_missed_opportunity": 9
+ },
+ "situation_classes": {
+  "first_defender": 165,
+  "second_man_support": 79,
+  "recovery_and_boost": 25,
+  "loose_ball": 8,
+  "possession": 16,
+  "offensive_first_man": 5
+ },
+ "abstention_share": 0.675,
+ "reports_with_zero_moments": 0,
+ "max_bytes": 20128,
+ "mean_seconds": 23.0,
+ "max_seconds": 48.3,
+ "assessment_templates_total": 298,
+ "assessment_templates_distinct": 76,
+ "most_repeated_assessment_template_across_cohort": 33,
+ "duplicate_templates_within_a_report": 0,
+ "privacy_leaks": 0
+}
