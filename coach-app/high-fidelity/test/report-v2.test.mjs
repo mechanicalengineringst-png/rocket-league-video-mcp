@@ -72,6 +72,11 @@ function report(custom={}){
       turning_points:[{t_start:20,t_end:22,direction:'loss',
         team_control_change:-.25,your_movement_effect:-.14,
         your_share_of_attributed_change:.35,your_movement:'lowered',
+        your_movement_reading:{
+          label:'restraint',next_touch_change:-.19,danger_change:-.05,
+          moved_back_uu:900,ended_goal_side:true,kind:'model_association_not_cause'
+        },
+        causal_status:'association in a model, not evidence that your choice caused the change',
         touches:[{t:21,by:'opponent'}],
         decision_time_reading:{t0:19,class:'first_defender',
           interpretation:'Holding might be useful at decision time.',
@@ -204,4 +209,120 @@ test('browser integration exists and blind-review controller hides V2 panel',()=
   assert.match(app,/source:'round13_v2_experimental_unverified'/);
   assert.match(blind,/reportV2Panel/);
   assert.match(blind,/root\.reportV2UI\?\.render/);
+});
+
+
+test('V2 uncertainty lens shows source t0 premises and reversible conditions without claiming outcome',async()=>{
+  const {API,elements}=setup(),s=selected();
+  const target=finding({
+    decision_context:[
+      {condition:'teammate_covers',status:'within_error',reading:'Teammate coverage within timing error'},
+      {condition:'last_back',status:'holds',reading:'Focus was last defender at t0'}
+    ],
+    assumptions:{
+      decisive:[{
+        condition:'teammate_covers',current:'within_error',
+        question:'whether the teammate could cover the net',
+        how_to_resolve:'Check teammate position and recovery at this time',
+        if_true:['shadow_delay'],if_false:['immediate_challenge'],
+      }],
+      unobservable:[{
+        condition:'voice_comms',text:'Teammate communication was not recorded',
+      }]
+    }
+  });
+  const data=report();
+  data.matches[0].decision_findings=[target];
+  const ui=new API.ReportV2Controller(()=>s,async()=>response(data));
+  ui.mount();
+  assert.equal(await ui.run(),true);
+  const holder=elements.get('reportV2Results');
+  const audits=details(holder,'experimental-report-detail').filter(
+    node=>node.children.some(c=>c.tag==='summary'&&
+      /Challenge this reading/.test(c.textContent)));
+  assert.equal(audits.length,1,'one evidence audit for one source-checked decision');
+  assert.equal(audits[0].open,undefined,'falsification details start collapsed');
+  const all=flatten(audits[0]);
+  assert.match(all,/Teammate coverage within timing error/);
+  assert.match(all,/Focus was last defender at t0/);
+  assert.match(all,/whether the teammate could cover the net/);
+  assert.match(all,/Check teammate position and recovery/);
+  assert.match(all,/Teammate communication was not recorded/);
+  assert.match(all,/not proof that any alternative would have scored or saved/);
+  assert.doesNotMatch(all,/You definitely made a terrible mistake/);
+  assert.equal(API.decisionAudit(target).decisive.length,1);
+});
+
+test('V2 does not invent decisive uncertainty when no source condition exists',async()=>{
+  const {API,elements}=setup(),s=selected();
+  const ui=new API.ReportV2Controller(()=>s,async()=>response(report()));
+  ui.mount();await ui.run();
+  const text=flatten(elements.get('reportV2Results'));
+  assert.match(text,/identified no decisive unresolved condition/);
+  assert.match(text,/does not establish a unique best play/);
+  assert.doesNotMatch(text,/99%|guaranteed success/);
+});
+
+
+test('Round 14 V2 renders actual two-head defensive restraint instead of false lowering verdict',async()=>{
+  const {API,elements}=setup(),s=selected();
+  const ui=new API.ReportV2Controller(()=>s,async()=>response(report()));
+  ui.mount();assert.equal(await ui.run(),true);
+  const visible=flatten(elements.get('reportV2Results'));
+  assert.match(visible,/Goal-side defensive restraint/);
+  assert.match(visible,/gave up next-touch access without raising modeled danger/);
+  assert.match(visible,/Next-touch model signal -0\.190/);
+  assert.match(visible,/near-goal danger model signal -0\.050/);
+  assert.match(visible,/NOT cause, blame, or an expert tactical grade/);
+  assert.doesNotMatch(visible,/Your movement lowered the model score/);
+  assert.doesNotMatch(visible,/Your movement raised the model score/);
+  assert.doesNotMatch(visible,/because you made a mistake/i);
+});
+
+test('Round 14 displays actual tradeoff and adverse heads as associations, not causality',()=>{
+  const {API}=setup();
+  const cases=[
+    [{label:'tradeoff',next_touch_change:.20,danger_change:.15},/Model tradeoff/],
+    [{label:'supports',next_touch_change:.2,danger_change:-.1},/Favorable model signals/],
+    [{label:'hurts',next_touch_change:-.15,danger_change:.2},/Unfavorable model signals/],
+    [{label:'negligible',next_touch_change:.005,danger_change:-.009},/Tiny model movement signal/],
+  ];
+  for(const [modified,expected] of cases){
+    const p=report().matches[0].turning_points[0];
+    Object.assign(p.your_movement_reading,modified);
+    const read=API.movementReadout(p);
+    assert.match(read.meaning,expected);
+    assert.match(read.evidence,/Next-touch model signal/);
+    assert.match(read.caveat,/NOT cause/);
+    assert.ok(API.verifyResponse(reportWithPoint(p),120));
+  }
+  function reportWithPoint(point){
+    const r=report();
+    r.matches[0].turning_points[0]=point;
+    return r;
+  }
+});
+
+test('Round 14 refuses unsupported restraint or malformed model-head attribution',()=>{
+  const {API}=setup();
+  const invalids=[
+    {moved_back_uu:50},
+    {ended_goal_side:false},
+    {next_touch_change:.12},
+    {danger_change:.25},
+    {label:'supports'}, // untruthful praise despite less next-touch access
+    {label:'hurts'},    // untruthful blame despite documented defensive restraint
+    {label:'tradeoff'}, // a tradeoff must be supported by head signs
+    {kind:'causally_proven'},
+    {label:'mistake'},
+    {next_touch_change:Infinity},
+  ];
+  for(const invalid of invalids){
+    const r=report();
+    Object.assign(r.matches[0].turning_points[0].your_movement_reading,invalid);
+    assert.equal(API.verifyResponse(r,120),null,
+      'invalid model attribution must not render: '+JSON.stringify(invalid));
+  }
+  const r=report();delete r.matches[0].turning_points[0].causal_status;
+  assert.equal(API.verifyResponse(r,120),null);
 });

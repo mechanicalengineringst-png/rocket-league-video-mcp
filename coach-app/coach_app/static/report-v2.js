@@ -57,6 +57,50 @@
         typeof ret.assessment.text_v2==='string') &&
       (f.ledger_adjustments===undefined||Array.isArray(f.ledger_adjustments));
   }
+  const MODEL_MOVEMENT_READS=new Set([
+    'supports','hurts','tradeoff','restraint','negligible'
+  ]);
+  // Round 14: describe EACH learned model head, never turn a single net
+  // attribution or outcome into a judgment of the player's decision.
+  function validHeadReading(h){
+    if(!h||h.kind!=='model_association_not_cause'||
+       !MODEL_MOVEMENT_READS.has(h.label)||
+       !finite(h.next_touch_change)||!finite(h.danger_change)||
+       Math.abs(h.next_touch_change)>1.01||Math.abs(h.danger_change)>1.01||
+       !(h.moved_back_uu===null||
+         (finite(h.moved_back_uu)&&Math.abs(h.moved_back_uu)<20000))||
+       !(h.ended_goal_side===null||
+         typeof h.ended_goal_side==='boolean'))return false;
+    // Verify the whole two-head label against the numeric evidence. This
+    // must mirror the conservative Round 14 backend classification, not
+    // trust a text label that contradicts its own source quantities.
+    const tu=h.next_touch_change>.02,td=h.next_touch_change<-.02;
+    const gd=h.danger_change<-.02,gu=h.danger_change>.02;
+    const expected=!(tu||td||gd||gu)?'negligible':
+      td&&!gu&&h.moved_back_uu>500&&h.ended_goal_side===true?'restraint':
+      (tu||gd)&&!(td||gu)?'supports':
+      (td||gu)&&!(tu||gd)?'hurts':'tradeoff';
+    return h.label===expected;
+  }
+  function movementReadout(point){
+    const h=point?.your_movement_reading;
+    if(!validHeadReading(h))return null;
+    const meaning={
+      supports:'Favorable model signals — increased touch access and/or reduced goal-area danger',
+      hurts:'Unfavorable model signals — reduced touch access and/or increased goal-area danger',
+      tradeoff:'Model tradeoff — an improvement in one signal came with a deterioration in the other',
+      restraint:'Goal-side defensive restraint — gave up next-touch access without raising modeled danger',
+      negligible:'Tiny model movement signal — not meaningful to interpret'
+    }[h.label];
+    const sign=n=>(n>0?'+':'')+n.toFixed(3);
+    return {
+      label:h.label,
+      meaning,
+      evidence:'Next-touch model signal '+sign(h.next_touch_change)+
+        '; near-goal danger model signal '+sign(h.danger_change)+'.',
+      caveat:'Association in a model fitted to unknown-rank matches, NOT cause, blame, or an expert tactical grade.'
+    };
+  }
   function checkPoint(p,duration){
     const link=p?.decision_time_reading;
     return p&&safeTime(p.t_start)&&safeTime(p.t_end)&&
@@ -66,6 +110,8 @@
       finite(p.team_control_change)&&finite(p.your_movement_effect)&&
       finite(p.your_share_of_attributed_change)&&
       p.your_share_of_attributed_change>=0&&p.your_share_of_attributed_change<=1 &&
+      validHeadReading(p.your_movement_reading) &&
+      typeof p.causal_status==='string'&&p.causal_status.startsWith('association') &&
       Array.isArray(p.touches)&&p.touches.length<=30 &&
       p.touches.every(t=>safeTime(t.t)&&['you','teammate','opponent'].includes(t.by)) &&
       (!link||(safeTime(link.t0)&&link.t0<=p.t_end &&
@@ -115,6 +161,21 @@
     if(!Array.isArray(list))return '';
     return list.slice(0,max).map(x=>typeof x==='string'?asText(x,160):
       asText(x?.text||x?.reading||'',160)).filter(Boolean).join(' · ');
+  }
+  // A small falsifiability lens: these are only t0 conditions already
+  // supplied by the locally validated Stage A finding. Never infer a new
+  // counterfactual outcome, tactic, teammate intent, or confidence score.
+  function decisionAudit(f){
+    const assumptions=f?.assumptions;
+    const decisive=(Array.isArray(assumptions?.decisive)?
+      assumptions.decisive:[]).filter(d=>d&&typeof d==='object' &&
+      typeof d.question==='string').slice(0,3);
+    const unknown=(Array.isArray(assumptions?.unobservable)?
+      assumptions.unobservable:[]).filter(d=>d&&typeof d==='object').slice(0,3);
+    const context=(Array.isArray(f?.decision_context)?
+      f.decision_context:[]).filter(d=>d&&typeof d==='object'&&
+        typeof d.reading==='string').slice(0,10);
+    return {decisive,unknown,context};
   }
   class ReportV2Controller{
     constructor(getSelection,fetcher,jump){
@@ -235,10 +296,14 @@
           'Team control '+p.direction+' · '+fmt(p.t_start)+'–'+fmt(p.t_end)));
         header.append(this.seek(p.t_start,'Seek'));
         card.append(header);
+        const head=movementReadout(p);
+        card.append(el('strong','',head.meaning));
+        card.append(el('p','small-copy',head.evidence));
         card.append(el('p','small-copy',
-          'Your movement '+p.your_movement+' the model score; '+
           Math.round(p.your_share_of_attributed_change*100)+
-          '% of the absolute attributed change. NOT a tactical merit grade.'));
+          '% of the sum of absolute player-attributed changes in this model. '+
+          'This is NOT a percentage of responsibility or evidence of cause.'));
+        card.append(el('p','small-copy',head.caveat));
         if(p.touches.length)
           card.append(el('p','small-copy','Recorded touches in this later window: '+
             p.touches.map(t=>t.by+' '+fmt(t.t)).slice(0,9).join(', ')));
@@ -281,6 +346,55 @@
           if(risks)choice.append(el('p','small-copy','Tradeoffs: '+risks));
           card.append(choice);
         }
+        // More than a list of preferred actions: give the owner an explicit
+        // way to try to falsify the read using what the replay actually knew
+        // BEFORE t0. Closed by default to keep the 3D replay uncluttered.
+        const audit=decisionAudit(f);
+        const review=el('details','experimental-report-detail');
+        review.append(el('summary','','Challenge this reading — decision-time evidence & unknowns'));
+        review.append(el('p','small-copy',
+          'The statements below are historical observations or rule assumptions, not proof that any alternative would have scored or saved a goal.'));
+        const relevant=audit.context.filter(x=>
+          ['unknown','within_error','unobservable','uncertain'].includes(x.status));
+        if(relevant.length){
+          review.append(el('strong','','Uncertain or unavailable at decision time'));
+          for(const item of relevant.slice(0,5)){
+            review.append(el('p','small-copy',
+              asText(item.status,35).replaceAll('_',' ')+' · '+
+              asText(item.reading,330)));
+          }
+        }
+        if(audit.decisive.length){
+          review.append(el('strong','','What could change the choice'));
+          for(const d of audit.decisive){
+            review.append(el('p','small-copy',
+              asText(d.question,350)+' · currently '+
+              asText(d.current||'not established',60).replaceAll('_',' ') +
+              (typeof d.how_to_resolve==='string'?
+                ' · Check: '+asText(d.how_to_resolve,250):'')));
+          }
+        }else{
+          review.append(el('p','small-copy',
+            'The engine identified no decisive unresolved condition here. That does not establish a unique best play.'));
+        }
+        if(audit.unknown.length){
+          review.append(el('strong','','What this replay cannot observe'));
+          for(const d of audit.unknown){
+            review.append(el('p','small-copy',
+              asText(d.text||d.condition||'Unrecorded intent or mechanics',330)));
+          }
+        }
+        if(audit.context.length){
+          const measured=el('details','experimental-report-detail');
+          measured.append(el('summary','','Show the recorded decision-time premises'));
+          for(const item of audit.context.slice(0,8)){
+            measured.append(el('p','small-copy',
+              asText(item.status||'not assessed',32).replaceAll('_',' ')+' · '+
+              asText(item.reading,350)));
+          }
+          review.append(measured);
+        }
+        card.append(review);
         if(f.kind==='observation_only'||f.situation?.class==='aerial_or_wall')
           card.append(el('p','small-copy',
             'Aerial/wall mechanics are not modelled; only positional context is supplied.'));
@@ -321,6 +435,8 @@
       holder.append(evidence);
     }
   }
-  root.ReplayLabReportV2=Object.freeze({validSelection,verifyResponse,ReportV2Controller});
+  root.ReplayLabReportV2=Object.freeze({
+    validSelection,verifyResponse,decisionAudit,movementReadout,ReportV2Controller
+  });
   if(typeof module!=='undefined'&&module.exports)module.exports=root.ReplayLabReportV2;
 })(typeof globalThis!=='undefined'?globalThis:this);

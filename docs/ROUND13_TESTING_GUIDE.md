@@ -1,6 +1,6 @@
-# Replay Lab Round 13 — unified Windows owner acceptance
+# Replay Lab Round 14 — integrated Windows owner acceptance
 
-**Target:** [Draft integration PR #58](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/58), branch `integration/round13-v2-complete-owner-test-20261119`. Combines Antigravity's HD and browser work (#53), previous owner-test integration (#55), ChatGPT's source-backed model-provenance work (#57), and Claude's completed experimental V2 backend (#56). **Do not use `main` or claim this is released.** The final integrated SHA must pass its own CI and owner Windows test.
+**Target:** [Draft integration PR #61](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/61), branch `integration/round14-final-owner-test-20261119`. This inherits the HD/coaching/V1/V2 owner-test baseline [PR #58](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/58), adds [ChatGPT's decision-time uncertainty panel #59](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/59), and [Claude's independent next-touch/danger-head attribution #60](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/60). **Do not switch to `main` or treat this as released.** Antigravity's separate Round 14 browser work is NOT yet included. The combined SHA must pass its own CI and real Windows owner review.
 
 ## Start the exact integrated build
 
@@ -8,14 +8,14 @@ From Windows Command Prompt at the **repository root**:
 
 ```cmd
 git fetch origin
-git switch integration/round13-v2-complete-owner-test-20261119
+git switch integration/round14-final-owner-test-20261119
 coach-app\start-windows.cmd
 ```
 
 If this branch has not been checked out locally, use:
 
 ```cmd
-git switch -c integration/round13-v2-complete-owner-test-20261119 --track origin/integration/round13-v2-complete-owner-test-20261119
+git switch -c integration/round14-final-owner-test-20261119 --track origin/integration/round14-final-owner-test-20261119
 ```
 
 The updated launcher requires **Python 3.12, Node.js 22+, npm**, installs Python dependencies, ensures HD node dependencies exist, and **rebuilds the current branch's HD bundle on EVERY start**, preventing stale assets left over from an older feature branch. It stops with a clear error if HD cannot build; it does not pretend a broken 3D renderer passed. Open `http://127.0.0.1:8000` only after the launcher prints its start message.
@@ -64,6 +64,10 @@ The `npm run test:owner-e2e` script now explicitly calls the **real** `/api/coac
 ## Adversarial evidence tests
 
 GitHub CI includes `test_round13_outcome_firewall.py`, which rewrites future events, ball/car trajectories, and misleading replay titles/scores at three decision cutoffs while requiring **identical** model-safe Stage 1 packets, local geometry and deterministic lesson judgments. This is a synthetic leak regression, not proof that every real model response is tactically correct.
+
+## Round 14 live tactical challenge
+
+Use `coach-app/docs/round14/OWNER_20_MIN_TACTICAL_AUDIT.md` for Gemini's **six hypothetical situation flips**, the quick V1-versus-V2 comparison, and exact fields to record when a claim is wrong. In the V2 Turning Points panel, look for **restraint/tradeoff/supports/hurts/negligible model-head readings**. They show separate next-touch versus predicted goal-danger score changes and are **not** causal or quality labels. Click **Challenge this reading** for uncertainty and source premises. If the old "your movement lowered the model score" appears instead, you are on an outdated branch/bundle.
 
 ## Manual owner test: mandatory functions
 
