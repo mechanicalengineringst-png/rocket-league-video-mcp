@@ -20,7 +20,8 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from coach_app.coach_report import build_coaching_report, prefix  # noqa: E402
+from coach_app.coach_report import analyze_moment, build_coaching_report, prefix  # noqa: E402
+from coach_app.coaching_findings import build_stage_a  # noqa: E402
 from coach_app.coach_report_v2 import build_coaching_report_v2  # noqa: E402
 from coach_app.control_timeline import attribute  # noqa: E402
 from coach_app.value_model import FutureControlModel  # noqa: E402
@@ -46,10 +47,16 @@ def one(path: str, pi: int) -> dict:
             stab.append((tp["your_movement_effect"], a["player_contribution"][pid]))
     inv = []
     for f in m["decision_findings"][:2]:
-        full = {k: v for k, v in f.items() if k not in ("retrospective", "situation")}
-        cut = build_coaching_report_v2(prefix(d, f["t0"] + 0.01), pid, max_findings=6)
-        g = next((x for x in cut["matches"][0]["decision_findings"] if abs(x["t0"] - f["t0"]) < 1e-6), None)
-        inv.append(None if g is None else full == {k: v for k, v in g.items() if k not in ("retrospective", "situation")})
+        sit = {"situation_class": f["situation"]["class"], "t0": f["t0"], "player_id": pid, "team": team,
+               "supported_for_judgment": f["situation"]["class"] != "aerial_or_wall"}
+        it = analyze_moment(prefix(d, f["t0"] + 0.01), pid, sit, ledger="r13")
+        if it is None:
+            inv.append(None)
+            continue
+        g = build_stage_a(it["situation"], it["rationale"], it["packet"], finding_id=f["finding_id"],
+                          salience=f["situation"]["selection"])
+        keys = ("decision_context", "alternatives", "interpretation", "assumptions", "takeaway", "kind")
+        inv.append(all(g.get(k) == f.get(k) for k in keys))
     return {
         "v1_verdicts": dict(Counter(x.get("retrospective", {}).get("assessment", {}).get("verdict") for x in v1["findings"])),
         "v2_verdicts": dict(Counter(x["retrospective"]["assessment"].get("verdict_v2") for x in m["decision_findings"])),

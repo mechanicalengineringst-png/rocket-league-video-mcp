@@ -31,6 +31,7 @@ from .value_model import FutureControlModel
 
 SCHEMA = "CoachingReportV2"
 VERSION = "coach-report-v2/0.1"
+LINK_LOOKBACK_S = 3.0              # a decision up to 3 s before the turning point window can be linked
 VERDICT_V2 = {"sound": "consistent_with_rule_read", "defensible_if": "defensible_if", "unclear": "unclear",
               "not_assessed": "not_assessed", "risky": "against_rule_read_unconfirmed",
               "questionable": "against_rule_read_unconfirmed", "debatable": "against_rule_read_unconfirmed"}
@@ -126,7 +127,7 @@ def build_coaching_report_v2(replays: list[dict] | dict, focus_ids: list[str] | 
                 total = sum(abs(v) for v in p["player_contribution"].values()) or 1.0
                 share = abs(mine) / total
                 cut = min([x["t"] for x in p["touches"]] + [p["t_end"]])
-                linked = [it for it in items if p["t_start"] - 1.5 <= it["situation"]["t0"] <= cut]
+                linked = [it for it in items if p["t_start"] - LINK_LOOKBACK_S <= it["situation"]["t0"] <= cut]
                 link = None
                 if linked:
                     it = linked[-1]                    # the last decision before the first touch of the window
