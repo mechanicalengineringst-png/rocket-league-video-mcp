@@ -1,133 +1,72 @@
-# Replay Lab — Round 13 Owner Testing Guide
+# Replay Lab Round 13 — unified Windows owner acceptance
 
-**Target Branch:** `feature/round13-hd-replay-experience-innovation-20261118`  
-**Draft Pull Request:** [#53](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/53)  
-**Target Environment:** Local Windows PC (Python 3.12 + Node.js 22+)  
-**Verified Match Fixture:** `fixtures/replays/real_match_2v2.replay`
+**Target:** [Draft integration PR #55](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/55), branch `integration/round13-complete-owner-test-20261118`. Based on Antigravity [PR #53](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/53) and ChatGPT [PR #54](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/54). **Do not use `main` or claim this is released.** Claude's ongoing tactical branch is NOT included until independently reviewed.
 
----
+## Start the exact integrated build
 
-## 1. Quick Start & First-Run Launch on Windows
+From Windows Command Prompt at the **repository root**:
 
-Replay Lab is configured for reliable, zero-manual-edit launch on Windows:
+```cmd
+git fetch origin
+git switch integration/round13-complete-owner-test-20261118
+coach-app\start-windows.cmd
+```
 
-1. **Open PowerShell or Command Prompt** in the repository root:
-   ```cmd
-   cd coach-app
-   start-windows.cmd
-   ```
-2. **What this automated launcher does:**
-   - Detects or provisions a private Python 3.12 virtual environment (`.venv`).
-   - Verifies and installs backend dependencies (`requirements.txt`).
-   - Automatically builds the High-Fidelity 3D Viewer bundle if missing (`coach_app/static/hd-player/`).
-   - Launches the local FastAPI backend server at `http://127.0.0.1:8000`.
-3. **Open Replay Lab in your browser:**
-   ```
-   http://127.0.0.1:8000
-   ```
+If this branch has not been checked out locally, use:
 
----
+```cmd
+git switch -c integration/round13-complete-owner-test-20261118 --track origin/integration/round13-complete-owner-test-20261118
+```
 
-## 2. Complete Recommended Verification Sequence
+The updated launcher requires **Python 3.12, Node.js 22+, npm**, installs Python dependencies, ensures HD node dependencies exist, and **rebuilds the current branch's HD bundle on EVERY start**, preventing stale assets left over from an older feature branch. It stops with a clear error if HD cannot build; it does not pretend a broken 3D renderer passed. Open `http://127.0.0.1:8000` only after the launcher prints its start message.
 
-Follow this step-by-step sequence to verify the complete Replay Lab experience:
+A real Rocket League `.replay` is uploaded to the **local FastAPI** `/api/replays` backend and parsed there with subtr-actor. The embedded HD player uses its own browser replay pipeline. A `.replay` is NOT video; native Rocket League is optional.
 
-### Step 1: Replay Upload & Identity Selection
-1. Drag and drop any original `.replay` file (e.g. `fixtures/replays/real_match_2v2.replay`) onto the drop zone, or click **Choose replay file**.
-2. Wait ~2–4 seconds for local `subtr-actor` WebAssembly parsing.
-3. Select your player from the **Player** dropdown (e.g. `BEN$A sTYXNZ^^` or `Go2DaMoon`).
-4. **Expected Outcome:** The 2D Tactical pitch displays the 4 player cars and ball. The High-Fidelity 3D Viewer loads the arena with authentic PBR car models (Fennec, Octane, Dominus, etc.) and active wheel sockets.
+## One-replay automated backend acceptance
 
----
+The command-line check routes one real decoded 2v2 through production local APIs: capabilities, model readiness, automatic shortlist, exact lesson parity, evidence lookup, pre-decision scene relations, manual-style episode and situation-aware report. It does **not** send native game commands or call a model without explicit `--model`:
 
-### Step 2: Automatic Coaching Shortlist & Decision Lens
-1. Look at the **Coaching Review Moments** selector.
-2. Select an automatically identified coaching episode (e.g. Episode 1).
-3. The **Decision Lens** panel automatically opens:
-   - Notice that decision-time ($t_0$) metrics are visible (speed, boost, distances to ball and defenders).
-   - **Stage A before Stage B:** Notice that actual recorded future follow-through ($\Delta$ metrics and outcome) is **hidden initially** to prevent hindsight bias.
-4. Click **Reveal Actual Follow-through (+2s)**:
-   - Observe that $+2\text{s}$ recorded metrics appear.
-   - The 2D pitch displays $+2\text{s}$ ghost car positions.
-5. Click **Loop Scene Playback**:
-   - The player continuously replays the 5–15 second window around the decision.
-   - Click **Stop scene loop** to return to standard playback.
+```cmd
+coach-app\round13-test-windows.cmd "C:\path\to\match.replay" 1
+```
 
----
+Replace `1` with the 1–4 **confirmed decoded roster slot**. Omit it only if the recording-player mapping is verified. The output intentionally includes **only statuses and counts**, not private player names, original paths or raw match frames. `api_structural_pass` does **not** establish accurate tactical coaching or working browser visuals.
 
-### Step 3: Experimental Situation-Aware Match Report
-1. Scroll down to the **Experimental Match Report** panel and open it.
-2. Click **Generate Situation-Aware Report**.
-3. **Expected Outcome:** The system computes up to six situation-aware tactical findings across the match (spacing, rotation depth, commitment timing, aerial recovery) using deterministic local heuristics.
+## Manual owner test: mandatory functions
 
----
+1. **Load and identify:** Upload one genuine ranked 2v2 `.replay`, confirm the player in **Who are we coaching?**, match duration and ball/teammate tracks. An identity warning must not be ignored.
+2. **Render and navigate:** Test **HD + Map**, **HD 3D**, and **Tactical 2D** modes. Inspect authentic cars/wheels, stadium, ball movement, kickoff/demolition teleport boundaries, wall/aerial sequences, camera switching, boost and frame stepping. Check jump backward and forward; compare to the native Rocket League replay when possible.
+3. **Moment discovery:** Select an actual coaching episode from **Coaching Review Moments**. The **Decision Lens** should show recorded `t0` conditions, not a declared mistake. Use **Decision t0**, **−3s Approach**, **Loop 5s scene** and **Reveal actual +2s**. Before reveal, actual future results must not be visible; after reveal they should be explicitly identified as *recorded* follow-through.
+4. **Experimental situation report:** Open **Experimental situation-aware 2v2 report** and press **Analyze this match locally (experimental)**. Expect a completion status stating the number of source-checked findings and withheld/invalid findings; zero is a legitimate abstention and should be recorded as such. Review alternatives and assumptions; **What you did & recorded outcome** must initially be closed for each finding. These are local heuristic hypotheses, NOT external model-generated coaching.
+5. **Unflagged moment:** Move the replay slider to an interesting moment **with at least seven seconds of prior recorded history**. Open Decision Lens, click **Pin current frame**, then **Review this overlooked moment (local)**. Verify the status actually says **Manual source-backed episode created** and that the episode becomes selectable. A disabled button or a refusal is not a pass.
+6. **Blind evaluation:** Select a source-backed *primary* decision, open **Blind Decision Review**, select prior outcome exposure, press **Start predecision review**, and confirm the AI and future controls disappear. Choose your action, teammate cover and confidence, click **Lock my predecision judgment**, and only THEN **Reveal actual recorded follow-through**. Separately rate the decision, execution and optional AI. Press **Save this review locally**; verify `1 completed`, then **Export session evaluation JSON**.
+7. **Measured geometry:** With an eligible primary coaching decision selected, open **AI coaching proposals → Measured scene relationships**, click **Inspect source-backed geometry**. It must show local predecision measurements or a truthful reason for abstention, not a simulated outcome.
+8. **Real AI model readiness:** Open **AI coaching proposals**, click **Check model configuration**. With no configured provider, the panel correctly says disabled/incomplete and will NOT generate actual model advice. Checking a consent box does not conjure a model. If a model is configured and separately approved, authorize ONE request and require an actual `model_proposal` with source-checked claims or an explicit failed/withheld result. Export local AI feedback. A mock transport test or no-spend readiness check is NOT real LLM acceptance.
+9. **Round 13 HD features:** Optional 3D tactical overlays must start off, procedural audio muted; verify both opt-in controls. Check Broadcast Director/TV camera, normal car and ball cameras, 0.1× speed and frame stepping. Neither overlay nor audio should be forced during tactical analysis.
+10. **Cross-view synchronization:** Seek to decision `t0`, kickoffs and goals, checking map clock and embedded HD clock on both **forward and backward seeks**. Compare the action frame to the timestamp, not merely a nonzero HD clock.
+11. **Optional native game companion:** Only with explicit owner opt-in and a configured Stats API. A successful localhost port probe does NOT confirm that Rocket League loaded/seeks/changes POV. Native game video is not supplied to the standalone viewer.
 
-### Step 4: Manual Review of a Missed Moment
-1. Seek to any arbitrary moment in the match where you made an interesting play that was not highlighted by the automatic shortlist.
-2. In the Decision Lens panel, click **Pin Current Frame for Manual Review**.
-3. Click **Analyze Custom Moment**:
-   - The system performs a local deterministic assessment of the exact frame, evaluating distances, challenger velocities, and defensive goal coverage without requiring an external AI model.
+## Optional ACTUAL source-backed LLM coaching configuration
 
----
+The current model path is `GET /api/coach/model-readiness` and explicit `POST /api/coach/lesson` with `mode: "model"`, **not** `/api/model-coaching/config` and **not** a mere `GEMINI_API_KEY` check. The older optional Gemini game review route is a different legacy workflow.
 
-### Step 5: Blind Two-Stage Decision Review
-1. Open the **Blind Review** panel.
-2. Select your prior exposure (e.g., "Unseen match / Blind").
-3. Click **Start Blind Review**:
-   - Playback is capped at $t_0$.
-   - AI advice and outcome data are strictly masked.
-4. Complete **Stage A**:
-   - Select your predicted/chosen action (e.g. "Challenge immediately", "Fake challenge / shadow", or "Rotate backpost").
-   - Select your estimated goal coverage and confidence level.
-   - Click **Lock Pre-Decision Assessment**.
-5. Complete **Stage B**:
-   - Click **Reveal Outcome**: Watch the post-decision result.
-   - Rate decision quality separately from physical execution quality.
-   - Click **Save & Export Feedback**: Downloads a structured JSON feedback packet.
+There is no bundled model. To use an already installed and approved local OpenAI-compatible chat-completions provider, set these in the SAME Windows Command Prompt from which you start the app (example endpoint only):
 
----
+```cmd
+set "REPLAY_LAB_ENABLE_COACH_MODEL=1"
+set "REPLAY_LAB_COACH_MODEL_URL=http://127.0.0.1:11434/v1/chat/completions"
+set "REPLAY_LAB_COACH_MODEL_NAME=YOUR_ACTUALLY_INSTALLED_MODEL"
+coach-app\start-windows.cmd
+```
 
-### Step 6: Optional AI Coaching Panel (Model Transparency & Safety)
-1. Open the **AI Model Coach** panel.
-2. Check the **Readiness Status**:
-   - If no API key is configured, it honestly reports: `Model disabled in local server (No GEMINI_API_KEY)`.
-   - **Privacy Guarantee:** API keys are never leaked to client JavaScript.
-3. Notice that the **Request AI Coaching Analysis** button is disabled until you explicitly check **"I authorize sending anonymized match telemetry to the configured model provider"**.
-4. Click **Local Spatial Inspection**:
-   - This runs a zero-provider, zero-cost geometric inspection that populates spatial evidence and actor matrices without making any network calls.
+You must independently run the corresponding model service, verify its endpoint and installed name, and confirm it supports the strict `CoachDraftV0` JSON response. A remote HTTPS-compatible service additionally requires `REPLAY_LAB_COACH_MODEL_API_KEY` set **privately in the environment**; do not paste it in chat, browser, GitHub or any test report. Remote calls can cost money and transmit sanitized decision evidence to the approved provider. The model UI separately asks for **consent once per call**. Source validation is necessary, not sufficient for expert tactical correctness.
 
----
+See `coach-app/docs/round12b/ACTUAL_MODEL_COACHING_UI.md` for existing validated provider contract and limitations.
 
-### Step 7: Split View & High-Fidelity 3D Viewer Parity
-1. Click **Jump to Decision Point** in the coaching panel:
-   - Both the 2D pitch and the HD 3D iframe jump synchronously to the exact timestamp.
-2. Inside the HD Viewer:
-   - **Clean Default:** The stadium is clean and uncluttered by default.
-   - **3D Tactical Overlays:** Check the **3D Map** checkbox in the top camera bar to project focus-to-ball distance vectors (color-coded by contest range), teammate spacing lines, and Decision Lens markers directly into the 3D stadium.
-   - **Audio Toggle:** Click **🔊 Audio: Off** in the camera toolbar to enable the procedural Web Audio engine (boost thruster whoosh, supersonic sonic booms, ball impact thumps). Adjust volume with the volume slider.
-   - **Broadcast Director Autocam:** Click **Director (TV)** to activate dynamic broadcast camera switching (Endzone Attack, Elevated Sideline, High Aerial) with smooth exponential damping.
-   - **Camera Rigs:** Switch between **Pro standard (110°)**, **Default RL (90°)**, **Wide angle (110°)**, and **High bird's-eye (105°)**.
-   - **Ultra Slow-Motion:** Select **0.1×** playback speed for micro-mechanical touch analysis.
-   - **Frame Stepping:** Click `❮│` and `│❯` to step frame-by-frame; observe that car wheels actively roll and turn with front steering pivots even when paused.
+## Strict test standards and discrepancy capture
 
----
+The earlier Antigravity Round 13 browser script genuinely exercised several local UI journeys and captured a screenshot, but its report/manual/blind/AI steps sometimes only logged a status without asserting full success. It does **not** prove genuine model inference. Use strict browser checks plus this real Windows walkthrough before declaring acceptance. Human review is required.
 
-## 3. Honest Architectural Boundaries & Limitations
+For every failed or unfairly criticized moment record **replay-relative t0**, selected player, what the viewer showed, what the app claimed, why it is factually/tactically wrong, and an alternative defensible play. Keep private replay files and account IDs **local**; use the anonymized feedback JSON exports. Inspect at least one good aggressive play, one good defensive delay, one questionable challenge, and one meaningful moment the automatic detector missed.
 
-1. **No Mandatory Rocket League Install:** The entire application runs standalone in your browser using WASM and WebGL. You do **not** need Rocket League open or installed to review matches.
-2. **Optional Native Companion Boundary:** The companion probe checks localhost ports `49123` / `49124` for BakkesMod SOS/Stats API. It provides spectator camera control only when Rocket League is running; it does **not** stream video or alter game files.
-3. **External Model Costs:** The optional AI Coach requires an explicit API key and explicit user consent. Replay Lab never executes unannounced or paid external requests.
-
----
-
-## 4. How to Record & Report Failed Moments
-
-If you discover an unexpected tactical assessment, incorrect vehicle orientation, or desynchronized timestamp:
-
-1. Click **Feedback** on the relevant coaching card.
-2. Select **Flawed Assessment** or **Accurate Assessment**.
-3. In the note field, record:
-   - **Replay Time:** (e.g. `02:14.35` / Frame `3840`).
-   - **Player Name & Car:** (e.g. `Quartzsandstorm`, Octane).
-   - **Discrepancy Description:** (e.g. "Challenger was recovering backwards; coach recommended rotating instead of challenging").
-4. Click **Save Note** and export the feedback bundle via **Blind Review Export** or the feedback panel.
+Do not merge into `main` until the **exact final combined commit** has all three GitHub workflows green, one real Windows replay passes the key end-to-end gates, and optional model/native-game features are honestly reported as working or unverified. After Claude's new branch arrives, integrate it deliberately and **re-run all checks**.
