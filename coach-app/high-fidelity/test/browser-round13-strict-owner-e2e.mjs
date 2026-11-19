@@ -159,6 +159,34 @@ try {
   }
   check('real local experimental situation report, visible findings, outcome hidden');
 
+  // Claude Round 13 V2 is a DISTINCT local report; require its REAL endpoint
+  // to complete and its stage B drawers to remain collapsed by default.
+  // This may take over a minute for one full-length real replay.
+  await page.locator('#reportV2Panel').evaluate(el => {el.open = true;});
+  requireTrue(await page.locator('#reportV2Btn').isEnabled(),
+    'V2 report is not available with a confirmed real 2v2 selection.');
+  await page.locator('#reportV2Btn').click();
+  await page.waitForFunction(() => {
+    const status=document.getElementById('reportV2Status')?.textContent||'';
+    return status.startsWith('V2:') || status.includes('unavailable');
+  }, null, {timeout: 240000});
+  const v2Status=await page.locator('#reportV2Status').textContent();
+  requireTrue(String(v2Status).startsWith('V2:'),
+    'V2 did not return a verified actual local report.');
+  requireTrue(await page.locator('#reportV2Results .experimental-report-section').count()===3,
+    'V2 did not render habits, turning points, and source-checked decisions.');
+  requireTrue(await page.locator('#reportV2Results .experimental-report-card').count()>0,
+    'V2 did not produce any inspectable real replay moments.');
+  const v2Later=page.locator('#reportV2Results details.experimental-report-outcome');
+  for(let i=0;i<await v2Later.count();i++){
+    requireTrue(!(await v2Later.nth(i).evaluate(el=>el.open)),
+      'V2 exposed the recorded action and outcome without separate reveal.');
+  }
+  const v2Visible=await page.locator('#reportV2Results').textContent();
+  requireTrue(!String(v2Visible).includes('definitely made a terrible mistake'),
+    'V2 inherited old mistake verdict language into its visible report.');
+  check('Round 13 V2 real local habits, turning points, decision reads, Stage B hidden');
+
   // A true overlooked moment requires a fresh MANUAL pin, not an auto-pin.
   const mid = await page.locator('#timeRange').evaluate(el => {
     const lo = Number(el.min), hi = Number(el.max);
