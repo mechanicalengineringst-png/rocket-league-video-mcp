@@ -257,9 +257,15 @@ claim that the product has passed real-browser, real-game, or expert testing.
    evidence-verified Stage A interpretation/options, synced t0 seek,
    and separate **closed Stage B retrospective**; fully hidden during
    blind human Stage A. New JS and Python integration contract tests.
-   **CI still being verified on the unified head; standalone agent
-   results must not be copied as proof of combined success.** No
-   `main` merge. Owner Windows acceptance guide:
+   **Exact-head CI VERIFIED at `cfc5b2a`: all three workflows pass,
+   507 Python passed / 13 skipped / 1 warning, 51/51 parent JS,
+   61/61 HD Node suite, 16/16 dedicated camera/shader QA, production
+   Vite HD build.** The dedicated HD check initially failed on a stale
+   `src/bridge.js` package script reference, repaired to check the
+   current sync/camera/shader modules and rerun successfully. This is
+   code integration confidence, NOT human Windows visual parity,
+   native game command acceptance or expert tactical validation.
+   No `main` merge. Owner Windows acceptance guide:
    `coach-app/docs/round12/UNIFIED_TESTING_GATE.md` on PR #52.
    Antigravity's screenshots were source-branch QA, not merged
    Windows game acceptance. Native commands remain independent and
@@ -314,11 +320,12 @@ claim that the product has passed real-browser, real-game, or expert testing.
 
 ### Immediate next integration/test plan (one more round before owner testing)
 
-1. **Round 12 combined branch is now in draft PR #52** from
-   #50 + Antigravity #51 HD/source QA + Claude #45 tactical/merit
-   reports. Verify all three exact-head CI workflows and fix
-   integrated contract failures; do not claim stand-alone test
-   counts prove merged quality. No merge into `main`.
+1. **Round 12 combined draft PR #52 is CI-VERIFIED** on
+   `cfc5b2a`: #50 + Antigravity #51 HD + Claude #45 tactical reports.
+   All three workflows, 507 Python tests, 51 parent JS tests, 61 HD
+   tests, 16 camera/shader QA tests and Vite HD production build pass.
+   Next action is owner Windows visual/2v2 replay acceptance, not
+   additional speculative branch development. No merge into `main`.
 2. Run the local Windows acceptance in
    `coach-app/docs/round12/UNIFIED_TESTING_GATE.md`: verify HD
    authentic car models, ball/camera seeks, wall + aerial, supersonic
