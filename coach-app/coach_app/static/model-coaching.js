@@ -20,6 +20,38 @@
   });
   const FEEDBACK = new Set(['useful','incorrect','missing_context']);
   const MAX_CLAIMS = 12;
+  // Distinguish source-checked proposals from actual coaching success.
+  // A clean HTTP response may contain only baseline facts or rejected claims.
+  const MODEL_STATES = new Set([
+    'model_claims_withheld', 'model_claims_without_tactical_grade',
+    'model_tactical_hypothesis'
+  ]);
+  function verifiedProvenance(v,accepted,rejected,grade){
+    const p=v?.response_provenance;
+    if(p === undefined){
+      // Compatibility with older local servers. Never call this verified.
+      return {source:'legacy_provenance_unavailable',status:'legacy_counts_only',
+        submitted:accepted+rejected,accepted,rejected,verified:false,
+        tacticalHypothesis:accepted>0&&grade!=='undetermined'};
+    }
+    if(!p || p.source!=='model_draft_evidence_checked' ||
+       !MODEL_STATES.has(p.status) ||
+       !Number.isInteger(p.model_claims_submitted) ||
+       !Number.isInteger(p.model_claims_accepted) ||
+       !Number.isInteger(p.model_claims_rejected) ||
+       p.model_claims_submitted!==accepted+rejected ||
+       p.model_claims_accepted!==accepted ||
+       p.model_claims_rejected!==rejected ||
+       p.baseline_facts_only!==(accepted===0) ||
+       p.tactical_hypothesis_emitted!==(grade!=='undetermined') ||
+       p.semantic_accuracy_verified!==false)return null;
+    const expected = accepted===0?'model_claims_withheld':
+      grade==='undetermined'?'model_claims_without_tactical_grade':
+      'model_tactical_hypothesis';
+    if(p.status!==expected)return null;
+    return {source:p.source,status:p.status,submitted:p.model_claims_submitted,
+      accepted,rejected,verified:false,tacticalHypothesis:grade!=='undetermined'};
+  }
 
   function validRequest(selection) {
     const {replay, focusId, focusConfirmed, coach} = selection || {};
@@ -64,6 +96,9 @@
     const modelClaims=raw.claims.filter(c=>c?.author === 'model_proposal');
     if (modelClaims.length !== raw.validation.accepted_model_claims ||
         modelClaims.length > MAX_CLAIMS ||
+        raw.validation.rejected_model_claims.some(c=>
+          !c || !Number.isInteger(c.index) || c.index<0 ||
+          typeof c.reason!=='string' || c.reason.length>250) ||
         modelClaims.some(c=>
           c.review_status !== 'needs_semantic_review' ||
           typeof c.text !== 'string' || !c.text.trim() ||
@@ -74,9 +109,16 @@
           !c.evidence_refs.length || c.evidence_refs.length > 12 ||
           c.evidence_refs.some(id=>typeof id!=='string'||id.length>160)))
       return null;
+    const rejected=raw.validation.rejected_model_claims.length;
+    const provenance=verifiedProvenance(raw.validation,modelClaims.length,
+      rejected,raw.assessment.grade);
+    if(!provenance)return null;
     return {
       mode:'model_proposal',
       grade:raw.assessment.grade,
+      provenance,
+      rejectionReasons:raw.validation.rejected_model_claims.map(c=>
+        'Claim '+String(c.index+1)+': '+c.reason),
       claims:modelClaims.map(c=>({
         claim_id:String(c.claim_id || ''),
         node_id:c.node_id,section:c.section,
@@ -85,7 +127,7 @@
         evidence_refs:[...c.evidence_refs]
       })),
       accepted:modelClaims.length,
-      rejected:raw.validation.rejected_model_claims.length,
+      rejected,
       merit_verified:false,
       raw_replay_sent_to_provider:false,
       future_outcomes_used:false
@@ -270,8 +312,10 @@
         this.results.set(key,{...outcome,t0:request.primary_t0,
           feedback:null,note:''});
         this.status=outcome.accepted ?
-          'The server accepted '+outcome.accepted+' source-cited model statements. Strategic correctness remains unverified.' :
-          'The provider responded, but no model suggestions passed the source checks. Do not treat this as a coaching verdict.';
+          'The server accepted '+outcome.accepted+' of '+outcome.provenance.submitted+
+          ' model claims for source inspection. Strategic correctness is NOT verified.' :
+          'The provider responded, but ALL '+outcome.provenance.submitted+
+          ' proposed claims were withheld. Local deterministic evidence remains; NO model coaching was accepted.';
       }
       this.render();
     }
@@ -406,6 +450,10 @@
         source_cited_claims:item.claims,
         accepted_claims:item.accepted,
         rejected_claims:item.rejected,
+        model_claims_submitted:item.provenance?.submitted??item.accepted+item.rejected,
+        response_provenance:item.provenance?.status??'legacy_provenance_unavailable',
+        tactical_hypothesis_emitted:item.provenance?.tacticalHypothesis??false,
+        rejection_reasons:item.rejectionReasons||[],
         tactical_accuracy_expert_verified:false,
         feedback:item.feedback,
         tester_note:item.note,
@@ -467,12 +515,31 @@
         return;
       }
       const heading=element('div','model-result-heading');
-      heading.append(element('strong','',
-        'Model assessment: '+item.grade+' (hypothesis, NOT a validated grade)'));
+      const state=item.provenance?.status||'legacy_provenance_unavailable';
+      const title=state==='model_claims_withheld'?
+        'All model claims withheld — deterministic evidence only':
+        state==='model_claims_without_tactical_grade'?
+        'Model observations accepted — no tactical grade':
+        state==='model_tactical_hypothesis'?
+        'Model tactical hypothesis: '+item.grade:
+        item.accepted&&item.grade!=='undetermined'?
+        'Legacy model hypothesis: '+item.grade+' (provenance unavailable)':
+        'Legacy model response (provenance unavailable)';
+      heading.append(element('strong','',title));
       heading.append(element('small','',
-        String(item.accepted)+' accepted citations · '+
-        String(item.rejected)+' rejected claims · no expert quality validation'));
+        String(item.accepted)+' of '+
+        String(item.provenance?.submitted??item.accepted+item.rejected)+
+        ' model claims passed source checks; '+String(item.rejected)+
+        ' rejected. Tactical correctness NOT verified.'));
       holder.append(heading);
+      if(item.rejectionReasons?.length){
+        const info=element('details','model-rejection-details');
+        info.append(element('summary','',
+          String(item.rejectionReasons.length)+' source-check rejection reason(s)'));
+        for(const reason of item.rejectionReasons.slice(0,12))
+          info.append(element('p','small-copy',reason));
+        holder.append(info);
+      }
       if(!item.claims.length){
         holder.append(element('p','small-copy',
           'No model recommendation passed validation. The replay review remains available without a verdict.'));
