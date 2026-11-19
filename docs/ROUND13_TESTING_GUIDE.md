@@ -1,6 +1,6 @@
 # Replay Lab Round 13 — unified Windows owner acceptance
 
-**Target:** [Draft integration PR #55](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/55), branch `integration/round13-complete-owner-test-20261118`. Based on Antigravity [PR #53](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/53) and ChatGPT [PR #54](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/54). **Do not use `main` or claim this is released.** Claude's ongoing tactical branch is NOT included until independently reviewed.
+**Target:** [Draft integration PR #58](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/58), branch `integration/round13-v2-complete-owner-test-20261119`. Combines Antigravity's HD and browser work (#53), previous owner-test integration (#55), ChatGPT's source-backed model-provenance work (#57), and Claude's completed experimental V2 backend (#56). **Do not use `main` or claim this is released.** The final integrated SHA must pass its own CI and owner Windows test.
 
 ## Start the exact integrated build
 
@@ -8,14 +8,14 @@ From Windows Command Prompt at the **repository root**:
 
 ```cmd
 git fetch origin
-git switch integration/round13-complete-owner-test-20261118
+git switch integration/round13-v2-complete-owner-test-20261119
 coach-app\start-windows.cmd
 ```
 
 If this branch has not been checked out locally, use:
 
 ```cmd
-git switch -c integration/round13-complete-owner-test-20261118 --track origin/integration/round13-complete-owner-test-20261118
+git switch -c integration/round13-v2-complete-owner-test-20261119 --track origin/integration/round13-v2-complete-owner-test-20261119
 ```
 
 The updated launcher requires **Python 3.12, Node.js 22+, npm**, installs Python dependencies, ensures HD node dependencies exist, and **rebuilds the current branch's HD bundle on EVERY start**, preventing stale assets left over from an older feature branch. It stops with a clear error if HD cannot build; it does not pretend a broken 3D renderer passed. Open `http://127.0.0.1:8000` only after the launcher prints its start message.
@@ -46,6 +46,21 @@ The script requires locally installed Chrome, Playwright and a **real replay pat
 
 Any failed assertion is useful: preserve the error and replay-relative timestamp for the next iteration. You can override the local server address with `REPLAY_LAB_URL` and the local screenshot path with `REPLAY_LAB_SCREENSHOT`.
 
+## Multiple replays — useful habits, not one-match anecdotes
+
+The V2 browser panel intentionally evaluates **only the selected match**; it cannot establish reliable player habits from that match alone. Claude's separate command-line V2 report can combine multiple genuine 2v2 replays for the same player. From the project root on Windows:
+
+```cmd
+cd coach-app
+.venv\Scripts\python.exe scripts\coach_replays_v2.py "C:\replays\match1.replay" "C:\replays\match2.replay" "C:\replays\match3.replay" "C:\replays\match4.replay" "C:\replays\match5.replay" --player "YOUR_EXACT_REPLAY_NAME" --md "v2_multi_match_report.md"
+```
+
+First run the script on one replay **without** `--player` if the exact decoded name is uncertain. Use at least five replays for a first look, but the code may still abstain on individual habits needing more samples. Keep the Markdown report and raw replay files **on your PC**. The percentiles describe a 15-match unknown-rank public reference, never GC2 correctness or a demonstrated mistake.
+
+## Strict V2 browser acceptance
+
+The `npm run test:owner-e2e` script now explicitly calls the **real** `/api/coach/coaching-report-v2` route and waits for the completed V2 sections, inspectable actual findings, and closed Stage B outcome drawers. A missing V2 server response is a failing test, not a silent fallback to V1. The real full-replay V2 statistical analysis may take over a minute. The browser test performs no external LLM calls and cannot establish expert tactical quality.
+
 ## Adversarial evidence tests
 
 GitHub CI includes `test_round13_outcome_firewall.py`, which rewrites future events, ball/car trajectories, and misleading replay titles/scores at three decision cutoffs while requiring **identical** model-safe Stage 1 packets, local geometry and deterministic lesson judgments. This is a synthetic leak regression, not proof that every real model response is tactically correct.
@@ -56,6 +71,7 @@ GitHub CI includes `test_round13_outcome_firewall.py`, which rewrites future eve
 2. **Render and navigate:** Test **HD + Map**, **HD 3D**, and **Tactical 2D** modes. Inspect authentic cars/wheels, stadium, ball movement, kickoff/demolition teleport boundaries, wall/aerial sequences, camera switching, boost and frame stepping. Check jump backward and forward; compare to the native Rocket League replay when possible.
 3. **Moment discovery:** Select an actual coaching episode from **Coaching Review Moments**. The **Decision Lens** should show recorded `t0` conditions, not a declared mistake. Use **Decision t0**, **−3s Approach**, **Loop 5s scene** and **Reveal actual +2s**. Before reveal, actual future results must not be visible; after reveal they should be explicitly identified as *recorded* follow-through.
 4. **Experimental situation report:** Open **Experimental situation-aware 2v2 report** and press **Analyze this match locally (experimental)**. Expect a completion status stating the number of source-checked findings and withheld/invalid findings; zero is a legitimate abstention and should be recorded as such. Review alternatives and assumptions; **What you did & recorded outcome** must initially be closed for each finding. These are local heuristic hypotheses, NOT external model-generated coaching.
+4a. **Claude V2 experimental report:** Open **Round 13 V2 — Habits & turning points**. Press **Analyze this match with V2 (experimental)**. Expect three separate sections: descriptive habits (explicitly marked insufficient for rank-based inference from one match), retrospective team-control turning points including gains and losses, and decision-time observations with alternatives. Inspect the **Stage B: recorded action and later outcome** drawers: they must start closed, and old R12 mistake language must not appear as a verdict. Click a turning-point timestamp and verify the HD/2D clocks jump to it. V2 is NOT an external language model; its learned statistical control model is local and was trained on unknown-rank replays.
 5. **Unflagged moment:** Move the replay slider to an interesting moment **with at least seven seconds of prior recorded history**. Open Decision Lens, click **Pin current frame**, then **Review this overlooked moment (local)**. Verify the status actually says **Manual source-backed episode created** and that the episode becomes selectable. A disabled button or a refusal is not a pass.
 6. **Blind evaluation:** Select a source-backed *primary* decision, open **Blind Decision Review**, select prior outcome exposure, press **Start predecision review**, and confirm the AI and future controls disappear. Choose your action, teammate cover and confidence, click **Lock my predecision judgment**, and only THEN **Reveal actual recorded follow-through**. Separately rate the decision, execution and optional AI. Press **Save this review locally**; verify `1 completed`, then **Export session evaluation JSON**.
 7. **Measured geometry:** With an eligible primary coaching decision selected, open **AI coaching proposals → Measured scene relationships**, click **Inspect source-backed geometry**. It must show local predecision measurements or a truthful reason for abstention, not a simulated outcome.
@@ -87,4 +103,4 @@ The earlier Antigravity Round 13 browser script genuinely exercised several loca
 
 For every failed or unfairly criticized moment record **replay-relative t0**, selected player, what the viewer showed, what the app claimed, why it is factually/tactically wrong, and an alternative defensible play. Keep private replay files and account IDs **local**; use the anonymized feedback JSON exports. Inspect at least one good aggressive play, one good defensive delay, one questionable challenge, and one meaningful moment the automatic detector missed.
 
-Do not merge into `main` until the **exact final combined commit** has all three GitHub workflows green, one real Windows replay passes the key end-to-end gates, and optional model/native-game features are honestly reported as working or unverified. After Claude's new branch arrives, integrate it deliberately and **re-run all checks**.
+Do not merge into `main` until the **exact final combined commit** has all three GitHub workflows green, one real Windows replay passes the key end-to-end gates, and optional model/native-game features are honestly reported as working or unverified. Claude's completed Round 13 V2 branch is present in PR #58. Re-run all checks on the **exact latest PR #58 commit** after any additional browser edits, then perform the Windows owner test.
