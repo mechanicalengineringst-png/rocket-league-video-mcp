@@ -30,6 +30,8 @@ Stage 1 only: the input is a Stage1EpisodePacketV0; retrospective input is refus
 """
 from __future__ import annotations
 
+import contextlib
+import contextvars
 import math
 from typing import Any
 
@@ -68,7 +70,23 @@ class DecisionStateError(ValueError):
     """Input is not an audited Stage 1 episode packet."""
 
 
+_MARGIN_OVERRIDE: contextvars.ContextVar[float | None] = contextvars.ContextVar("v1_margin_override", default=None)
+
+
+@contextlib.contextmanager
+def margin_override(margin: float):
+    """Evaluate V1 helpers with another ordering margin (sensitivity analysis); context-local, thread-safe."""
+    token = _MARGIN_OVERRIDE.set(float(margin))
+    try:
+        yield
+    finally:
+        _MARGIN_OVERRIDE.reset(token)
+
+
 def _margin() -> float:
+    override = _MARGIN_OVERRIDE.get()
+    if override is not None:
+        return override
     m = CALIBRATION["order_margin_s"]
     if m is None:
         raise DecisionStateError("Order margin is not calibrated.")
