@@ -126,7 +126,7 @@ def build_coaching_report_v2(replays: list[dict] | dict, focus_ids: list[str] | 
                     continue
                 total = sum(abs(v) for v in p["player_contribution"].values()) or 1.0
                 share = abs(mine) / total
-                cut = min([x["t"] for x in p["touches"]] + [p["t_end"]])
+                cut = min([x["t"] - 0.2 for x in p["touches"]] + [p["t_end"]])   # strictly before the first touch
                 linked = [it for it in items if p["t_start"] - LINK_LOOKBACK_S <= it["situation"]["t0"] <= cut]
                 link = None
                 if linked:

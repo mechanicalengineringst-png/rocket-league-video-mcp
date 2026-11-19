@@ -1,0 +1,66 @@
+{
+ "player_reports": 60,
+ "v1_verdicts": {
+  "sound": 219,
+  "unclear": 36,
+  "not_assessed": 35,
+  "questionable": 43,
+  "debatable": 2,
+  "defensible_if": 21,
+  "risky": 4
+ },
+ "v2_verdicts": {
+  "consistent_with_rule_read": 221,
+  "unclear": 36,
+  "not_assessed": 35,
+  "against_rule_read_unconfirmed": 47,
+  "defensible_if": 21
+ },
+ "v1_classes": {
+  "first_defender": 120,
+  "offensive_first_man": 26,
+  "second_man_support": 118,
+  "possession": 73,
+  "loose_ball": 18,
+  "recovery_and_boost": 5
+ },
+ "v2_classes": {
+  "first_defender": 120,
+  "offensive_first_man": 26,
+  "second_man_support": 117,
+  "possession": 73,
+  "loose_ball": 19,
+  "recovery_and_boost": 5
+ },
+ "turning_points": {
+  "n": 240,
+  "gains": 120,
+  "losses": 120,
+  "median_your_share": 0.4,
+  "linked_class": {
+   "second_man_support": 42,
+   "first_defender": 58,
+   "aerial_or_wall": 77,
+   "offensive_first_man": 11,
+   "null": 27,
+   "recovery_and_boost": 9,
+   "loose_ball": 8,
+   "possession": 8
+  },
+  "aerial_links_with_context": 77
+ },
+ "attribution_window_shift": {
+  "n": 240,
+  "pearson": 0.703,
+  "same_sign_share": 0.85
+ },
+ "v2_stage_a_prefix_identical": "120/120",
+ "r13_adjustments_in_selected_findings": 0,
+ "privacy_leaks": 0,
+ "mean_seconds": {
+  "v1": 26.8,
+  "v2": 50.8
+ },
+ "habits_flagged_single_match": 0,
+ "habits_that_would_flag_without_reliability_gate": 174
+}

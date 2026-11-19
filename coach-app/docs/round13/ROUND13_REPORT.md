@@ -98,7 +98,7 @@ Interfaces:
 
 Research scripts: `build_state_dataset.py`, `future_control_study.py`, `train_value_model.py`, `calibrate_field_control.py`, `falsify_round13.py`, `counterfactual_study.py`, `action_value_study.py`, `habit_reliability.py`, `benchmark_round13.py`.
 
-Tests: `tests/test_round13.py` (16 new) plus every existing test. Full suite: **523 passed, 13 skipped**.
+Tests: `tests/test_round13.py` (16 new) plus every existing test. Full suite: see the PR body for the exact run.
 
 ## 5. CoachingReportV2 vs Round 12 [code + result]
 
@@ -108,7 +108,27 @@ What changed for a player reading the report:
 3. **Single decisions.** The R12 Stage A ledger with r13 adjustments. Stage B says "matched the rule read", "defensible if" or "went against the rule read (unconfirmed: review, not a mistake)", never "questionable".
 4. **Evidence-status table** in every report: what is validated, downgraded or failed.
 
-{BENCH}
+**Benchmark on the cohort** (`scripts/benchmark_round13.py` → `docs/round13/benchmark_v2_vs_v1.json`; 60 player-match reports):
+
+| Measure | R12 (V1) | R13 (V2) |
+|---|---|---|
+| Single-decision findings (same ranking) | 360 | 360 |
+| Retrospective "questionable / risky / debatable" | 49 | 0 (47 "went against the rule read, unconfirmed") |
+| Habit standouts flagged from a single match | n/a | **0** (174 would have been flagged without the reliability gate) |
+| Turning points | n/a | 240: **120 gains / 120 losses** |
+| Turning points linked to a decision-time read | n/a | 213 (77 of them aerial/wall, all with physical commitment context); 27 had no prior decision situation |
+| Attribution stability when the 2 s window shifts by 0.5 s | n/a | Pearson 0.70; same sign 85% |
+| Stage A identical when the replay is cut at t0 | 180/180 (R12) | 120/120 |
+| r13 ledger adjustments among selected findings | n/a | **0** (the close-range intent case is rare among top-ranked moments) |
+| Player names or IDs in output | 0 | 0 |
+| Mean runtime per player-match | 27 s | 51 s |
+
+**What this shows honestly:**
+- V2 does not make single-decision reads more accurate. It removes unsupported mistake labels and adds two layers the data supports better: whole-match habits (gated by reliability) and sequence-level turning points (balanced between gains and losses, and moderately stable).
+- The r13 ledger change is real but rarely reaches the selected findings.
+- Aerial and wall play sits behind about a third of the turning points the focus player most affected, which is where the missing mechanics hurt most.
+
+An anonymised real-replay example: `docs/round13/EXAMPLE_V2_REAL.md`.
 
 ## 6. Failed or weakened hypotheses [result]
 

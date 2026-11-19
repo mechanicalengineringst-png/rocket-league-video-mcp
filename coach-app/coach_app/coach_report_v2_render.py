@@ -42,9 +42,11 @@ def render_markdown_v2(rep: dict[str, Any], *, player_label: str = "you") -> str
             out.append("- None found.")
         for tp in m["turning_points"]:
             touches = ", ".join(f"{x['by']} {_mmss(x['t'])}" for x in tp["touches"]) or "no touches"
-            out.append(f"- **{_mmss(tp['t_start'])}-{_mmss(tp['t_end'])}: control {tp['direction']}**; your movement "
-                       f"{tp['your_movement']} it (share {round(100 * tp['your_share_of_attributed_change'])}% of the attributed "
-                       f"change). Touches: {touches}.")
+            effect = ("your movement pushed in the same direction" if (tp["direction"] == "gain") == (tp["your_movement"] == "raised")
+                      else "your movement pushed against it")
+            out.append(f"- **{_mmss(tp['t_start'])}-{_mmss(tp['t_end'])}: team control {tp['direction']}**; {effect} "
+                       f"(your movement {tp['your_movement']} the control score; "
+                       f"{round(100 * tp['your_share_of_attributed_change'])}% of the attributed change). Touches: {touches}.")
             link = tp.get("decision_time_reading")
             if link:
                 out.append(f"  - Decision-time read at {_mmss(link['t0'])} ({link['class'].replace('_', ' ')}): {link['interpretation']}")
