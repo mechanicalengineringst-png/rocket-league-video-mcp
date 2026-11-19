@@ -57,6 +57,45 @@
         typeof ret.assessment.text_v2==='string') &&
       (f.ledger_adjustments===undefined||Array.isArray(f.ledger_adjustments));
   }
+  const MODEL_MOVEMENT_READS=new Set([
+    'supports','hurts','tradeoff','restraint','negligible'
+  ]);
+  // Round 14: describe EACH learned model head, never turn a single net
+  // attribution or outcome into a judgment of the player's decision.
+  function validHeadReading(h){
+    if(!h||h.kind!=='model_association_not_cause'||
+       !MODEL_MOVEMENT_READS.has(h.label)||
+       !finite(h.next_touch_change)||!finite(h.danger_change)||
+       Math.abs(h.next_touch_change)>1.01||Math.abs(h.danger_change)>1.01||
+       !(h.moved_back_uu===null||
+         (finite(h.moved_back_uu)&&Math.abs(h.moved_back_uu)<20000))||
+       !(h.ended_goal_side===null||
+         typeof h.ended_goal_side==='boolean'))return false;
+    // A restraint claim with no recorded goal-side retreat is misleading.
+    if(h.label==='restraint' &&
+       !(h.moved_back_uu>500 && h.ended_goal_side===true &&
+         h.next_touch_change<-.02 && h.danger_change<=.02))return false;
+    return true;
+  }
+  function movementReadout(point){
+    const h=point?.your_movement_reading;
+    if(!validHeadReading(h))return null;
+    const meaning={
+      supports:'Favorable model signals — increased touch access and/or reduced goal-area danger',
+      hurts:'Unfavorable model signals — reduced touch access and/or increased goal-area danger',
+      tradeoff:'Model tradeoff — an improvement in one signal came with a deterioration in the other',
+      restraint:'Goal-side defensive restraint — gave up next-touch access without raising modeled danger',
+      negligible:'Tiny model movement signal — not meaningful to interpret'
+    }[h.label];
+    const sign=n=>(n>0?'+':'')+n.toFixed(3);
+    return {
+      label:h.label,
+      meaning,
+      evidence:'Next-touch model signal '+sign(h.next_touch_change)+
+        '; near-goal danger model signal '+sign(h.danger_change)+'.',
+      caveat:'Association in a model fitted to unknown-rank matches, NOT cause, blame, or an expert tactical grade.'
+    };
+  }
   function checkPoint(p,duration){
     const link=p?.decision_time_reading;
     return p&&safeTime(p.t_start)&&safeTime(p.t_end)&&
@@ -66,6 +105,8 @@
       finite(p.team_control_change)&&finite(p.your_movement_effect)&&
       finite(p.your_share_of_attributed_change)&&
       p.your_share_of_attributed_change>=0&&p.your_share_of_attributed_change<=1 &&
+      validHeadReading(p.your_movement_reading) &&
+      typeof p.causal_status==='string'&&p.causal_status.startsWith('association') &&
       Array.isArray(p.touches)&&p.touches.length<=30 &&
       p.touches.every(t=>safeTime(t.t)&&['you','teammate','opponent'].includes(t.by)) &&
       (!link||(safeTime(link.t0)&&link.t0<=p.t_end &&
@@ -250,10 +291,14 @@
           'Team control '+p.direction+' · '+fmt(p.t_start)+'–'+fmt(p.t_end)));
         header.append(this.seek(p.t_start,'Seek'));
         card.append(header);
+        const head=movementReadout(p);
+        card.append(el('strong','',head.meaning));
+        card.append(el('p','small-copy',head.evidence));
         card.append(el('p','small-copy',
-          'Your movement '+p.your_movement+' the model score; '+
           Math.round(p.your_share_of_attributed_change*100)+
-          '% of the absolute attributed change. NOT a tactical merit grade.'));
+          '% of the sum of absolute player-attributed changes in this model. '+
+          'This is NOT a percentage of responsibility or evidence of cause.'));
+        card.append(el('p','small-copy',head.caveat));
         if(p.touches.length)
           card.append(el('p','small-copy','Recorded touches in this later window: '+
             p.touches.map(t=>t.by+' '+fmt(t.t)).slice(0,9).join(', ')));
@@ -385,6 +430,8 @@
       holder.append(evidence);
     }
   }
-  root.ReplayLabReportV2=Object.freeze({validSelection,verifyResponse,decisionAudit,ReportV2Controller});
+  root.ReplayLabReportV2=Object.freeze({
+    validSelection,verifyResponse,decisionAudit,movementReadout,ReportV2Controller
+  });
   if(typeof module!=='undefined'&&module.exports)module.exports=root.ReplayLabReportV2;
 })(typeof globalThis!=='undefined'?globalThis:this);
