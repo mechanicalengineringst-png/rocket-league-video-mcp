@@ -205,7 +205,7 @@ What the old system did better: it never criticised anything, because it never j
 
 ## 8. Integration
 
-See `docs/round12/INTEGRATION.md` for exact steps for ChatGPT (bundle flag, capability flags, `complete_json` transport for `run_reasoner_async`) and for Antigravity (finding cards, Stage B collapsed by default, evidence drawer, patterns panel). This branch merges cleanly with PR #41 (and so with #39). On the merged tree: **479 passed, 4 skipped**.
+See `docs/round12/INTEGRATION.md` for exact steps for ChatGPT (bundle flag, capability flags, `complete_json` transport for `run_reasoner_async`) and for Antigravity (finding cards, Stage B collapsed by default, evidence drawer, patterns panel). This branch merges cleanly with PR #41 (and so with #39). On the merged tree: **480 passed, 4 skipped** (merged with PR #41 head `1152a5d`).
 
 ## 9. Highest-risk assumptions
 

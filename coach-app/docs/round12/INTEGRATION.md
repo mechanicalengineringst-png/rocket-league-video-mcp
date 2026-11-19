@@ -6,7 +6,7 @@ The new output always carries `experimental: true` and `expert_validated: false`
 
 Merge check: this branch (from PR #40) merges cleanly with ChatGPT's PR #41 head
 (`feature/round12-test-ready-model-acceptance-20261118`, which contains PR #39); see the PR for the
-test run on the merged tree.
+test run on the merged tree (480 passed, 4 skipped with PR #41 head `1152a5d`; this branch alone: 440 passed, 4 skipped).
 
 ## What the backend now offers
 
