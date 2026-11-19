@@ -316,6 +316,53 @@
             asText(reading.interpretation,2000)));
           if(typeof reading.takeaway==='string')
             d.append(el('p','small-copy','Question to investigate: '+asText(reading.takeaway,800)));
+          // Round 14.5: the nearest decision in time is not necessarily
+          // the earlier cause. Show Claude's conservative three-way guard
+          // next to the linked moment so owners can falsify it in the viewer.
+          const upstream=reading.upstream;
+          const basis=reading.link_basis;
+          const upstreamPanel=el('div','experimental-report-detail');
+          upstreamPanel.append(el('strong','',
+            'Earlier-cause check — estimated at decision time, NOT proof of cause'));
+          if(typeof basis==='string')
+            upstreamPanel.append(el('p','small-copy',asText(basis,320)));
+          if(upstream?.status==='already_constrained'){
+            upstreamPanel.append(el('p','small-copy',
+              'Already constrained: this linked decision may have been too late for a goal-side recovery. '+ 
+              'This does NOT establish which earlier choice, if any, created the problem.'));
+            if(finite(upstream.recovery_debt_s)&&finite(upstream.nearest_opponent_reach_s))
+              upstreamPanel.append(el('p','small-copy',
+                'Estimated recovery '+upstream.recovery_debt_s.toFixed(2)+
+                's; opponent earliest touch '+upstream.nearest_opponent_reach_s.toFixed(2)+
+                's. The 1.0s coverage buffer is an uncalibrated rule.'));
+            const earlier=Array.isArray(upstream.earlier_decisions)?
+              upstream.earlier_decisions.filter(x=>
+                safeTime(x?.t0)&&x.t0<reading.t0&&
+                x.t0>=reading.t0-8&&SAFE_CLASSES.has(x.class)).slice(0,6):[];
+            if(earlier.length){
+              upstreamPanel.append(el('p','small-copy',
+                'Earlier recorded decisions to investigate; none is confirmed causal:'));
+              for(const item of earlier){
+                const row=el('div','experimental-report-option');
+                row.append(this.seek(item.t0,'Review earlier decision'));
+                row.append(el('span','small-copy',' '+item.class.replaceAll('_',' ')));
+                upstreamPanel.append(row);
+              }
+            }else{
+              upstreamPanel.append(el('p','small-copy',
+                'No eligible earlier decision is available in this eight-second review window.'));
+            }
+          }else if(upstream?.status==='in_position'){
+            upstreamPanel.append(el('p','small-copy',
+              'Goal-side recovery was estimated possible at this linked decision. '+
+              'The earlier boost/rotation decision is not implicated by this timing check; '+
+              'that does not prove other earlier choices had no effect.'));
+          }else{
+            upstreamPanel.append(el('p','small-copy',
+              'Earlier-cause status unknown: insufficient decision-time recovery or opponent data. '+
+              'Do not infer a cause from the nearest timestamp.'));
+          }
+          d.append(upstreamPanel);
           card.append(d);
         }else{
           card.append(el('p','small-copy','No defensible source-linked earlier decision was available.'));
