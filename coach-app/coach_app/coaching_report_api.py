@@ -52,3 +52,33 @@ async def coaching_report_v2_endpoint(request: Request):
         return await run_in_threadpool(build_coaching_report_v2, req.replay, req.player_id, max_findings=req.max_findings)
     except (ValueError, KeyError, TypeError, IndexError) as exc:
         raise HTTPException(422, "Could not build the coaching report for this replay.") from exc
+
+
+class CoachingReviewRequest(BaseModel):
+    replay: dict[str, Any]
+    player_id: str = Field(min_length=1, max_length=256)
+    max_moments: int = Field(default=5, ge=1, le=5)
+    t0: float | None = Field(default=None, ge=0)
+
+    @field_validator("replay")
+    @classmethod
+    def require_2v2(cls, r: dict[str, Any]) -> dict[str, Any]:
+        return EpisodeLessonRequest.validate_replay(r)
+
+
+@router.post("/api/coach/review")
+async def coaching_review_endpoint(request: Request):
+    """Round 15 CoachingReviewV1: at most five moments for the viewer side panel. Local, no model call."""
+    from .coaching_review import SCHEMA, build_review, review_moment_at
+    req = await _read_json_request(request, CoachingReviewRequest)
+    if req.player_id not in {p["id"] for p in req.replay["players"]}:
+        raise HTTPException(422, "Selected player is not in this replay.")
+    try:
+        if req.t0 is not None:                       # one moment the player chose; explicit abstention otherwise
+            one = await run_in_threadpool(review_moment_at, req.replay, req.player_id, req.t0)
+            return {"schema": SCHEMA, "mode": "single_moment", "experimental": True, "expert_validated": False,
+                    "status": one["status"], "moments": [one["moment"]] if one["status"] == "ok" else [],
+                    "abstention_reason": one.get("reason")}
+        return await run_in_threadpool(build_review, req.replay, req.player_id, max_moments=req.max_moments)
+    except (ValueError, KeyError, TypeError, IndexError) as exc:
+        raise HTTPException(422, "Could not build the coaching review for this replay.") from exc

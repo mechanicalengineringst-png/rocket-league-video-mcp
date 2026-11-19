@@ -233,9 +233,24 @@ async def decision_cases_endpoint(request: DecisionCaseRequest):
                                  'eligibility': {'rule': cand.rule, 'values': cand.eligibility,
                                                  'frames_used_through_s': cand.frames_used_through_s}})
             result['defender_decisions'] = defender
-        return result
+        return _json_safe(result)
     except (KeyError, ValueError, TypeError) as e:
         raise HTTPException(422, f'Could not process decision cases: {e}') from e
+
+
+def _json_safe(o):
+    """Replace non-finite floats (e.g. an unreachable 'inf' arrival time) with None.
+
+    Round 15 audit: /api/decision-cases returned HTTP 500 on a real public replay because a finding
+    contained float('inf'), which JSON cannot encode. Unknown/unreachable becomes null, never a number.
+    """
+    if isinstance(o, float):
+        return o if math.isfinite(o) else None
+    if isinstance(o, dict):
+        return {k: _json_safe(v) for k, v in o.items()}
+    if isinstance(o, (list, tuple)):
+        return [_json_safe(v) for v in o]
+    return o
 
 
 class CoachQuestionRequest(BaseModel):
