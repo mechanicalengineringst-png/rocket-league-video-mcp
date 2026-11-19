@@ -362,6 +362,31 @@ def build_lesson_from_episode(episode: dict[str, Any], *, model_draft: dict[str,
             "stage1_packet_sha256": _packet_commitment(packet),
             "accepted_model_claims": len(accepted),
             "rejected_model_claims": rejected,
+            # Explicit provenance is needed during real owner testing. A model
+            # draft may return zero accepted claims, in which case the
+            # response still carries deterministic facts but must NEVER be
+            # presented as useful model-generated coaching. This does not
+            # assert that the provider or tactical accuracy is verified.
+            "response_provenance": {
+                "source": ("model_draft_evidence_checked" if model_draft is not None
+                           else "local_deterministic"),
+                "status": (
+                    "deterministic_only" if model_draft is None
+                    else "model_claims_withheld" if not accepted
+                    else "model_claims_without_tactical_grade"
+                    if assessment == "undetermined"
+                    else "model_tactical_hypothesis"
+                ),
+                "model_claims_submitted": (len(model_draft["claims"])
+                                           if model_draft is not None else 0),
+                "model_claims_accepted": len(accepted),
+                "model_claims_rejected": len(rejected),
+                "baseline_facts_only": not accepted,
+                "tactical_hypothesis_emitted": (
+                    model_draft is not None and assessment != "undetermined"
+                ),
+                "semantic_accuracy_verified": False,
+            },
             "semantic_tactical_accuracy_verified": False,
             "future_outcomes_used": False,
             "note": "Evidence-checking and numeric agreement do not validate strategic merit.",
