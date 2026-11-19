@@ -241,21 +241,54 @@ claim that the product has passed real-browser, real-game, or expert testing.
    on PR #50. Gemini has been tasked with **24 hypothetical
    adversarial 2v2 cases and at least 8 context-flip pairs** with a
    blind-scoring rubric; Gemini output is pending, not merged code.
-15. [PR #45](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/45)
-   **Claude's Round 12 tactical intelligence PR**, head `619914f`,
-   stacked on Claude's earlier #40. Introduces an experimental,
-   opt-in situation-aware `CoachingReportV1` with two-stage findings.
-   Claude's PR body states its real replay cohort evaluation is still
-   in progress, so its integration and empirical merit are **pending**.
-   Do not confuse this tactic backend branch with the HD UI branch.
-16. [PR #28](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/28)
+15. [PR #52](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/52)
+   **ChatGPT's Round 12 integrated test build**, branch
+   `integration/round12-complete-hd-tactical-20261118`, based on #50.
+   Ports Antigravity's #51 real HD source patches (preloaded authentic
+   GLB car/wheels, elevated level chase camera, recorded camera-index,
+   cross-frame replay handling and soft supersonic ribbons) and Claude's
+   #45 tactical engine with prerequisite #40 source, studies, examples
+   and tests. Keeps newer 2D+HD app, model consent, Decision Lens,
+   overlooked-moment review, spatial data, and blind human-first test.
+   Explicit `POST /api/coach/coaching-report-v1` and capability flags
+   expose Claude's reports as **experimental, off by default, local,
+   no provider model called, and NOT expert validated**. New in-app
+   "Experimental situation-aware 2v2 report" is click-to-run with
+   evidence-verified Stage A interpretation/options, synced t0 seek,
+   and separate **closed Stage B retrospective**; fully hidden during
+   blind human Stage A. New JS and Python integration contract tests.
+   **CI still being verified on the unified head; standalone agent
+   results must not be copied as proof of combined success.** No
+   `main` merge. Owner Windows acceptance guide:
+   `coach-app/docs/round12/UNIFIED_TESTING_GATE.md` on PR #52.
+   Antigravity's screenshots were source-branch QA, not merged
+   Windows game acceptance. Native commands remain independent and
+   unverified in an actual game.
+16. [PR #51](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/51)
+   **Antigravity's Round 12B authentic HD reconstruction**,
+   current head `ab4c835a`, based on #46. Reported Playwright
+   screenshots of real 3D Octane/Fennec with wheels, level horizon,
+   smooth supersonic ribbon and HD+2D sync. The exact code and tests
+   are ported into #52 without discarding #47–#50 features. Still
+   needs owner visual comparison on final Windows build.
+17. [PR #45](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/45)
+   **Claude's completed Round 12 tactical reasoning**, current head
+   `c394a0f`, stacked on #40. Includes seven decision classes,
+   source-backed two-stage reports, public (unknown-rank) cohort,
+   440 tests passing on branch, merged-with-#41 earlier checkpoint
+   of 480. It is NOT GC/SSL expert validated. Its study flagged
+   overdecisive merit calls (6/405 abstentions) and 1.0-second cover
+   threshold sensitivity, arrival-time lower bounds, fake-challenge
+   misreads and movement-based action labels. #52 ports it behind
+   explicit opt-in; do not default to its verdicts.
+18. [PR #28](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/28)
    Earlier native Stats API companion, independently drafted. Real
    Rocket League loading/seek/POV/pause/speed **NOT verified in a live
    running game**. Antigravity #43 provides another implementation;
    reconcile after source review and real game acceptance. A listening
    port is not game authentication; actual Windows game testing requires
    owner's explicit permission.
-17. [PR #25](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/25)
+19. [PR #25](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/25)
    is this canonical project compass. It remains a separate docs-only
    draft; future sessions should read the linked branch version rather than
    assume this file is already on `main`.
@@ -281,21 +314,21 @@ claim that the product has passed real-browser, real-game, or expert testing.
 
 ### Immediate next integration/test plan (one more round before owner testing)
 
-1. Antigravity's Round 12 work is published as PR #43. Review its
-   native / HD QA follow-up PR #44, verify CI, and preserve the real
-   native replay load and strict WebGL/asset readiness tests.
-2. Review Claude's larger Round 12 backend and integrate only supported
-   tactical contracts; V1 unvalidated grading stays opt-in.
-3. Build the final unified **draft integration branch** from #50,
-   which now contains #43, #44, #46, #47, #48, #49 and compatible model
-   acceptance from #41. Preserve the blind review parent timeline
-   cutoff, masking of any preexisting AI result and separate Stage
-   A/B export, manual overlooked moments, model one-call consent and
-   RelationalInvariantsV0. Integrate Claude's tactical #45 after
-   evaluation and Antigravity's HD/native improvements (including
-   safe camera/trail fixes from #42). Do not revert newer app.js,
-   model-coaching.js, coaching-experience.js or the HD clock guard to
-   older ancestors. No `main` merge.
+1. **Round 12 combined branch is now in draft PR #52** from
+   #50 + Antigravity #51 HD/source QA + Claude #45 tactical/merit
+   reports. Verify all three exact-head CI workflows and fix
+   integrated contract failures; do not claim stand-alone test
+   counts prove merged quality. No merge into `main`.
+2. Run the local Windows acceptance in
+   `coach-app/docs/round12/UNIFIED_TESTING_GATE.md`: verify HD
+   authentic car models, ball/camera seeks, wall + aerial, supersonic
+   trails, zoom framing, split view, all source-backed coaching and
+   blind Stage A mask. Prefer one complete functional match over a
+   further speculative development round.
+3. Keep `CoachingReportV1` explicitly opt-in and not expert-validated.
+   Validate its full-replay situation labels and positive/negative
+   findings in the user's real GC-level 2v2 clips before trusting
+   "questionable" judgments.
 4. Browser-test on an actual **native .replay file**: replay/player
    confirmation, 2D, actual HD geometry/textures/camera/boost/trails,
    split sync, source-backed shortlist, lesson->seek, evidence, model
