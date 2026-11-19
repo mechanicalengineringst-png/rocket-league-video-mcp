@@ -35,6 +35,7 @@ PRESSURE_S = 0.8                  # time before an opponent can touch a ball the
 DETOUR_OK_S = 0.8                 # extra time a big-boost detour may cost before it competes with returning
 SMALL_PAD_CORRIDOR_UU = 700.0
 LOW_BOOST = 30.0
+SHOT_RANGE_UU = 4500.0            # distance to the goal centre; same value the observed-shot label uses
 
 
 class SituationRationaleError(ValueError):
@@ -89,7 +90,7 @@ def _possession(s: _State, prefix: dict, t0: float, focus: str, q: _Q, base: dic
     if isinstance(ball, list):
         bx, by = _rel(team, ball[0], ball[1])
         dist_goal = math.hypot(bx, GOAL_Y - by)
-        out["in_shooting_range"] = _cond(HOLDS if by > 1500 and dist_goal < 4500 else FAILS,
+        out["in_shooting_range"] = _cond(HOLDS if dist_goal < SHOT_RANGE_UU else FAILS,
                                          "The ball is within shooting range of the opponent goal.", ["E.ball.position"],
                                          kind="observed")
         out["ball_in_own_half"] = _cond(HOLDS if by < 0 else FAILS, "The ball is in the own half.", ["E.ball.position"],

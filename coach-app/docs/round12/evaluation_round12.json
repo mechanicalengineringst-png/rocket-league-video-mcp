@@ -1,0 +1,213 @@
+{
+ "cohort": {
+  "replays": 15,
+  "player_reports": 60,
+  "note": "Public 2v2 replays of unknown rank; no human labels; this is not an accuracy benchmark."
+ },
+ "new": {
+  "situations_analysed_by_class": {
+   "first_defender": 995,
+   "second_man_support": 1670,
+   "loose_ball": 591,
+   "aerial_or_wall": 1959,
+   "offensive_first_man": 795,
+   "recovery_and_boost": 713,
+   "possession": 246
+  },
+  "findings": 360,
+  "findings_by_class": {
+   "first_defender": 120,
+   "offensive_first_man": 26,
+   "second_man_support": 118,
+   "possession": 73,
+   "loose_ball": 18,
+   "recovery_and_boost": 5
+  },
+  "findings_by_kind": {
+   "clear_read": 180,
+   "several_defensible": 174,
+   "leaning_with_uncertainty": 6
+  },
+  "findings_status": {
+   "ok": 360
+  },
+  "takeaway_kinds": {
+   "practice": 186,
+   "recognition": 174
+  },
+  "takeaways_with_numbers": 350,
+  "ok_findings": 360,
+  "distinct_takeaway_templates": 79,
+  "mean_alternatives": 6.2,
+  "findings_with_two_or_more_defensible_families": 174,
+  "findings_with_decisive_unknowns": 126,
+  "generic_phrase_hits": 0,
+  "untraced_numbers": 0,
+  "rejected_claims": 0,
+  "verdicts": {
+   "sound": 219,
+   "unclear": 36,
+   "not_assessed": 35,
+   "questionable": 43,
+   "debatable": 2,
+   "defensible_if": 21,
+   "risky": 4
+  },
+  "verdict_vs_outcome": {
+   "sound": {
+    "n": 219,
+    "goal_against_5s": 11,
+    "opponent_next_touch": 74
+   },
+   "unclear": {
+    "n": 36,
+    "goal_against_5s": 0,
+    "opponent_next_touch": 21
+   },
+   "not_assessed": {
+    "n": 35,
+    "goal_against_5s": 6,
+    "opponent_next_touch": 15
+   },
+   "questionable": {
+    "n": 43,
+    "goal_against_5s": 3,
+    "opponent_next_touch": 24
+   },
+   "debatable": {
+    "n": 2,
+    "goal_against_5s": 0,
+    "opponent_next_touch": 0
+   },
+   "defensible_if": {
+    "n": 21,
+    "goal_against_5s": 2,
+    "opponent_next_touch": 11
+   },
+   "risky": {
+    "n": 4,
+    "goal_against_5s": 0,
+    "opponent_next_touch": 0
+   }
+  },
+  "invariance": {
+   "checked": 180,
+   "prefix_identical": 180,
+   "future_rewrite_identical": 180
+  },
+  "privacy_leaks": 0,
+  "pattern_counts": {
+   "first_defender:supported": 521,
+   "first_defender:unlabelled": 102,
+   "first_defender:conditional": 226,
+   "first_defender:contested": 22,
+   "second_man_support:supported": 788,
+   "second_man_support:conditional": 291,
+   "second_man_support:refuted": 343,
+   "second_man_support:unlabelled": 167,
+   "loose_ball:refuted": 61,
+   "loose_ball:supported": 206,
+   "loose_ball:unlabelled": 211,
+   "loose_ball:conditional": 102,
+   "aerial_or_wall:not_assessed": 1959,
+   "offensive_first_man:supported": 271,
+   "offensive_first_man:conditional": 358,
+   "offensive_first_man:refuted": 17,
+   "offensive_first_man:unlabelled": 117,
+   "offensive_first_man:contested": 32,
+   "recovery_and_boost:conditional": 105,
+   "recovery_and_boost:supported": 400,
+   "recovery_and_boost:refuted": 190,
+   "possession:supported": 77,
+   "possession:refuted": 65,
+   "first_defender:refuted": 124,
+   "possession:conditional": 64,
+   "second_man_support:not_assessed": 62,
+   "possession:unlabelled": 39,
+   "recovery_and_boost:unlabelled": 18,
+   "second_man_support:contested": 19,
+   "possession:contested": 1,
+   "loose_ball:not_assessed": 5,
+   "loose_ball:contested": 6
+  },
+  "tendencies_reported": 28,
+  "mean_seconds_per_report": 21.5
+ },
+ "old": {
+  "candidates": 480,
+  "candidate_class_none": 174,
+  "lessons": 480,
+  "lesson_grade_undetermined": 480,
+  "lesson_has_takeaway": 0,
+  "rationale_judgment_available": 385,
+  "generic_phrases": 0,
+  "first_defender_vocabulary_on_non_first_defender": 438,
+  "rationale_judgment_withheld": 95,
+  "candidate_class_offensive_first_man": 45,
+  "candidate_class_loose_ball": 17,
+  "candidate_class_recovery_and_boost": 10,
+  "candidate_class_first_defender": 42,
+  "candidate_class_aerial_or_wall": 155,
+  "candidate_class_second_man_support": 33,
+  "candidate_class_possession": 4
+ },
+ "threshold_sensitivity": {
+  "possession: pressure time": {
+   "x0.7_n": 185,
+   "x0.7_changed": 2,
+   "x1.3_n": 185,
+   "x1.3_changed": 2,
+   "value": 0.8
+  },
+  "recovery: acceptable detour": {
+   "x0.7_n": 185,
+   "x0.7_changed": 1,
+   "x1.3_n": 185,
+   "x1.3_changed": 0,
+   "value": 0.8
+  },
+  "low boost (situation classes)": {
+   "x0.7_n": 185,
+   "x0.7_changed": 0,
+   "x1.3_n": 185,
+   "x1.3_changed": 5,
+   "value": 30.0
+  },
+  "small-pad corridor": {
+   "x0.7_n": 185,
+   "x0.7_changed": 1,
+   "x1.3_n": 185,
+   "x1.3_changed": 1,
+   "value": 700.0
+  },
+  "opponent closing speed = committing": {
+   "x0.7_n": 185,
+   "x0.7_changed": 0,
+   "x1.3_n": 185,
+   "x1.3_changed": 2,
+   "value": 500.0
+  },
+  "boost for recovery": {
+   "x0.7_n": 185,
+   "x0.7_changed": 5,
+   "x1.3_n": 185,
+   "x1.3_changed": 4,
+   "value": 25.0
+  },
+  "room to delay": {
+   "x0.7_n": 185,
+   "x0.7_changed": 4,
+   "x1.3_n": 185,
+   "x1.3_changed": 8,
+   "value": 2500.0
+  },
+  "cover window": {
+   "x0.7_n": 185,
+   "x0.7_changed": 19,
+   "x1.3_n": 185,
+   "x1.3_changed": 20,
+   "value": 1.0
+  }
+ },
+ "threshold_sensitivity_note": "from the preceding run on the same code for the ledger (5 matches, player 0)"
+}

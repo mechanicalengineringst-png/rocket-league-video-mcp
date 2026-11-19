@@ -216,7 +216,7 @@ READINGS: dict[str, list[tuple]] = {
                        (F, "no clean shot lane")],
     "teammate_forward_option": [(H, "your teammate was level or ahead and could reach the ball in {mate_t} s"),
                                 (F, "your teammate was not placed to receive a pass")],
-    "play_uncovered_if_lost": [(H, "if you lost the ball your teammate could not be goal-side in time"),
+    "play_uncovered_if_lost": [(H, "losing the ball would leave nobody goal-side"),
                                (F, "your teammate could cover if you lost the ball")],
     "big_boost_detour_cheap": [(H, "the big-boost detour cost only {detour_extra_s} s more than returning directly ({direct_s} s)"),
                                (F, "the big-boost detour cost {detour_extra_s} s more than returning directly ({direct_s} s)"),

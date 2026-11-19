@@ -60,18 +60,32 @@ def real(cache: Path) -> str:
            "names and IDs are omitted. Examples were chosen to cover situation classes and retrospective verdicts, "
            "**not** because they read best, and nothing here has been reviewed by an expert. Read them as what the "
            "system would tell a player, with its limits shown.", ""]
-    picked, seen = [], set()
+    pool = []
     for f in sorted(glob.glob(str(cache / "*.pkl")))[:8]:
         d = pickle.loads(Path(f).read_bytes())
         mh = "match-" + hashlib.sha256(Path(f).stem.encode()).hexdigest()[:8]
         for pi in (0, 2):
             rep = build_coaching_report(d, d["players"][pi]["id"], max_findings=6)
             for x in rep["findings"]:
-                key = (x["situation"]["class"], x.get("retrospective", {}).get("assessment", {}).get("verdict"))
-                if x["status"] == "ok" and key not in seen and len(picked) < 10:
-                    seen.add(key)
+                if x["status"] == "ok":
                     x["finding_id"] = f"{mh} / player {pi} / {x['finding_id']}"
-                    picked.append((x, rep["focus_player_team"]))
+                    pool.append((x, rep["focus_player_team"]))
+    # every retrospective verdict first (criticism must be inspectable), then one per class
+    picked, seen_v, seen_c = [], set(), set()
+    for x, team in pool:
+        v = x.get("retrospective", {}).get("assessment", {}).get("verdict")
+        if v not in seen_v and v != "not_assessed":
+            seen_v.add(v)
+            seen_c.add(x["situation"]["class"])
+            picked.append((x, team))
+    for x, team in pool:
+        if x["situation"]["class"] not in seen_c and len(picked) < 10:
+            seen_c.add(x["situation"]["class"])
+            picked.append((x, team))
+    for x, team in pool:
+        v = x.get("retrospective", {}).get("assessment", {}).get("verdict")
+        if v == "questionable" and len(picked) < 10 and all(x is not y for y, _ in picked):
+            picked.append((x, team))
     for x, team in picked:
         md = render_markdown(_wrap([x], team), player_label="focus player")
         out += ["## " + md.split("\n## ", 1)[1].rsplit("\n## Limits", 1)[0], ""]
