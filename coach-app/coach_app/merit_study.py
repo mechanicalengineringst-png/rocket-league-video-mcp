@@ -393,11 +393,20 @@ def hindsight_check(study: dict, stage_a: list[dict], stage_b: list[dict]) -> di
             "note": "Changes that follow the outcome suggest hindsight bias; Stage A ratings remain the reference."}
 
 
+def situation_rationale_labels(r: dict) -> dict[str, str]:
+    """SituationRationaleV1 (Round 12, first-defender specs incl. opponent intent) -> acceptable / poor / abstain."""
+    if r.get("judgment") != "available":
+        return {a: "abstain" for a in ACTIONS}
+    m = {"supported": "acceptable", "conditional": "acceptable", "refuted": "poor", "contested": "abstain"}
+    return {a: m[r["actions"][a]["status"]] if a in r.get("actions", {}) else "abstain" for a in ACTIONS}
+
+
 SYSTEM_ADAPTERS: dict[str, Callable[[dict], dict[str, str]]] = {
     "action_rationale_v0": rationale_labels,
     "action_rationale_v0_evidence_only": rationale_evidence_only_labels,
     "decision_state_v1": decision_state_v1_labels,
     "tactical_options_v0": tactical_options_v0_labels,
+    "situation_rationale_v1": situation_rationale_labels,
 }
 
 
