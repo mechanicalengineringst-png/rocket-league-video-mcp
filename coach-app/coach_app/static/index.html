@@ -231,6 +231,18 @@
           <div id="experimentalReportResults" class="experimental-report-results" aria-label="Local experimental tactical findings"></div>
         </div>
       </details>
+      <!-- Round 13 CoachingReportV2: separate from V1, local only, NEVER automatic.
+           Retrospectively selected turning points are hidden during blind Stage A. -->
+      <details class="panel experimental-report-panel" id="reportV2Panel">
+        <summary>Round 13 V2 — Habits &amp; turning points <span class="small-copy">Experimental · local · no AI provider · NOT expert validated</span></summary>
+        <div class="experimental-report-body">
+          <p class="small-copy">V2 combines descriptive habits, team-control turning points, and decision-time interpretations. One replay cannot establish a reliable habit; the reference is 15 public 2v2 matches of unknown rank. Turning-point movement attribution is not blame. V1 remains above for comparison.</p>
+          <button type="button" id="reportV2Btn" class="button-mini" disabled>Analyze this match with V2 (experimental)</button>
+          <p class="small-copy" id="reportV2Status" role="status" aria-live="polite">Not requested.</p>
+          <div id="reportV2Results" class="experimental-report-results" aria-label="Experimental local V2 habits and turning-point report"></div>
+          <p class="small-copy">To assess habit reliability, use the local multi-replay CLI with several matches. This button analyzes only the selected match and never calls an external model provider.</p>
+        </div>
+      </details>
       <!-- Optional real AI inference. One explicit user action per model call;
            deterministic baseline and offline review remain available. -->
       <details class="panel model-coach-panel" id="modelCoachPanel">
@@ -343,6 +355,7 @@
   <script src="/static/manual-review.js"></script>
   <script src="/static/blind-review.js"></script>
   <script src="/static/experimental-report.js"></script>
+  <script src="/static/report-v2.js"></script>
   <script src="/static/app.js" defer></script>
   <script src="/static/hd-bridge.js" defer></script>
 </body>
