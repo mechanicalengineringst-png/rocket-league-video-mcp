@@ -116,6 +116,21 @@
     return list.slice(0,max).map(x=>typeof x==='string'?asText(x,160):
       asText(x?.text||x?.reading||'',160)).filter(Boolean).join(' · ');
   }
+  // A small falsifiability lens: these are only t0 conditions already
+  // supplied by the locally validated Stage A finding. Never infer a new
+  // counterfactual outcome, tactic, teammate intent, or confidence score.
+  function decisionAudit(f){
+    const assumptions=f?.assumptions;
+    const decisive=(Array.isArray(assumptions?.decisive)?
+      assumptions.decisive:[]).filter(d=>d&&typeof d==='object' &&
+      typeof d.question==='string').slice(0,3);
+    const unknown=(Array.isArray(assumptions?.unobservable)?
+      assumptions.unobservable:[]).filter(d=>d&&typeof d==='object').slice(0,3);
+    const context=(Array.isArray(f?.decision_context)?
+      f.decision_context:[]).filter(d=>d&&typeof d==='object'&&
+        typeof d.reading==='string').slice(0,10);
+    return {decisive,unknown,context};
+  }
   class ReportV2Controller{
     constructor(getSelection,fetcher,jump){
       this.getSelection=getSelection;
@@ -281,6 +296,55 @@
           if(risks)choice.append(el('p','small-copy','Tradeoffs: '+risks));
           card.append(choice);
         }
+        // More than a list of preferred actions: give the owner an explicit
+        // way to try to falsify the read using what the replay actually knew
+        // BEFORE t0. Closed by default to keep the 3D replay uncluttered.
+        const audit=decisionAudit(f);
+        const review=el('details','experimental-report-detail');
+        review.append(el('summary','','Challenge this reading — decision-time evidence & unknowns'));
+        review.append(el('p','small-copy',
+          'The statements below are historical observations or rule assumptions, not proof that any alternative would have scored or saved a goal.'));
+        const relevant=audit.context.filter(x=>
+          ['unknown','within_error','unobservable','uncertain'].includes(x.status));
+        if(relevant.length){
+          review.append(el('strong','','Uncertain or unavailable at decision time'));
+          for(const item of relevant.slice(0,5)){
+            review.append(el('p','small-copy',
+              asText(item.status,35).replaceAll('_',' ')+' · '+
+              asText(item.reading,330)));
+          }
+        }
+        if(audit.decisive.length){
+          review.append(el('strong','','What could change the choice'));
+          for(const d of audit.decisive){
+            review.append(el('p','small-copy',
+              asText(d.question,350)+' · currently '+
+              asText(d.current||'not established',60).replaceAll('_',' ') +
+              (typeof d.how_to_resolve==='string'?
+                ' · Check: '+asText(d.how_to_resolve,250):'')));
+          }
+        }else{
+          review.append(el('p','small-copy',
+            'The engine identified no decisive unresolved condition here. That does not establish a unique best play.'));
+        }
+        if(audit.unknown.length){
+          review.append(el('strong','','What this replay cannot observe'));
+          for(const d of audit.unknown){
+            review.append(el('p','small-copy',
+              asText(d.text||d.condition||'Unrecorded intent or mechanics',330)));
+          }
+        }
+        if(audit.context.length){
+          const measured=el('details','experimental-report-detail');
+          measured.append(el('summary','','Show the recorded decision-time premises'));
+          for(const item of audit.context.slice(0,8)){
+            measured.append(el('p','small-copy',
+              asText(item.status||'not assessed',32).replaceAll('_',' ')+' · '+
+              asText(item.reading,350)));
+          }
+          review.append(measured);
+        }
+        card.append(review);
         if(f.kind==='observation_only'||f.situation?.class==='aerial_or_wall')
           card.append(el('p','small-copy',
             'Aerial/wall mechanics are not modelled; only positional context is supplied.'));
@@ -321,6 +385,6 @@
       holder.append(evidence);
     }
   }
-  root.ReplayLabReportV2=Object.freeze({validSelection,verifyResponse,ReportV2Controller});
+  root.ReplayLabReportV2=Object.freeze({validSelection,verifyResponse,decisionAudit,ReportV2Controller});
   if(typeof module!=='undefined'&&module.exports)module.exports=root.ReplayLabReportV2;
 })(typeof globalThis!=='undefined'?globalThis:this);
