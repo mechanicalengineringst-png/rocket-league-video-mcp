@@ -18,6 +18,7 @@ from pydantic import BaseModel, field_validator
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from .coach_api import router as coach_router
+from .coaching_report_api import router as coaching_report_router
 from .coaching import compact_game_states, find_review_candidates
 from .contextual_review import build_contextual_reviews
 from .replays import ReplayParseError, parse_replay_file
@@ -35,6 +36,7 @@ app = FastAPI(title='Rocket League Replay Coach', version='0.3.0')
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=ALLOWED_HOSTS)
 app.mount('/static', StaticFiles(directory=STATIC), name='static')
 app.include_router(coach_router)  # Round 9: separate contracts; older APIs are untouched
+app.include_router(coaching_report_router)  # Opt-in experimental Round 12 coaching report
 
 
 @app.middleware('http')
