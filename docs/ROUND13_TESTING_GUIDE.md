@@ -1,6 +1,6 @@
 # Replay Lab Round 14 — integrated Windows owner acceptance
 
-**Target:** [Draft integration PR #61](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/61), branch `integration/round14-final-owner-test-20261119`. This inherits the HD/coaching/V1/V2 owner-test baseline [PR #58](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/58), adds [ChatGPT's decision-time uncertainty panel #59](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/59), and [Claude's independent next-touch/danger-head attribution #60](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/60). **Do not switch to `main` or treat this as released.** Antigravity's separate Round 14 browser work is NOT yet included. The combined SHA must pass its own CI and real Windows owner review.
+**Target:** [Draft integration PR #64](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/64), branch `integration/round14p5-owner-test-20261119`. This builds on the HD/coaching V1/V2 and head-separated attribution branch [PR #61](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/61), adds the offline no-spend owner preflight and critique card [PR #62](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/62), and incorporates Claude's source-limited earlier-cause link [PR #63](https://github.com/mechanicalengineringst-png/rocket-league-video-mcp/pull/63). **Do not switch to `main` or call this released.** Antigravity's parallel viewer work is not yet included, and this exact combined commit requires green CI and real Windows owner testing.
 
 ## Start the exact integrated build
 
@@ -8,19 +8,30 @@ From Windows Command Prompt at the **repository root**:
 
 ```cmd
 git fetch origin
-git switch integration/round14-final-owner-test-20261119
+git switch integration/round14p5-owner-test-20261119
 coach-app\start-windows.cmd
 ```
 
 If this branch has not been checked out locally, use:
 
 ```cmd
-git switch -c integration/round14-final-owner-test-20261119 --track origin/integration/round14-final-owner-test-20261119
+git switch -c integration/round14p5-owner-test-20261119 --track origin/integration/round14p5-owner-test-20261119
 ```
 
 The updated launcher requires **Python 3.12, Node.js 22+, npm**, installs Python dependencies, ensures HD node dependencies exist, and **rebuilds the current branch's HD bundle on EVERY start**, preventing stale assets left over from an older feature branch. It stops with a clear error if HD cannot build; it does not pretend a broken 3D renderer passed. Open `http://127.0.0.1:8000` only after the launcher prints its start message.
 
 A real Rocket League `.replay` is uploaded to the **local FastAPI** `/api/replays` backend and parsed there with subtr-actor. The embedded HD player uses its own browser replay pipeline. A `.replay` is NOT video; native Rocket League is optional.
+
+## Read-only setup preflight
+
+After installing and building this branch through the launcher, you can check local prerequisites in another terminal from the repository root:
+
+```cmd
+cd coach-app
+.venv\Scripts\python.exe -m scripts.round14_owner_preflight --replay "C:\path\to\match.replay"
+```
+
+This makes **no network or AI-provider calls**, never decodes the replay, and prints no replay filenames, model secrets or account identifiers. `prerequisites_present_not_verified` means the files and packages seem ready; it is **not** a pass of the viewer or coaching engine. Review `coach-app/docs/round14/OWNER_FEEDBACK_CARD.md` for a five-moment checklist before the first match.
 
 ## One-replay automated backend acceptance
 
@@ -67,7 +78,7 @@ GitHub CI includes `test_round13_outcome_firewall.py`, which rewrites future eve
 
 ## Round 14 live tactical challenge
 
-Use `coach-app/docs/round14/OWNER_20_MIN_TACTICAL_AUDIT.md` for Gemini's **six hypothetical situation flips**, the quick V1-versus-V2 comparison, and exact fields to record when a claim is wrong. In the V2 Turning Points panel, look for **restraint/tradeoff/supports/hurts/negligible model-head readings**. They show separate next-touch versus predicted goal-danger score changes and are **not** causal or quality labels. Click **Challenge this reading** for uncertainty and source premises. If the old "your movement lowered the model score" appears instead, you are on an outdated branch/bundle.
+Use `coach-app/docs/round14/OWNER_20_MIN_TACTICAL_AUDIT.md` for Gemini's **six hypothetical situation flips**, the quick V1-versus-V2 comparison, and exact fields to record when a claim is wrong. In the V2 Turning Points panel, look for **restraint/tradeoff/supports/hurts/negligible model-head readings**. They show separate next-touch versus predicted goal-danger score changes and are **not** causal or quality labels. Click **Challenge this reading** for uncertainty and source premises. At each V2 turning point, inspect the new **Earlier-cause check**. It distinguishes *in position*, *already constrained*, and *unknown*, and shows earlier decision timestamps only as review candidates—not proven causes. If you never see this text, verify you are on the Round 14.5 branch and rebuilt the viewer. If the old "your movement lowered the model score" appears instead, you are on an outdated branch/bundle.
 
 ## Manual owner test: mandatory functions
 
