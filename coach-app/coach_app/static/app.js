@@ -53,6 +53,7 @@ function chooseTime(time){
 function setReplay(replay, opts={}){
   if(!replay || !Array.isArray(replay.players) || !Array.isArray(replay.frames) || !replay.frames.length)throw new Error('Invalid replay timeline.');
   window.blindReviewUI?.cancelOpen();
+  window.experimentalReportUI?.selectionChanged();
   stopPlay();removeVideo();window.manualReviewUI?.invalidate('Load and manually pin a real replay moment to review.');state.replay=replay;state.findings=[];
   // Never retain a previous match's pins or future-follow-through ghosts.
   state.decisionLens=null;
@@ -1021,7 +1022,7 @@ function wire(){
   zone.ondragover=e=>{e.preventDefault();zone.classList.add('dragging');};
   zone.ondragleave=()=>zone.classList.remove('dragging');
   zone.ondrop=e=>{e.preventDefault();zone.classList.remove('dragging');loadFile(e.dataTransfer.files[0]);};
-  $('playerSelect').onchange=e=>{window.blindReviewUI?.cancelOpen();clearDecisionLens();window.modelCoachingUI?.resetForReplay();state.focusId=e.target.value;state.focusConfirmed=true;if(state.replay?.source!=='synthetic')remembered.set(state.focusId);state.overrides.clear();refreshFindings();chooseTime(state.time);window.coachingController?.resetForReplay(state.replay?.source==='synthetic');if(state.replay?.source!=='synthetic')loadDecisionCasesForCoaching(state.replay,state.focusId);};
+  $('playerSelect').onchange=e=>{window.blindReviewUI?.cancelOpen();clearDecisionLens();window.modelCoachingUI?.resetForReplay();state.focusId=e.target.value;window.experimentalReportUI?.selectionChanged();state.focusConfirmed=true;if(state.replay?.source!=='synthetic')remembered.set(state.focusId);state.overrides.clear();refreshFindings();chooseTime(state.time);window.coachingController?.resetForReplay(state.replay?.source==='synthetic');if(state.replay?.source!=='synthetic')loadDecisionCasesForCoaching(state.replay,state.focusId);};
   $('timeRange').oninput=e=>{stopPlay();cancelDecisionLensLoop();chooseTime(Number(e.target.value));};
   $('playBtn').onclick=togglePlay;
   $('backBtn').onclick=()=>{stopPlay();cancelDecisionLensLoop();chooseTime(state.time-2);};
@@ -1129,6 +1130,22 @@ function wire(){
         }
       });
     window.blindReviewUI.mount();
+  }
+  // Claude's broader match report runs locally ONLY on an explicit click.
+  // Its calibrated status is experimental; postdecision evidence stays
+  // in a separately closed drawer. The blind review may block this panel.
+  if(globalThis.ReplayLabExperimentalReport?.ExperimentalReportController){
+    window.experimentalReportUI=new ReplayLabExperimentalReport.ExperimentalReportController(
+      ()=>({replay:state.replay,focusId:state.focusId,
+        focusConfirmed:state.focusConfirmed}),
+      null,
+      t0=>{
+        stopPlay();chooseTime(t0);
+        window.dispatchEvent(new CustomEvent('replay-lab:coaching-moment',{
+          detail:{t0,simulated:false,source:'experimental_not_expert_validated'}
+        }));
+      });
+    window.experimentalReportUI.mount();
   }
   // Decision Lens is a real replay tool, separate from coaching verdicts.
   if($('lensPinBtn'))$('lensPinBtn').onclick=()=>{

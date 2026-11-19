@@ -1271,3 +1271,29 @@
 .blind-review-status{margin:0;padding:8px 10px;background:#091f2b;border-left:2px solid #5c8791}
 .blind-review-footer{display:flex;gap:9px;flex-wrap:wrap;align-items:center;
   justify-content:space-between;border-top:1px solid #31505c;padding-top:10px}
+
+/* Local opt-in, uncalibrated tactical report, never mixed into blind Stage A. */
+.experimental-report-panel{margin-top:12px;min-width:0;border:1px solid #395e6d}
+.experimental-report-panel>summary{cursor:pointer;font-weight:750;color:#dce8ef}
+.experimental-report-panel>summary .small-copy{font-size:11px;font-weight:450;margin-left:5px}
+.experimental-report-body{display:flex;flex-direction:column;gap:10px;padding-top:10px;min-width:0}
+.experimental-report-body>.small-copy{margin:0;line-height:1.55}
+.experimental-report-body>.button-mini{align-self:flex-start;padding:8px 10px}
+.experimental-report-results{display:flex;flex-direction:column;gap:10px;min-width:0}
+.experimental-report-card{padding:11px 12px;border:1px solid #356775;border-radius:8px;
+ background:#0d2733;display:flex;flex-direction:column;gap:8px;min-width:0}
+.experimental-report-head{display:flex;flex-wrap:wrap;align-items:center;gap:8px;
+ justify-content:space-between}
+.experimental-report-head strong{font-size:13px;color:#c0eaf1;min-width:0;overflow-wrap:anywhere}
+.experimental-report-reading{font-size:12px;margin:0;line-height:1.55;color:#d5ebf0}
+.experimental-report-detail,.experimental-report-outcome{padding:7px 9px;border-radius:6px;
+ border:1px solid #3a5d70;background:#0d3442;min-width:0}
+.experimental-report-detail summary,.experimental-report-outcome summary{
+ font-size:11px;cursor:pointer;font-weight:700;color:#bcdce4}
+.experimental-report-outcome{border-style:dashed;border-color:#a87d56;background:#302b29}
+.experimental-report-outcome summary{color:#f2d2ac}
+.experimental-report-option{padding:7px 9px;border-left:2px solid #6a9e9c;background:#10313e}
+.experimental-report-option>strong{font-size:11px;color:#d2e5e9}
+.experimental-report-option>.small-copy{margin:4px 0 0;line-height:1.45}
+.experimental-report-takeaway{padding:8px 10px;border-left:3px solid #679da4;
+ background:#102f3b;font-size:12px;line-height:1.55;margin:0;color:#dbeaed}

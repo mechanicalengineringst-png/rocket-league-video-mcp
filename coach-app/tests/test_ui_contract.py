@@ -146,6 +146,29 @@ def test_scene_relationships_are_source_linked_local_and_not_grading():
     assert "modelCoachConsent" in model
 
 
+def test_experimental_tactical_report_is_local_off_by_default_and_stage_separated():
+    html = (ROOT / "index.html").read_text(encoding="utf-8")
+    app = (ROOT / "app.js").read_text(encoding="utf-8")
+    report = (ROOT / "experimental-report.js").read_text(encoding="utf-8")
+    blind = (ROOT / "blind-review.js").read_text(encoding="utf-8")
+    from coach_app.main import app as server
+    from fastapi.testclient import TestClient
+    assert 'id="experimentalReportPanel"' in html
+    assert 'id="experimentalReportBtn"' in html
+    assert 'id="experimentalReportResults"' in html
+    assert '<script src="/static/experimental-report.js"></script>' in html
+    assert "ReplayLabExperimentalReport.ExperimentalReportController" in app
+    assert "root.blindReviewUI?.isPredecisionOpen" in report
+    assert "experimentalReportPanel" in blind
+    assert "/api/coach/coaching-report-v1" in report
+    assert "'experimental-report-outcome'" in report
+    caps = TestClient(server).get("/api/coach/capabilities").json()
+    assert caps["coaching_report_v1"] == "experimental_opt_in_local"
+    assert caps["coaching_report_v1_invokes_model"] is False
+    assert caps["coaching_report_v1_expert_validated"] is False
+    assert caps["coaching_report_v1_auto_generated"] is False
+
+
 def test_blind_two_stage_coaching_ui_has_honest_guard_and_local_export():
     html = (ROOT / "index.html").read_text(encoding="utf-8")
     app = (ROOT / "app.js").read_text(encoding="utf-8")

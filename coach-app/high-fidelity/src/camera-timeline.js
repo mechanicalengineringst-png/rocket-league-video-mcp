@@ -16,40 +16,77 @@ export function findCameraTrack(replay, id, name = '') {
   return byName.length === 1 ? byName[0] : null;
 }
 
-export function recordedCameraAt(track, frameIndex) {
+// The renderer calls recordedCameraAtTime() on EVERY rendered frame. On a
+// replay with hundreds of Ball/Car Cam switches, rescanning all events at
+// 144 Hz needlessly competes with camera rendering and causes frame spikes.
+// ReplayModel cameraEvents is immutable after decoding, so compile once per
+// track and use O(log n) binary lookups at every seek and playback frame.
+//
+// Use WeakMap: no permanent replay retention, including when a new match is
+// loaded. Replacing cameraEvents or appending a new event rebuilds the index.
+// In-place edits that preserve the same array identity and length are not
+// supported; decoded ReplayModel data is not live-mutated.
+const cameraIndexCache = new WeakMap();
+
+function cameraEventIndex(track) {
   const events = Array.isArray(track?.cameraEvents) ? track.cameraEvents : [];
+  if (track && typeof track === 'object') {
+    const prior = cameraIndexCache.get(track);
+    if (prior?.events === events && prior.length === events.length) return prior;
+  }
+  const ball = [], rear = [], driving = [], all = [];
+  let hasRecordedSwitch = false;
+  for (let order = 0; order < events.length; order++) {
+    const event = events[order];
+    const ballState = bool(event?.ballCamActive);
+    if (ballState !== null) hasRecordedSwitch = true;
+    const frame = event?.frame;
+    if (!Number.isSafeInteger(frame) || frame < 0) continue;
+    all.push(frame);
+    // Stable ties preserve the source's last event at the same frame,
+    // matching the old linear scanner's >= semantics.
+    if (ballState !== null) ball.push([frame, ballState, order]);
+    const rearState = bool(event.behindViewActive);
+    if (rearState !== null) rear.push([frame, rearState, order]);
+    const drivingState = bool(event.driving);
+    if (drivingState !== null) driving.push([frame, drivingState, order]);
+  }
+  const byFrame = (a, b) => a[0] - b[0] || a[2] - b[2];
+  for (const entries of [ball, rear, driving]) entries.sort(byFrame);
+  all.sort((a,b) => a - b);
+  const result = {events, length:events.length, ball, rear, driving, all, hasRecordedSwitch};
+  if (track && typeof track === 'object') cameraIndexCache.set(track, result);
+  return result;
+}
+function latestIndex(entries, frame) {
+  let lo = 0, hi = entries.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >>> 1;
+    if ((Array.isArray(entries[mid]) ? entries[mid][0] : entries[mid]) <= frame) lo = mid + 1;
+    else hi = mid;
+  }
+  return lo - 1;
+}
+function lastValue(entries, frame) {
+  const i = latestIndex(entries, frame);
+  return i < 0 ? null : entries[i][1];
+}
+
+export function recordedCameraAt(track, frameIndex) {
   const frames = Array.isArray(track?.frames) ? track.frames : [];
   const index = Number.isFinite(frameIndex) ? Math.max(0, Math.floor(frameIndex)) : 0;
-  let ballCam = null, behind = null, driving = null;
-  let lastSwitchFrame = -1;
-  let lastBallCamFrame = -1, lastBehindFrame = -1, lastDrivingFrame = -1;
-  for (const event of events) {
-    const frame = event?.frame;
-    if (!Number.isInteger(frame) || frame < 0 || frame > index) continue;
-    // Native camera events are not guaranteed to arrive chronologically.
-    // Choose the latest preceding event *for each signal* by frame number,
-    // not whichever record happens to be last in the source array.
-    const ball = bool(event.ballCamActive);
-    const rear = bool(event.behindViewActive);
-    const drive = bool(event.driving);
-    if (ball !== null && frame >= lastBallCamFrame) {
-      ballCam = ball; lastBallCamFrame = frame;
-    }
-    if (rear !== null && frame >= lastBehindFrame) {
-      behind = rear; lastBehindFrame = frame;
-    }
-    if (drive !== null && frame >= lastDrivingFrame) {
-      driving = drive; lastDrivingFrame = frame;
-    }
-    lastSwitchFrame = Math.max(lastSwitchFrame, frame);
-  }
+  const timeline = cameraEventIndex(track);
+  const lastSwitchIndex = latestIndex(timeline.all, index);
   const sample = frames[Math.min(index, Math.max(0, frames.length - 1))] || {};
   return {
-    ballCam, behind, driving, lastSwitchFrame,
+    ballCam: lastValue(timeline.ball, index),
+    behind: lastValue(timeline.rear, index),
+    driving: lastValue(timeline.driving, index),
+    lastSwitchFrame: lastSwitchIndex < 0 ? -1 : timeline.all[lastSwitchIndex],
     yaw: finite(sample.cameraYaw) ? sample.cameraYaw : null,
     pitch: finite(sample.cameraPitch) ? sample.cameraPitch : null,
-    events: events.length,
-    hasRecordedSwitch: events.some(e => bool(e.ballCamActive) !== null),
+    events: timeline.length,
+    hasRecordedSwitch: timeline.hasRecordedSwitch,
   };
 }
 

@@ -220,6 +220,17 @@
       <section class="panel coaching-section" id="coachingSection" aria-label="Interactive AI Coaching Experience">
         <div id="coachingExperienceContainer"></div>
       </section>
+      <!-- Claude's experimental tactical analysis is local-only and never a
+           validated coaching verdict. Stage B stays hidden until opened. -->
+      <details class="panel experimental-report-panel" id="experimentalReportPanel">
+        <summary>Experimental situation-aware 2v2 report <span class="small-copy">Local · no AI provider · uncalibrated tactics</span></summary>
+        <div class="experimental-report-body">
+          <p class="small-copy">Optional 2v2 coaching across possession, offense, second-man support, loose balls, recovery and first-defense. Aerial/wall plays remain observation-only. Every verdict is a testable hypothesis, not expert-verified. Nothing runs automatically or charges an AI provider.</p>
+          <button type="button" id="experimentalReportBtn" class="button-mini" disabled>Analyze this match locally (experimental)</button>
+          <p class="small-copy" id="experimentalReportStatus" role="status" aria-live="polite">Not run.</p>
+          <div id="experimentalReportResults" class="experimental-report-results" aria-label="Local experimental tactical findings"></div>
+        </div>
+      </details>
       <!-- Optional real AI inference. One explicit user action per model call;
            deterministic baseline and offline review remain available. -->
       <details class="panel model-coach-panel" id="modelCoachPanel">
@@ -331,6 +342,7 @@
   <script src="/static/model-coaching.js"></script>
   <script src="/static/manual-review.js"></script>
   <script src="/static/blind-review.js"></script>
+  <script src="/static/experimental-report.js"></script>
   <script src="/static/app.js" defer></script>
   <script src="/static/hd-bridge.js" defer></script>
 </body>

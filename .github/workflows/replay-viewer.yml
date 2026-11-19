@@ -27,6 +27,7 @@ jobs:
           node --check coach-app/coach_app/static/model-coaching.js
           node --check coach-app/coach_app/static/manual-review.js
           node --check coach-app/coach_app/static/blind-review.js
+          node --check coach-app/coach_app/static/experimental-report.js
       - name: Test coordinate transforms and cameras
         run: node --test coach-app/tests/test_viewer_math.cjs
       - name: Test recorded decision lens, temporal evidence and looping
@@ -37,3 +38,14 @@ jobs:
         run: node --test coach-app/high-fidelity/test/manual-review.test.mjs
       - name: Test independent blind predecision review and two-stage user feedback
         run: node --test coach-app/high-fidelity/test/blind-review.test.mjs
+      - name: Test opt-in experimental situation-aware coaching and no hindsight leaks
+        run: node --test coach-app/high-fidelity/test/experimental-report.test.mjs
+      - name: Install exact locked HD player dependencies
+        working-directory: coach-app/high-fidelity
+        run: npm ci --no-audit --no-fund
+      - name: Verify complete high-fidelity player tests and Vite build
+        working-directory: coach-app/high-fidelity
+        run: npm run check
+      - name: Verify source-shaped camera/horizon and soft supersonic shader QA
+        working-directory: coach-app/high-fidelity
+        run: node --test test/camera-polish.qa.mjs test/visual-quality.qa.mjs

@@ -418,6 +418,37 @@ async function loadFile(file, preferredName = null, sessionId = null) {
     setStatus('Loading 3D arena and vehicle assets…');
     await next.ready;
     if (seq !== loadSequence) return;
+
+    // Immediately hide placeholder car boxes while authentic models are loading
+    if (next.actorManager?.pendingCarReplacements) {
+      for (const [_, pending] of next.actorManager.pendingCarReplacements) {
+        if (pending.oldMesh) pending.oldMesh.visible = false;
+      }
+    }
+
+    // Await authentic car models (Octane, Fennec, Dominus, etc. + Wheel_Boog)
+    if (next.actorManager?.carModelLoader) {
+      try {
+        const carPromises = [];
+        for (const [_, pending] of next.actorManager.pendingCarReplacements || []) {
+          const modelType = next.actorManager.carModelLoader.getModelTypeForCar(pending.carName, pending.hitboxType);
+          carPromises.push(next.actorManager.carModelLoader.loadModel(modelType));
+        }
+        if (carPromises.length > 0) {
+          await Promise.allSettled(carPromises);
+        } else {
+          await next.actorManager.carModelLoader.preloadAllModels().catch(() => {});
+        }
+      } catch (err) {
+        console.warn('[Replay Lab HD] Car model preload:', err);
+      }
+      // Wait for any pending car replacements to complete and swap meshes
+      const startWait = performance.now();
+      while (next.actorManager?.pendingCarReplacements?.size > 0 && performance.now() - startWait < 8000) {
+        await new Promise(r => setTimeout(r, 40));
+      }
+    }
+
     // ArenaManager falls back to a single flat mesh on asset load failure.
     const meshes = next.arenaManager?.arenaMeshes?.length ?? 0;
     setStatus(meshes > 1
@@ -458,28 +489,28 @@ async function loadFile(file, preferredName = null, sessionId = null) {
 for (const button of document.querySelectorAll('.cam')) {
   button.addEventListener('click', () => switchCamera(button.dataset.camera));
 }
-$('playerSelect').addEventListener('change', () => {
+$('playerSelect')?.addEventListener('change', () => {
   switchCamera('follow');
   updateCameraEvidence();
   refreshCameraEvents();
 });
-$('ballCamSelect').addEventListener('change', e => applyBallCam(e.target.value));
-$('speedSelect').addEventListener('change', e => player?.setPlaybackRate(Number(e.target.value)));
-$('interpolation').addEventListener('change', e => player?.setMotionInterpolation(e.target.value));
-$('replayLookToggle').addEventListener('change', invalidateCamera);
-$('lightingSelect').addEventListener('change', e=>{
+$('ballCamSelect')?.addEventListener('change', e => applyBallCam(e.target.value));
+$('speedSelect')?.addEventListener('change', e => player?.setPlaybackRate(Number(e.target.value)));
+$('interpolation')?.addEventListener('change', e => player?.setMotionInterpolation(e.target.value));
+$('replayLookToggle')?.addEventListener('change', invalidateCamera);
+$('lightingSelect')?.addEventListener('change', e=>{
   player?.setEnvironment(e.target.value==='neutral'?false:STILL_HDR);
 });
-$('qualitySelect').addEventListener('change', e => {
+$('qualitySelect')?.addEventListener('change', e => {
   if(player) applySceneQuality(player,e.target.value);
 });
-$('fieldDecorSelect').addEventListener('change', e => {
+$('fieldDecorSelect')?.addEventListener('change', e => {
   if(player) setFieldDecorStyle(player,e.target.value);
 });
-$('fxStyle').addEventListener('change', () => {
+$('fxStyle')?.addEventListener('change', () => {
   if(player) effectRefiner?.update(player);
 });
-$('hitboxToggle').addEventListener('change', e => player?.setHitboxWireframesEnabled(e.target.checked));
+$('hitboxToggle')?.addEventListener('change', e => player?.setHitboxWireframesEnabled(e.target.checked));
 // Boost pads themselves remain visible; numeric pickup popups are deliberately disabled.
 
 $('playBtn').addEventListener('click', () => {
@@ -616,7 +647,12 @@ window.addEventListener('message', event => {
   }
   if (event.data?.type !== 'replay-lab:hd-load') return;
   const file = event.data.file;
-  if (!(file instanceof File) || !safeSessionId(event.data.sessionId)) return;
+  const isFileLike = file && (
+    (typeof File !== 'undefined' && file instanceof File) ||
+    (typeof Blob !== 'undefined' && file instanceof Blob) ||
+    (typeof file.arrayBuffer === 'function' && typeof file.name === 'string')
+  );
+  if (!isFileLike || !safeSessionId(event.data.sessionId)) return;
   void loadFile(file, typeof event.data.preferredPlayer === 'string'
     ? event.data.preferredPlayer : null, event.data.sessionId);
 });
