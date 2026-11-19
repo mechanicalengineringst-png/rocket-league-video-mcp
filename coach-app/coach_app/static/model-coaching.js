@@ -519,7 +519,7 @@
       const title=state==='model_claims_withheld'?
         'All model claims withheld — deterministic evidence only':
         state==='model_claims_without_tactical_grade'?
-        'Model observations accepted — no tactical grade':
+        'Source-checked model claims — no tactical grade':
         state==='model_tactical_hypothesis'?
         'Model tactical hypothesis: '+item.grade:
         item.accepted&&item.grade!=='undetermined'?
